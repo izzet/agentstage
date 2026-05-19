@@ -134,25 +134,25 @@ Each run executes the workload's task; predictor and stager run live.
 
 | Eval | Workload | Models | Configs | Seeds | Runs | $/run | Subtotal |
 |---|---|---|---|---:|---:|---:|---:|
-| E5 staging effectiveness | aiob_107, aiob_110 | Haiku, OSS | {with-stager, baseline} | 5 | 40 | $0.30 | $12 |
+| E5 staging effectiveness | aiob_104, aiob_107, aiob_110 | Haiku, OSS | {with-stager, baseline} | 5 | 60 | $0.30 | $18 |
 | E6 BW sensitivity | aiob_107 | Haiku | 1 measured BW × {with, baseline} | 5 | 10 | $0.30 | $3 |
 | E7 graceful degradation | aiob_110 | Haiku, Flash | {hint-on, hint-off} | 3 | 12 | $0.20 | $2.40 |
 | E9 SAB end-to-end | 3 SAB tasks | Haiku, Flash | {with, baseline} | 5 | 60 | $0.35 | $21 |
 | E10 KramaBench end-to-end | 3 tasks (Astronomy + Biomedical + Wildfire) | Haiku, Flash | {with, baseline} | 5 | 60 | $0.30 | $18 |
-| **Campaign B total** | | | | | **182 runs** | | **~$57** |
+| **Campaign B total** | | | | | **202 runs** | | **~$63** |
 
 ### Cost projection summary
 
 | Bucket | Cost |
 |---|---:|
 | Campaign A (trace-only, new probes) | $4 |
-| Campaign B (end-to-end, 15-turn cap) | $57 |
-| 1.5× re-run / debugging buffer | $30 |
-| **Projected total** | **~$90** |
+| Campaign B (end-to-end, 15-turn cap) | $63 |
+| 1.5× re-run / debugging buffer | $32 |
+| **Projected total** | **~$99** |
 
-Headroom under the $150 ceiling: **~$60** for OSS-model thinking-content
+Headroom under the $150 ceiling: **~$50** for OSS-model thinking-content
 surprises, expanded SAB or KramaBench task sets, Sonnet sanity probes
-against the frozen rules.
+against the frozen rules, or a fourth-model expansion if a reviewer asks.
 
 ## Per-cell acceptance criteria
 
@@ -202,24 +202,32 @@ POSIX_FADV_DONTNEED, e.g. some NFS configs), document the gap in the
 ## Turn limit + soft termination
 
 ```python
-# In src/agentstage/runner.py (or equivalent)
+# In src/agentstage/runner.py
 MAX_TURNS = 15
-SOFT_STOP_WRITE_BYTES = 1024   # 1 KB
 SOFT_STOP_MIN_TURNS = 3
 
 for turn in range(MAX_TURNS):
     response = client.next_turn(messages)
     # ... handle tool calls ...
-    if turn >= SOFT_STOP_MIN_TURNS and _wrote_significant_file(task, threshold=SOFT_STOP_WRITE_BYTES):
+    if turn >= SOFT_STOP_MIN_TURNS and benchmark_runner.wrote_significant_output(task):
         messages.append(_stop_message("Stage 1 complete. Reading-phase
                           measurement done; stopping here for the campaign."))
         break
 ```
 
-This formalizes "we only care about the input-reading stage." For SAB:
-the analysis-notebook write triggers stop. For SWE-bench: the patch-file
-write triggers stop. For AgentIOBench tasks: the intermediate-result
-write triggers stop.
+`wrote_significant_output(task)` is **per-benchmark-configurable** —
+each benchmark's runner defines what counts as "first significant write
+to the task output target":
+
+| Benchmark | Predicate |
+|---|---|
+| AIOB | `Path(task.dataset_root / "output" / task.output_fname).stat().st_size >= 1024` (uses `TaskConfig.output_fname` from the task YAML) |
+| SAB | a notebook cell or analysis output file ≥ 1 KB in SAB's output dir |
+| KramaBench | a pipeline-script write or final-answer artifact ≥ 1 KB in `{domain}_results/` |
+
+The default 1 KB threshold is configurable per-benchmark via the runner's
+constructor; sub-1 KB defaults exist for benchmarks where outputs are
+expected to be small (e.g. one-line answers).
 
 ## Ground-truth provenance
 
