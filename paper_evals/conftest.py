@@ -109,6 +109,20 @@ def rule_library_version(request: pytest.FixtureRequest) -> str | None:
     return request.config.getoption("--rule-library-version")
 
 
+@pytest.fixture(scope="session")
+def campaign(outputs_root: Path):
+    """Indexed Campaign view of every run under `outputs_root`.
+
+    On first access, re-scores every run that doesn't already have a
+    `byte_metrics_v1.json` against the frozen v1 rule library. Idempotent
+    on subsequent runs.
+    """
+    from agentstage.metrics.rescore import rescore_outputs_root
+    from agentstage.workloads.campaign import load_campaign
+    rescore_outputs_root(outputs_root, force=False)
+    return load_campaign(outputs_root)
+
+
 # ---------------------------------------------------------------------------
 # Report collector — gathers structured data from tests, writes JSON at end
 # ---------------------------------------------------------------------------
