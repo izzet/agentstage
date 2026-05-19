@@ -6,7 +6,9 @@ authors = [
     { name = "Izzet Yildirim", email = "iyildirim@hawk.iit.edu" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "agentiobench",
+]
 
 [dependency-groups]
 dev = [
@@ -28,3 +30,11 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.uv.workspace]
+members = [
+    "external/benchmarks/agentiobench",
+]
+
+[tool.uv.sources]
+agentiobench = { workspace = true, editable = true }
