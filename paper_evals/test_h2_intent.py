@@ -20,7 +20,7 @@ pytestmark = pytest.mark.h2
 class TestThinkingContentPresence:
     """Most thinking-enabled probes do produce thinking content."""
 
-    def test_thinking_seed_fraction(self, trace_root, report):
+    def test_thinking_seed_fraction(self, outputs_root, report):
         """At least 80% of probes produce non-empty thinking content.
 
         §5.5 reports 30 of 39 matrix probes produced thinking; §TLDR puts the
@@ -37,7 +37,7 @@ class TestHotScanLayer:
     """The literal-path HOT scan is high-precision, low-recall by design."""
 
     def test_hot_precision_on_input_paths(
-        self, trace_root, ground_truth_root, report
+        self, outputs_root, io_report_root, report
     ):
         """When HOT fires (output paths excluded, unique-basename gate), it
         always names a file the agent will actually read.
@@ -49,7 +49,7 @@ class TestHotScanLayer:
             "block and per-seed ground truth (immediate-need set)."
         )
 
-    def test_hot_recall_is_low_by_design(self, trace_root, ground_truth_root):
+    def test_hot_recall_is_low_by_design(self, outputs_root, io_report_root):
         """HOT recall is low — corroborates C5 (literal-path commitment is
         unreliable). Threshold: < 0.35 byte recall on average across
         scientific workloads (it does fire reliably on code_repo).

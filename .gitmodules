@@ -4,3 +4,6 @@
 [submodule "external/benchmarks/swebench"]
 	path = external/benchmarks/swebench
 	url = https://github.com/SWE-bench/SWE-bench.git
+[submodule "agentiobench"]
+	path = external/benchmarks/agentiobench
+	url = git@github.com:grc-iit/agentiobench.git

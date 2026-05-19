@@ -31,25 +31,28 @@ import pytest
 def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("paper_evals", "AgentStage paper evaluation options")
     group.addoption(
-        "--trace-root",
+        "--outputs-root",
+        type=str,
+        default="outputs",
+        help="Root directory containing campaign run outputs — both trace-only "
+             "probes and end-to-end runs share this root, organized as "
+             "outputs/<task>_<model>_<config>_s<seed>/ (default: outputs)",
+    )
+    group.addoption(
+        "--legacy-trace-root",
         type=str,
         default="poc/runs",
-        help="Root directory containing trace-only probe runs (default: poc/runs)",
+        help="Legacy PoC trace corpus (88 probes from before the rule freeze). "
+             "Tests that re-score the PoC corpus against frozen rules read from "
+             "here (default: poc/runs)",
     )
     group.addoption(
-        "--staging-root",
+        "--io-report-root",
         type=str,
         default=None,
-        help="Root directory containing end-to-end staging runs (default: none — "
-             "tests requiring staging data will skip)",
-    )
-    group.addoption(
-        "--ground-truth-root",
-        type=str,
-        default=None,
-        help="Root directory containing static + empirical workload ground truth. "
-             "Empirical truths come from completed io_report.json files in the "
-             "AgentIOBench corpus (default: resolve from agentstage.workloads).",
+        help="Root for historical io_report.json files used as empirical ground "
+             "truth in E2 re-score (typically $SCIIOBENCH_ROOT/outputs). New "
+             "campaign runs produce io_report.json in their own output dir.",
     )
     group.addoption(
         "--min-seeds",
@@ -78,32 +81,41 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
-def trace_root(request: pytest.FixtureRequest) -> Path:
-    p = Path(request.config.getoption("--trace-root"))
+def outputs_root(request: pytest.FixtureRequest) -> Path:
+    """Root for campaign run outputs (trace-only + end-to-end)."""
+    p = Path(request.config.getoption("--outputs-root"))
     if not p.is_dir():
-        pytest.skip(f"--trace-root not found: {p}")
+        pytest.skip(f"--outputs-root not found: {p}")
     return p
 
 
 @pytest.fixture(scope="session")
-def staging_root(request: pytest.FixtureRequest) -> Path | None:
-    opt = request.config.getoption("--staging-root")
-    if opt is None:
-        return None
-    p = Path(opt)
+def legacy_trace_root(request: pytest.FixtureRequest) -> Path | None:
+    """Legacy PoC trace corpus (88 probes from before rule freeze).
+
+    Some H1-H7 tests run against both --outputs-root (new campaign) and
+    --legacy-trace-root (PoC re-scored against frozen rules).
+    """
+    p = Path(request.config.getoption("--legacy-trace-root"))
     if not p.is_dir():
-        pytest.skip(f"--staging-root not found: {p}")
+        return None
     return p
 
 
 @pytest.fixture(scope="session")
-def ground_truth_root(request: pytest.FixtureRequest) -> Path | None:
-    opt = request.config.getoption("--ground-truth-root")
+def io_report_root(request: pytest.FixtureRequest) -> Path | None:
+    """Root for empirical-ground-truth io_report.json files.
+
+    Typically points at $SCIIOBENCH_ROOT/outputs for historical gpt-4.1
+    runs used in E2 re-score. New campaign runs produce io_report.json
+    in their own output dir under --outputs-root and don't need this.
+    """
+    opt = request.config.getoption("--io-report-root")
     if opt is None:
         return None
     p = Path(opt)
     if not p.is_dir():
-        pytest.skip(f"--ground-truth-root not found: {p}")
+        pytest.skip(f"--io-report-root not found: {p}")
     return p
 
 

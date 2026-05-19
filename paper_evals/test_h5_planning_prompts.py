@@ -21,7 +21,7 @@ class TestPlanningPromptSlackMultiplier:
     """Paired comparison: with-PP slack ≥ 2× without-PP slack."""
 
     def test_paired_slack_ratio_per_config(
-        self, trace_root, min_seeds, report
+        self, outputs_root, min_seeds, report
     ):
         """For every (task, model, turn) that has both no-PP and PP runs,
         median(PP slack) / median(no-PP slack) ≥ 2.0.
@@ -36,7 +36,7 @@ class TestPlanningPromptSlackMultiplier:
             "helper to join configs that differ only in the PP flag."
         )
 
-    def test_strict_pp_does_not_regress(self, trace_root, min_seeds):
+    def test_strict_pp_does_not_regress(self, outputs_root, min_seeds):
         """The 'strict-PP' variant (force literal absolute paths) does not
         REDUCE slack compared to the vanilla planning prompt — at worst
         it ties. This was a concern in §5.4 / §5.5 (strict-PP is one of
@@ -54,7 +54,7 @@ class TestPlanningPromptIntentPrecision:
     has not separately measured."""
 
     def test_pp_reduces_tier1_overfetch(
-        self, trace_root, ground_truth_root, min_seeds, report
+        self, outputs_root, io_report_root, min_seeds, report
     ):
         """For paired configs, tier-1 overfetch with PP ≤ tier-1 overfetch
         without PP. Direction-only test — magnitude varies by workload.

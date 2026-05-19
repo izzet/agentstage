@@ -24,7 +24,7 @@ class TestFirstReadLatencyReduction:
 
     @pytest.mark.parametrize("task_id", ["aiob_107", "aiob_110"])
     def test_first_read_p95_speedup(
-        self, task_id, staging_root, min_seeds, report
+        self, task_id, outputs_root, min_seeds, report
     ):
         """First-read P95 with AgentStage / first-read P95 without ≤ 0.5
         on the primary speedup-favorable workloads.
@@ -35,7 +35,7 @@ class TestFirstReadLatencyReduction:
 
         Records: `figure_first_read_p95_per_task` (with vs without).
         """
-        if staging_root is None:
+        if outputs_root is None:
             pytest.skip("H8 requires --staging-root (end-to-end stager output)")
         pytest.skip(
             f"H8.first_read_p95[{task_id}]: pending — requires Day 5-7 stager "
@@ -49,14 +49,14 @@ class TestEndToEndWallClock:
     aspirational claim."""
 
     def test_wall_clock_speedup_ge_1_3x(
-        self, staging_root, min_seeds, report
+        self, outputs_root, min_seeds, report
     ):
         """median(wall_clock without) / median(wall_clock with) ≥ 1.3 at
         50 MB/s cold-tier bandwidth (S3-class).
 
         Records: `table_wall_clock_speedup_per_config`.
         """
-        if staging_root is None:
+        if outputs_root is None:
             pytest.skip("H8 requires --staging-root")
         pytest.skip(
             "H8.wall_clock: pending — Day 7 measured end-to-end target."
@@ -67,11 +67,11 @@ class TestStagerCorrectness:
     """The stager must not be cheating: prestaged bytes count toward the
     same checksum the agent would read directly."""
 
-    def test_no_byte_divergence_between_staged_and_direct(self, staging_root):
+    def test_no_byte_divergence_between_staged_and_direct(self, outputs_root):
         """For every staged file, sha256(staged copy) == sha256(direct read)
         — caught early so we don't quietly serve stale or partial data.
         """
-        if staging_root is None:
+        if outputs_root is None:
             pytest.skip("H8 requires --staging-root")
         pytest.skip(
             "H8.byte_correctness: pending — needs stager checksum hook."

@@ -22,7 +22,7 @@ class TestGoesCollapse:
     """The aiob_107 case study — paper's Section 6.3 reproduces here."""
 
     def test_aiob107_tier1_overfetch_near_1(
-        self, trace_root, ground_truth_root, report
+        self, outputs_root, io_report_root, report
     ):
         """Tier-1 byte overfetch on aiob_107 ≤ 1.2× across all seeds.
 
@@ -37,7 +37,7 @@ class TestGoesCollapse:
         )
 
     def test_naive_baseline_is_dramatically_worse(
-        self, trace_root, ground_truth_root
+        self, outputs_root, io_report_root
     ):
         """The stage-all baseline overfetches ≥ 1 000× on aiob_107 — without
         a baseline this dramatic, the tiering story doesn't sell.
@@ -57,7 +57,7 @@ class TestTieringIsLoadBearing:
     overfetch versus the union (tier-3) of all rules."""
 
     def test_union_overfetch_exceeds_tier1_on_high_fanout_workloads(
-        self, trace_root, ground_truth_root, report
+        self, outputs_root, io_report_root, report
     ):
         """On workloads where workspace ≫ working set (aiob_107, code_repo),
         the union-of-rules overfetch is ≥ 10× the tier-1 overfetch. This

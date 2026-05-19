@@ -23,7 +23,7 @@ class TestFrozenRulesOnScienceAgentBench:
     """E9: ScienceAgentBench end-to-end with frozen rules."""
 
     def test_sab_tier1_byte_recall_threshold(
-        self, trace_root, ground_truth_root, rule_library_version, report
+        self, outputs_root, io_report_root, rule_library_version, report
     ):
         """Tier-1 byte recall ≥ 0.70 on each SAB task in the 3-5 task subset.
 
@@ -41,7 +41,7 @@ class TestFrozenRulesOnSWEbenchLite:
     """E10: SWE-bench Lite end-to-end with frozen rules."""
 
     def test_swebench_tier1_byte_recall_threshold(
-        self, trace_root, ground_truth_root, rule_library_version, report
+        self, outputs_root, io_report_root, rule_library_version, report
     ):
         """Tier-1 byte recall ≥ 0.70 on each SWE-bench Lite instance in the
         representative-repo set.

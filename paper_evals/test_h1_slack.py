@@ -20,7 +20,7 @@ pytestmark = pytest.mark.h1
 class TestSlackDistribution:
     """The slack window's CDF clears the thresholds in §6.1."""
 
-    def test_median_slack_above_5s(self, trace_root, min_seeds, report):
+    def test_median_slack_above_5s(self, outputs_root, min_seeds, report):
         """Median slack across thinking-bearing seeds ≥ 5 000 ms.
 
         §6.1 reports median 6 268 ms across 44 thinking seeds. The threshold
@@ -35,7 +35,7 @@ class TestSlackDistribution:
             "summary.json. Land alongside the E2 re-score on Day 1."
         )
 
-    def test_fraction_seeds_above_thresholds(self, trace_root, min_seeds):
+    def test_fraction_seeds_above_thresholds(self, outputs_root, min_seeds):
         """Slack ≥ 2 s on ≥ 80% of seeds; ≥ 5 s on ≥ 60%.
 
         §6.1 reports 86% ≥ 2 s, 64% ≥ 5 s; §TLDR reports 98% / 67% on the
@@ -47,7 +47,7 @@ class TestSlackDistribution:
             "test_median_slack_above_5s."
         )
 
-    def test_slack_per_provider_consistency(self, trace_root, min_seeds, report):
+    def test_slack_per_provider_consistency(self, outputs_root, min_seeds, report):
         """Each provider family (Anthropic, Gemini, DeepSeek-R1) clears the 2 s
         floor on its median slack.
 

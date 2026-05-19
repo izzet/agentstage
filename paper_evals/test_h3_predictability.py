@@ -22,7 +22,7 @@ class TestTier1ImmediateNeed:
     """Tier-1 stages a small, precisely-correct set for immediate execution."""
 
     def test_tier1_byte_recall(
-        self, trace_root, ground_truth_root, min_seeds, report
+        self, outputs_root, io_report_root, min_seeds, report
     ):
         """≥ 0.85 byte recall on ≥ 90% of well-defined seeds (i.e. excluding
         aiob_101's structurally-ambiguous 36-NetCDF bucket).
@@ -37,7 +37,7 @@ class TestTier1ImmediateNeed:
         )
 
     def test_tier1_byte_overfetch(
-        self, trace_root, ground_truth_root, min_seeds, report
+        self, outputs_root, io_report_root, min_seeds, report
     ):
         """≤ 1.5× byte overfetch on ≥ 95% of well-defined seeds.
 
@@ -53,7 +53,7 @@ class TestTier3EventualWorkingSet:
     """Tier-3 stages the eventual working set with bounded overfetch."""
 
     def test_tier3_byte_recall(
-        self, trace_root, ground_truth_root, min_seeds, report
+        self, outputs_root, io_report_root, min_seeds, report
     ):
         """≥ 0.85 byte recall on ≥ 95% of well-defined seeds against the
         eventual-working-set ground truth.
@@ -66,7 +66,7 @@ class TestTier3EventualWorkingSet:
         )
 
     def test_tier3_byte_overfetch(
-        self, trace_root, ground_truth_root, min_seeds, report
+        self, outputs_root, io_report_root, min_seeds, report
     ):
         """≤ 2.0× byte overfetch on ≥ 95% of well-defined seeds.
 
@@ -82,7 +82,7 @@ class TestCrossProviderConsistency:
     """The tier-1 result holds across LLM provider families (§6.4.1, TLDR)."""
 
     def test_anthropic_family_perfect_tier1(
-        self, trace_root, ground_truth_root, report
+        self, outputs_root, io_report_root, report
     ):
         """Anthropic (Sonnet 4.5 + Haiku 4.5) reaches 100% tier-1 byte recall
         on all well-defined seeds (n = 34 in the §TLDR breakdown).
@@ -91,7 +91,7 @@ class TestCrossProviderConsistency:
             "H3.anthropic_family: pending — needs per-provider rollup."
         )
 
-    def test_gemini_overfetch_holds(self, trace_root, ground_truth_root, report):
+    def test_gemini_overfetch_holds(self, outputs_root, io_report_root, report):
         """Gemini 2.5 Pro: byte overfetch ≤ 1.5× holds on 100% of seeds even
         when recall misses fire (the misses are strategy-variance, not
         predictor failures; see §6.4.1).

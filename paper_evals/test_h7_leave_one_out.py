@@ -31,7 +31,7 @@ class TestLeaveOneOut:
         "held_out", ["aiob_104", "aiob_107", "aiob_110", "code_repo"]
     )
     def test_held_out_tier1_recall(
-        self, held_out, trace_root, ground_truth_root, min_seeds, report
+        self, held_out, outputs_root, io_report_root, min_seeds, report
     ):
         """Re-score the held-out workload's traces using only rules tagged
         as originating from the other 3 workloads. Tier-1 byte recall on
@@ -45,7 +45,7 @@ class TestLeaveOneOut:
         )
 
     def test_loo_summary_table(
-        self, trace_root, ground_truth_root, min_seeds, report
+        self, outputs_root, io_report_root, min_seeds, report
     ):
         """Aggregate the 4 leave-one-out results into a single table for the
         paper's §11.6 Level-1 row.

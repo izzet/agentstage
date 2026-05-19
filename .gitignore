@@ -2,7 +2,11 @@
 paper/
 poc/
 
-# Experiment outputs (regenerated from the package + traces)
+# Campaign run outputs (regenerated from the package + LLM calls)
+outputs/*
+!outputs/.gitkeep
+
+# Experiment driver outputs (E4 microbench, plotting scratch, etc.)
 results/
 
 # External dataset cache (fetched via scripts/fetch_datasets.sh)

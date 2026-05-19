@@ -27,9 +27,9 @@ uv run pytest paper_evals/ \
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--trace-root` | `poc/runs` | Root for trace-only probe runs (one dir per seed) |
-| `--staging-root` | _none_ | Root for end-to-end staging runs (E5+); skip if missing |
-| `--ground-truth-root` | _resolve from `agentstage.workloads`_ | Static + empirical ground truth |
+| `--outputs-root` | `outputs` | Root for campaign run outputs (trace + end-to-end share this root) |
+| `--legacy-trace-root` | `poc/runs` | Legacy 88-probe PoC corpus for E2 re-score |
+| `--io-report-root` | _none_ | Historical io_report.json files for empirical GT (e.g. $SCIIOBENCH_ROOT/outputs) |
 | `--min-seeds` | `3` | Min seeds per (task, model, prompt) cell to include |
 | `--rule-library-version` | _none_ | Expected frozen rule version (H6/H7 assert match) |
 | `--report-dir` | `paper_evals/.results` | Where `report.json` is written |
@@ -72,7 +72,7 @@ After every run, `paper_evals/.results/report.json` is written by the
 Tests record into `data` via the `report` fixture:
 
 ```python
-def test_something(trace_root, report):
+def test_something(outputs_root, report):
     report.record("table_slack_distribution", {...})
     report.append("figure_per_seed_points", {...})
 ```

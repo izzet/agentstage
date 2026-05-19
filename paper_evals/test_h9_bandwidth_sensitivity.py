@@ -23,7 +23,7 @@ class TestBandwidthCurve:
     """Speedup curve is monotone in cold-tier BW, and the shape matches the
     Figure 1 / Figure 2 selling story."""
 
-    def test_speedup_monotone_decreasing_in_bw(self, staging_root, report):
+    def test_speedup_monotone_decreasing_in_bw(self, outputs_root, report):
         """For BW points {50, 200, 1000, 3000} MB/s, speedup(BW_i) ≥
         speedup(BW_j) when BW_i < BW_j (strict monotonicity not required —
         flat regions allowed within ±5% margin).
@@ -31,7 +31,7 @@ class TestBandwidthCurve:
         Records: `figure_bandwidth_curve` (BW, measured speedup, simulator
         speedup, source).
         """
-        if staging_root is None:
+        if outputs_root is None:
             pytest.skip("H9 requires --staging-root")
         pytest.skip(
             "H9.monotone: pending — Day 10 bandwidth sweep. Needs tc/cgroup "
@@ -39,12 +39,12 @@ class TestBandwidthCurve:
             "interpolation for the rest."
         )
 
-    def test_s3_class_speedup_above_threshold(self, staging_root):
+    def test_s3_class_speedup_above_threshold(self, outputs_root):
         """At 50 MB/s (S3-class cold tier), end-to-end speedup ≥ 2×. This is
         the regime AgentStage is designed for — the curve must show its
         biggest win here.
         """
-        if staging_root is None:
+        if outputs_root is None:
             pytest.skip("H9 requires --staging-root")
         pytest.skip(
             "H9.s3_class: pending — needs Day 10 measurement at the 50 MB/s "
@@ -56,12 +56,12 @@ class TestSimulatorMeasuredAgreement:
     """The simulator is complementary to real-stager numbers; where they
     overlap (the one measured BW point), they must agree to within 20%."""
 
-    def test_simulator_within_20pct_of_measured(self, staging_root, report):
+    def test_simulator_within_20pct_of_measured(self, outputs_root, report):
         """abs(speedup_measured - speedup_simulator) / speedup_measured ≤ 0.20
         at the measured BW point. Validates the simulator as a credible
         sensitivity tool for the other BW points.
         """
-        if staging_root is None:
+        if outputs_root is None:
             pytest.skip("H9 requires --staging-root")
         pytest.skip(
             "H9.sim_vs_measured: pending — simulator built Days 3-4, "
