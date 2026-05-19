@@ -4,6 +4,11 @@ Engineering design for the AgentStage staging daemon and LD_PRELOAD
 path-rewriting shim. Locks the implementation contract before the Day-5
 build (T29-T34 in `TASKS.md`).
 
+> **Companion:** [`STAGER_WALKTHROUGH.md`](STAGER_WALKTHROUGH.md) is the
+> tutorial-style explainer with concrete timelines, scenario walkthroughs,
+> and component-by-component reasoning. Read that first if you're coming
+> back to this cold; come here for the implementation contract.
+
 Authoritative research context: `AGENTSTAGE.md` §4.3 (staging daemon),
 §11.5 (E5 / E7 evaluations), §11.9 (risk register — stager is the
 critical-path component).
