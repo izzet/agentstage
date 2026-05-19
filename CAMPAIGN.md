@@ -251,27 +251,71 @@ files with `posix_count_sum > 0` and `posix_read_size_sum > 0` from
 `file_name_view[*]`, intersects with the predictor's tiered predicted set
 from `prediction.json`.
 
-## OSS model setup (Day 2)
+## OSS model setup (Day 2) — via NCSA Delta, not Ares
 
-To-be-decided: Qwen3-Thinking-14B or DeepSeek-R1-Distill-Qwen-14B.
-Decision criteria (in order):
+Model: **Qwen/Qwen3.6-27B with thinking enabled**. Reuses the model
+AgentIOBench already validated on Delta (HF cache, vLLM venv, Lmod stack
+all pre-built); only the chat-template kwarg `enable_thinking` flips from
+false to true, and `--reasoning-parser qwen3` becomes load-bearing
+(separates thinking from visible content in the SSE stream).
 
-1. Fits in available GPU memory on the Ares allocation
-2. Has clean SSE thinking semantics (`<think>` tags or equivalent) that
-   `src/agentstage/client/http.py` can parse without per-vendor special-
-   casing
-3. Produces non-trivial thinking content (≥ 1 s of slack) on aiob_110 and
-   code_repo
+Topology (mirrors AIOB's two-cluster setup):
 
-Setup:
-1. Identify Ares GPU node with ≥ 32 GB VRAM headroom
-2. `uv add --group vllm vllm` and serve with `--enable-reasoning`
-3. Set `OSS_MODEL_BASE_URL=http://localhost:8000` and `OSS_MODEL_NAME=<id>` in `.env`
-4. One-shot probe on aiob_110 to verify thinking signal
+```
+  Ares (this repo, this machine)                  Delta AI (NCSA, bekn alloc)
+  ──────────────────────────────                  ────────────────────────────
+  agentstage.client.OpenAIClient                  gh<NNN> compute node
+      │                                                  │
+      ▼  SSH tunnel: localhost:8002 → gh<NNN>:8002       │
+   POST /v1/chat/completions ───────────────────────►  vLLM serving
+                                                        Qwen/Qwen3.6-27B
+                                                        --reasoning-parser qwen3
+                                                        enable_thinking=true
+```
 
-**4-hour timebox.** If no thinking signal by hour 4, drop the OSS slot
-and run with Haiku + Flash only (loses third-provider-family C1 framing
-but recovers the schedule).
+Workflow:
+
+```bash
+# ── On Delta AI (gh-login01.delta.ncsa.illinois.edu) ──────────────────
+# 1. 2-GPU allocation, 2h timebox (T15-equivalent)
+salloc -A bekn-dtai-gh -p ghx4-interactive \
+       --gres=gpu:2 --cpus-per-task=32 --mem=300G \
+       --time=02:00:00
+
+# 2. Sync agentstage's launcher scripts to Delta (rsync from Ares)
+rsync -av <ares>:agentstage/scripts/delta/ ~/dtai/agentstage/
+cd ~/dtai/agentstage
+
+# 3. Launch — sources bekn policy from ~/.bashrc, prints "BOTH SERVERS READY"
+./run_vllm_qwen3_thinking.sh
+# Note the gh<NNN> hostname from the banner
+
+# ── On Ares ───────────────────────────────────────────────────────────
+# 4. Tunnel
+./scripts/delta/tunnel.sh gh<NNN>
+
+# 5. Verify reasoning_content streams (in another shell)
+./scripts/delta/verify_vllm_thinking.sh
+
+# 6. Set in .env:
+#    OSS_MODEL_BASE_URL=http://localhost:8002/v1
+#    OSS_MODEL_NAME=Qwen/Qwen3.6-27B
+```
+
+**2-hour timebox** (down from the originally-budgeted 4 hours — the hard
+parts are pre-solved by AIOB). If thinking content fails to stream after
+2 hours, drop the OSS slot and run with Haiku + Flash only (loses
+third-provider-family C1 framing in the **new** campaign, but the PoC
+DeepSeek-R1 traces re-scored against frozen rules on Day 1 still carry
+the third-family signal across the combined dataset — see project memory
+`project_campaign_plan.md`).
+
+Important client-side implication: vLLM's `--reasoning-parser` extends the
+OpenAI-compatible API with a `delta.reasoning_content` field separate from
+`delta.content` in streaming chunks. `src/agentstage/client/openai.py` (and
+`client/http.py` for the urllib path) must read both fields and feed
+`reasoning_content` to the predictor as the thinking stream. Documented in
+T19 and T22.
 
 ## Client library architecture
 

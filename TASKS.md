@@ -32,20 +32,28 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [ ] T13a Create `feat/agentstage-integration` branch on the agentiobench upstream repo (you create + push; this is the branch we'll bump our submodule pin to)
 - [ ] T13b Add minimal hooks on that branch: (1) stable public API re-export in `agentiobench/__init__.py` (TaskConfig, evict_dataset, measure_temperature, dftracer_context); (2) optional `pre_turn_hook` and `post_turn_hook` parameters in `agentiobench/runner.py::run_task`. Bump our submodule pin to the new HEAD.
 - [ ] T14 Write `STAGER_DESIGN.md` — LD_PRELOAD shim choice, syscall set (`openat`, `pread64`, `mmap`, `read`), atomicity model, cache eviction policy
-- [ ] T15 OSS model selection on Ares (**4-hour timebox**): identify GPU node with ≥32 GB headroom, install vLLM, serve Qwen3-Thinking-14B or DeepSeek-R1-Distill-Qwen-14B with `--enable-reasoning`, verify on aiob_110. If no thinking signal in 4 hours → fall back to Haiku+Flash only.
-- [ ] T16 Capture aiob_110 single-probe OSS trace, verify thinking_present
-- [ ] T17 Write `scripts/fetch_datasets.sh` — SAB + SWE-bench data pulls into `external/datasets/`
+- [ ] T15a Confirm bekn-dtai-gh allocation: hours remaining via `accounts` on Delta + scope is OK for AgentStage (not exclusively AIOB). **Blocks T15.**
+- [ ] T15 OSS model serving via NCSA Delta vLLM (**2-hour timebox**, down from 4 — AIOB has pre-built the vLLM stack on Delta):
+    - rsync `scripts/delta/` to `~/dtai/agentstage/` on Delta
+    - `salloc -A bekn-dtai-gh -p ghx4-interactive --gres=gpu:2 --cpus-per-task=32 --mem=300G --time=02:00:00`
+    - `./run_vllm_qwen3_thinking.sh` (serves Qwen/Qwen3.6-27B with `enable_thinking=true` + `--reasoning-parser qwen3`)
+    - On Ares: `./scripts/delta/tunnel.sh gh<NNN>`
+    - `./scripts/delta/verify_vllm_thinking.sh` (asserts `reasoning_content` chunks stream)
+    - Set `OSS_MODEL_BASE_URL=http://localhost:8002/v1`, `OSS_MODEL_NAME=Qwen/Qwen3.6-27B` in `.env`
+    - **Fallback if no thinking signal in 2h:** drop OSS slot from new campaign; rely on PoC DeepSeek-R1 traces (re-scored Day 1) for third-family signal.
+- [ ] T16 First end-to-end aiob_110 probe through the Delta-tunneled OSS model. **Blocked by T22** (need `src/agentstage/client/http.py` to handle `delta.reasoning_content`).
+- [ ] T17 Write `scripts/fetch_datasets.sh` — SAB + KramaBench data pulls into `external/datasets/`
 
 ## Day 3 — 2026-05-21 (Client library + simulator)
 
 - [ ] T18 `src/agentstage/client/base.py` — `AgentStageClient` ABC + `DataHint` dataclass (`predicted_files`, `tier`, `fired_at_ms`, `rule_id`, `byte_estimate`, `signature`). Tee-stream semantics: caller sees identical chunks; predictor sees identical chunks; stager sees prefetch dispatches.
-- [ ] T19 `src/agentstage/client/anthropic.py` — wraps `anthropic.Anthropic.messages.create(stream=True)`; intercepts `thinking_delta`/`signature_delta`/`text_delta`/`input_json_delta`; runs predictor live; dispatches to stager. **Replaces previously-planned `src/agentstage/proxy/anthropic.py`.**
+- [ ] T19 `src/agentstage/client/anthropic.py` — wraps `anthropic.Anthropic.messages.create(stream=True)`; intercepts `thinking_delta`/`signature_delta`/`text_delta`/`input_json_delta`; runs predictor live; dispatches to stager. **Replaces previously-planned `src/agentstage/proxy/anthropic.py`.** Also handle OpenAI-shape clients: `delta.reasoning_content` (vLLM extension) is the thinking field for Qwen-served-via-vLLM and any future reasoning-parser-enabled OpenAI-compatible endpoint.
 - [ ] T20 `src/agentstage/simulator/bandwidth.py` — bandwidth-vs-speedup sensitivity model (E6 backbone)
 
 ## Day 4 — 2026-05-22 (More client wrappers + cache integration + Campaign A start)
 
 - [ ] T21 `src/agentstage/client/gemini.py` — wraps `google-genai`; parses `thinkingConfig.includeThoughts=true` per-part `thought: bool`
-- [ ] T22 `src/agentstage/client/http.py` — raw urllib path matching the PoC's `run_*` functions; needed for OSS-vLLM endpoint and for benchmark environments where the SDK isn't installed
+- [ ] T22 `src/agentstage/client/http.py` — raw urllib path matching the PoC's `run_*` functions; needed for OSS-vLLM endpoint (parses `delta.reasoning_content` separately from `delta.content`) and for benchmark environments where the SDK isn't installed
 - [ ] T23 Cache eviction integration: `src/agentstage/runner.py` imports `agentiobench.utils.cache.evict_dataset, measure_temperature`; logs `pre_run_temperature` and `post_run_temperature` into `verdict.json`
 - [ ] T24 Soft-stop logic: detect ≥ 1 KB write to task output dir after ≥ 3 tool calls; inject "stage 1 complete" stop message
 - [ ] T25 Campaign-A orchestrator: `src/agentstage/cli/campaign.py` reading `CAMPAIGN.md`'s matrix, resume-by-cell-presence, provider-aware concurrency (3-5 inflight per provider)
