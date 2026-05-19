@@ -20,7 +20,7 @@ Read it first. Everything else here is operational scaffolding.
 | `src/agentstage/` | uv-managed src-layout package (Python ≥3.12) |
 | `tests/` | Unit tests over `src/agentstage/`. Run with `uv run pytest`. |
 | `paper_evals/` | Claim-verification suite — one file per hypothesis H1-H10. Run with `uv run pytest paper_evals/ --trace-root <path>`. See `paper_evals/README.md`. |
-| `external/benchmarks/` | Git submodules: ScienceAgentBench (pinned `72220ee8`), SWE-bench, AgentIOBench (pinned `29a2070`) |
+| `external/benchmarks/` | Git submodules: ScienceAgentBench (pinned `72220ee8`, ICLR 2025), KramaBench (pinned `a9d0023`, MIT DB Lab preprint), AgentIOBench (pinned `29a2070`, branch `feat/agentstage-integration`) |
 | `external/datasets/` | Gitignored. Populated by `scripts/fetch_datasets.sh`. |
 | `outputs/` | Gitignored. Campaign run outputs (trace + end-to-end share this root, one dir per `<task>_<model>_<config>_s<seed>`). |
 | `poc/` | Gitignored. Trace-only PoC script + 88 captured probe runs (referenced by `AGENTSTAGE.md` §6). |

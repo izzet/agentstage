@@ -1,15 +1,23 @@
 """H6: The frozen rule library generalizes across corpora.
 
 Applying the FROZEN rule library (zero per-task tuning) to traces from
-externally-published benchmarks — ScienceAgentBench (Chen et al. ICLR 2025)
-and SWE-bench Lite (Jimenez et al. ICLR 2024) — preserves tier-1 byte
-recall ≥ 0.70. This is the L2 level of the §11.6 genericity defense and
-the strongest argument that the predictor architecture is corpus-agnostic.
+externally-released benchmarks — ScienceAgentBench (Chen et al., ICLR
+2025) and KramaBench (Lai et al., 2025; MIT DB Lab preprint) — preserves
+tier-1 byte recall ≥ 0.70. This is the L2 level of the §11.6 genericity
+defense and the strongest argument that the predictor architecture is
+corpus-agnostic.
+
+KramaBench's preprint (not peer-reviewed) status is acknowledged in the
+paper's external-benchmarks footnote; it was chosen over SWE-bench Lite
+because its multi-domain raw-data-pipeline I/O profile (1.7 GB across
+1764 files spanning 6 domains) is far closer to AgentStage's
+scientific-HPC use case than SWE-bench's small-Python-file repos.
 
 Serves: L2 genericity (E9, E10)
 Origin: AGENTSTAGE.md §11.6 (three-level genericity verification)
-Required data: trace-only on SAB + SWE-bench corpora, captured via the
-proxy on Day 8-10. Does NOT exist yet.
+Required data: end-to-end runs on SAB + KramaBench, captured via the
+client library (monkey-patch of openai/anthropic SDKs) on Days 8-10.
+Does NOT exist yet.
 """
 
 from __future__ import annotations
@@ -37,22 +45,25 @@ class TestFrozenRulesOnScienceAgentBench:
         )
 
 
-class TestFrozenRulesOnSWEbenchLite:
-    """E10: SWE-bench Lite end-to-end with frozen rules."""
+class TestFrozenRulesOnKramaBench:
+    """E10: KramaBench end-to-end with frozen rules."""
 
-    def test_swebench_tier1_byte_recall_threshold(
-        self, outputs_root, io_report_root, rule_library_version, report
+    @pytest.mark.parametrize("domain", ["astronomy", "biomedical", "wildfire"])
+    def test_kramabench_tier1_byte_recall_threshold(
+        self, domain, outputs_root, io_report_root, rule_library_version, report
     ):
-        """Tier-1 byte recall ≥ 0.70 on each SWE-bench Lite instance in the
-        representative-repo set.
+        """Tier-1 byte recall ≥ 0.70 on each KramaBench task in the 3-task
+        subset (one each from Astronomy 1556 files / 486 MB, Biomedical
+        7 files / 175 MB, Wildfire 23 files / 1 GB).
 
-        Pass threshold for E10. Drop to 1 instance only as risk-mitigation
-        per §11.9.
+        Pass threshold for E10 per §11.6. Drop a domain only as
+        risk-mitigation per §11.9.
         """
         pytest.skip(
-            "H6.swebench_tier1_recall: pending — needs SWE-bench Lite "
-            "integration on Day 9-10 (container harness routing). "
-            "Submodule lives at external/benchmarks/swebench."
+            f"H6.kramabench_tier1_recall[{domain}]: pending — needs "
+            "KramaBench integration on Day 9-10 (openai SDK monkey-patch in "
+            "the KramaBench harness). Submodule lives at "
+            "external/benchmarks/kramabench."
         )
 
 

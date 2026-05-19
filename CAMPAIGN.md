@@ -27,7 +27,16 @@ under what protocol, and at what cost.
   and log `measure_temperature` into each run's `verdict.json`.
 - **agentiobench is a submodule** at `external/benchmarks/agentiobench/`
   pinned at `29a2070`. `src/agentstage/workloads/aiob.py` is a thin
-  adapter over its task config YAMLs.
+  adapter over its task config YAMLs. AgentStage integration goes on
+  the `feat/agentstage-integration` branch of the agentiobench repo
+  (see "AIOB integration branch" below).
+- **External benchmarks: SAB + KramaBench** (replaces the earlier
+  SWE-bench plan). SAB at ICLR 2025; KramaBench is preprint (MIT DB
+  Lab, `@misc{lai2025KramaBench}`) — flagged in the paper with a
+  footnote. KramaBench picked over SWE-bench Lite because its I/O
+  profile (multi-domain raw-data pipelines, 1.7 GB across 1764 files)
+  is far closer to AgentStage's scientific-HPC use case than
+  SWE-bench's small-Python-file repos.
 - **Framing decided on the fly** when writing §1.
 
 ## Why this trio
@@ -129,21 +138,21 @@ Each run executes the workload's task; predictor and stager run live.
 | E6 BW sensitivity | aiob_107 | Haiku | 1 measured BW × {with, baseline} | 5 | 10 | $0.30 | $3 |
 | E7 graceful degradation | aiob_110 | Haiku, Flash | {hint-on, hint-off} | 3 | 12 | $0.20 | $2.40 |
 | E9 SAB end-to-end | 3 SAB tasks | Haiku, Flash | {with, baseline} | 5 | 60 | $0.35 | $21 |
-| E10 SWE-bench Lite | 2 instances | Haiku | {with, baseline} | 3 | 12 | $0.50 | $6 |
-| **Campaign B total** | | | | | **134 runs** | | **~$45** |
+| E10 KramaBench end-to-end | 3 tasks (Astronomy + Biomedical + Wildfire) | Haiku, Flash | {with, baseline} | 5 | 60 | $0.30 | $18 |
+| **Campaign B total** | | | | | **182 runs** | | **~$57** |
 
 ### Cost projection summary
 
 | Bucket | Cost |
 |---|---:|
 | Campaign A (trace-only, new probes) | $4 |
-| Campaign B (end-to-end, 15-turn cap) | $45 |
-| 1.5× re-run / debugging buffer | $25 |
-| **Projected total** | **~$75** |
+| Campaign B (end-to-end, 15-turn cap) | $57 |
+| 1.5× re-run / debugging buffer | $30 |
+| **Projected total** | **~$90** |
 
-Headroom under the $150 ceiling: **~$75** for OSS-model thinking-content
-surprises, expanded SAB task set (3 → 5), Sonnet sanity probes against the
-frozen rules, or a SWE-bench instance bump (2 → 4).
+Headroom under the $150 ceiling: **~$60** for OSS-model thinking-content
+surprises, expanded SAB or KramaBench task sets, Sonnet sanity probes
+against the frozen rules.
 
 ## Per-cell acceptance criteria
 
@@ -222,7 +231,7 @@ write triggers stop.
 | aiob_101 ERA5 | same (kept as honest edge case) | structural-ambiguity workload; static GT only |
 | code_repo | static enumeration in `src/agentstage/workloads/code_repo.py` (ported from PoC) | E5+ runs produce their own io_report.json |
 | SAB tasks | extract from SAB task spec (`external/benchmarks/scienceagentbench/`) | E9 runs produce their own io_report.json |
-| SWE-bench instances | extract from instance spec | E10 runs produce their own io_report.json |
+| KramaBench tasks | extract from `external/benchmarks/kramabench/data/<domain>/{domain}.json` (per-task `reference pipeline` + sub-task list) | E10 runs produce their own io_report.json; KramaBench's own gold pipelines define the eventual working set |
 
 The empirical-GT join (E2 re-score) is implemented in
 `src/agentstage/metrics/empirical_gt.py`: reads `io_report.json`, extracts
@@ -290,6 +299,48 @@ The proxy (`src/agentstage/proxy/server.py`) becomes a thin HTTP wrapper
 around the client library. Same predictor + stager; just exposed over
 HTTP for non-Python harnesses (e.g. SWE-bench in Docker, future external
 research agents). **Lower priority than the client lib.**
+
+## AIOB integration branch
+
+AgentIOBench is our project. Integration goes on a branch of the
+upstream repo (`git@github.com:grc-iit/agentiobench.git`) named
+**`feat/agentstage-integration`**. Two minimal upstream additions:
+
+1. **Stable public API re-export** in `agentiobench/__init__.py`:
+   re-export `TaskConfig`, `evict_dataset`, `measure_temperature`,
+   `dftracer_context` so AgentStage imports go through
+   `from agentiobench import ...` without reaching into private modules.
+
+2. **Optional pre/post-turn callbacks** in `agentiobench/runner.py::run_task`:
+   ```python
+   def run_task(..., pre_turn_hook=None, post_turn_hook=None):
+       for turn in range(max_turns):
+           if pre_turn_hook: pre_turn_hook(turn, messages)
+           response = client.complete(messages)
+           if post_turn_hook: post_turn_hook(turn, response, trajectory)
+           ...
+   ```
+   AgentStage's runner registers these to drive the client + stager +
+   cache logging without forking AIOB's agent loop.
+
+Our submodule pin (`external/benchmarks/agentiobench/`) tracks
+`feat/agentstage-integration` until those hooks merge to AIOB's main
+when the AIOB-companion paper ships.
+
+## External benchmark integration
+
+| Benchmark | Mechanism | Effort |
+|---|---|---|
+| AIOB | Own runner (`src/agentstage/runners/aiob_runner.py`) importing primitives from the branch above | Day 1-4 alongside the rest of the package |
+| SAB | Runtime monkey-patch of `openai.OpenAI` before SAB's harness imports it | Day 8 (T41) |
+| KramaBench | Same monkey-patch pattern as SAB; KramaBench's `systems/baseline_example.py` uses standard SDK clients | Day 9 (replaces T46-T47) |
+
+**Footnote in paper:** "We evaluate on two externally-released
+benchmarks: ScienceAgentBench (Chen et al., ICLR 2025) and KramaBench
+(Lai et al., 2025; preprint at MIT DB Lab). KramaBench's preprint
+status reflects its recency as a benchmark designed for end-to-end
+data-science agents; we treat it as a credible cross-corpus probe but
+acknowledge it has not yet completed peer review."
 
 ## Rerun policy
 

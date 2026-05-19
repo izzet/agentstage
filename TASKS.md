@@ -26,9 +26,11 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [ ] T11 Implement `test_h1_slack.py` median + per-provider asserts — direct read from `summary.json`
 - [ ] T12 Scaffold `src/agentstage/predictor/auto_rules.py` (E11; empty class with TODO docstring is enough for Day 1)
 
-## Day 2 — 2026-05-20 (Leave-one-out + stager design + OSS setup + fetch scripts)
+## Day 2 — 2026-05-20 (Leave-one-out + stager design + OSS setup + fetch scripts + AIOB branch)
 
 - [ ] T13 Implement `test_h7_leave_one_out.py` 4-way parametrized assertion using the per-rule origin tagging from T05
+- [ ] T13a Create `feat/agentstage-integration` branch on the agentiobench upstream repo (you create + push; this is the branch we'll bump our submodule pin to)
+- [ ] T13b Add minimal hooks on that branch: (1) stable public API re-export in `agentiobench/__init__.py` (TaskConfig, evict_dataset, measure_temperature, dftracer_context); (2) optional `pre_turn_hook` and `post_turn_hook` parameters in `agentiobench/runner.py::run_task`. Bump our submodule pin to the new HEAD.
 - [ ] T14 Write `STAGER_DESIGN.md` — LD_PRELOAD shim choice, syscall set (`openat`, `pread64`, `mmap`, `read`), atomicity model, cache eviction policy
 - [ ] T15 OSS model selection on Ares (**4-hour timebox**): identify GPU node with ≥32 GB headroom, install vLLM, serve Qwen3-Thinking-14B or DeepSeek-R1-Distill-Qwen-14B with `--enable-reasoning`, verify on aiob_110. If no thinking signal in 4 hours → fall back to Haiku+Flash only.
 - [ ] T16 Capture aiob_110 single-probe OSS trace, verify thinking_present
@@ -78,17 +80,17 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [ ] T42 **Sentinel run**: 1 SAB task end-to-end with Haiku, measure actual turn count vs CAMPAIGN.md estimate; re-budget E9 if off by > 2×
 - [ ] T43 Capture SAB trace runs (12 probes: 3 tasks × 2 models × 2 seeds)
 
-## Day 9 — 2026-05-27 (SAB end-to-end + SWE-bench integration)
+## Day 9 — 2026-05-27 (SAB end-to-end + KramaBench integration)
 
 - [ ] T44 E9 end-to-end on SAB: 3 tasks × 2 models × 2 configs × 5 seeds = 60 runs
 - [ ] T45 Implement `test_h6_frozen_rules_crosscorpus.py::TestFrozenRulesOnScienceAgentBench`
-- [ ] T46 SWE-bench Lite instance selection (2 representative instances)
-- [ ] T47 Route SWE-bench harness through proxy (Docker `--network=host`, or proxy-as-sidecar). **This is where the HTTP proxy fallback earns its keep** — `src/agentstage/proxy/server.py` wraps the client lib.
+- [ ] T46 KramaBench task selection: one each from Astronomy (1556 files / 486 MB), Biomedical (7 files / 175 MB), Wildfire (23 files / 1 GB). Read `external/benchmarks/kramabench/data/<domain>/{domain}.json` for task picks.
+- [ ] T47 Adapt KramaBench harness: monkey-patch its LLM client at runtime via `patch_openai_sdk` (`systems/baseline_example.py` uses the openai SDK). No edits to the KramaBench submodule.
 
-## Day 10 — 2026-05-28 (SWE-bench end-to-end + BW sweep + budget sweep)
+## Day 10 — 2026-05-28 (KramaBench end-to-end + BW sweep + budget sweep)
 
-- [ ] T48 E10 end-to-end on SWE-bench Lite: 2 instances × 1 model × 2 configs × 3 seeds = 12 runs
-- [ ] T49 Implement `test_h6_frozen_rules_crosscorpus.py::TestFrozenRulesOnSWEbenchLite`
+- [ ] T48 E10 end-to-end on KramaBench: 3 tasks × 2 models × 2 configs × 5 seeds = 60 runs
+- [ ] T49 Implement `test_h6_frozen_rules_crosscorpus.py::TestFrozenRulesOnKramaBench` (3 parametrized domains)
 - [ ] T50 E6 bandwidth sensitivity: 1 measured BW point with tc/cgroup rate-limit + 3 simulator points
 - [ ] T51 Implement `test_h9_bandwidth_sensitivity.py`
 - [ ] T52 E8 thinking-budget sweep on aiob_110 (15 probes at varying budgets)
@@ -126,6 +128,7 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [ ] B05 Online-learned predictor (uses captured trace pairs as training data)
 - [ ] B06 Sonnet sanity-check sub-matrix on aiob_110 + code_repo with frozen rules (~$3)
 - [ ] B07 Full HTTP proxy implementation (beyond the thin `proxy/server.py` wrapper) — for harnesses that can't import agentstage at all
+- [ ] B08 SWE-bench Lite end-to-end (Docker integration) — reconsidered for a future version of the paper; KramaBench replaces it for the eScience submission because of its better I/O profile
 
 ## Conventions
 

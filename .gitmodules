@@ -1,9 +1,9 @@
 [submodule "external/benchmarks/scienceagentbench"]
 	path = external/benchmarks/scienceagentbench
 	url = https://github.com/OSU-NLP-Group/ScienceAgentBench.git
-[submodule "external/benchmarks/swebench"]
-	path = external/benchmarks/swebench
-	url = https://github.com/SWE-bench/SWE-bench.git
 [submodule "agentiobench"]
 	path = external/benchmarks/agentiobench
 	url = git@github.com:grc-iit/agentiobench.git
+[submodule "external/benchmarks/kramabench"]
+	path = external/benchmarks/kramabench
+	url = https://github.com/mitdbg/Kramabench.git
