@@ -17,8 +17,8 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [x] T02 Scaffold paper_evals H1-H10 stubs — _commit `9f0d6a6`_
 - [x] T03 Lay down CAMPAIGN/TASKS/README/.env.example — _commit `748a91d`_
 - [x] T04 Add agentiobench submodule + revise architecture (client-lib primary, outputs/, 15-turn cap, cold cache mandatory) — _this commit_
-- [ ] T05 Port rule library `poc/probe_reasoning_slack.py` → `src/agentstage/predictor/rules.py` (workspace prior loader, HOT scan, semantic-class regex rules, tiering by target-set size). Tag each rule with origin workload for leave-one-out filtering. **Unblocks T07-T12.**
-- [ ] T06 Define `RULE_LIBRARY_VERSION` (semver + sha256 of rule definitions) in `src/agentstage/predictor/__init__.py`; add `tests/test_rules_freeze.py` pinning the hash
+- [x] T05 Port rule library `poc/probe_reasoning_slack.py` → `src/agentstage/predictor/rules.py` with `Rule` + `RuleSet` dataclasses and per-rule `origin` tagging for leave-one-out. 105 rules across 5 workloads (58 aiob_104 / 16 aiob_110 / 13 code_repo / 10 aiob_107 / 8 aiob_101; 16 tagged "general"). HOT scan + engine deferred to T07-T08.
+- [x] T06 `RULE_LIBRARY_VERSION="v1"` + `RULE_LIBRARY_HASH` (sha256 over canonical serialization) in `src/agentstage/predictor/rules.py`; `tests/test_rules_freeze.py` pins hash + per-workload counts + origin distribution + leave-one-out filter behavior (9 tests, all green).
 - [ ] T07 Port workload definitions: `src/agentstage/workloads/aiob.py` as thin adapter over `external/benchmarks/agentiobench/agentiobench/config/task/*.yaml`. Plus `src/agentstage/workloads/code_repo.py` for the static-enum code-repo workload.
 - [ ] T08 Write `src/agentstage/metrics/byte_metrics.py` (byte recall, overfetch) consuming `prediction.json` + GT
 - [ ] T09 Write `src/agentstage/metrics/empirical_gt.py` — reads `io_report.json` (AIOB format: `file_name_view[*]` with `posix_count_sum > 0`, `posix_read_size_sum`), intersects with predictor's tiered output
