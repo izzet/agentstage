@@ -18,8 +18,10 @@ under what protocol, and at what cost.
   dispatch prefetch to the stager, and optionally return `DataHint`
   objects to the caller. The HTTP proxy becomes a thin wrapper around the
   client lib for non-Python harnesses (e.g. SWE-bench in Docker).
-- **Outputs live under `outputs/`** (gitignored), not `poc/runs/`. Matches
-  AgentIOBench convention.
+- **Outputs live under `outputs/`** (gitignored). PoC corpus moved to
+  `outputs/poc/` as one sub-campaign; the `poc/` directory holds only
+  the historical `probe_reasoning_slack.py` script for reference.
+  Matches AgentIOBench convention.
 - **15-turn hard cap on end-to-end runs**, with soft termination at "first
   significant write" (≥ 1 KB to the task output dir, after ≥ 3 tool calls).
 - **Cold cache mandatory for end-to-end runs.** Reuse
@@ -48,17 +50,19 @@ under what protocol, and at what cost.
 | OSS reasoning (self-hosted vLLM) | Open weights | Third provider family; zero per-token cost on Ares GPUs | $0 | $0 |
 
 Three families preserves C1's cross-vendor claim. All three already
-validated in the PoC corpus (Haiku and Pro in poc/runs; Flash via Pro's
+validated in the PoC corpus (Haiku and Pro in outputs/poc/; Flash via Pro's
 SSE structure shared across the Gemini family; DeepSeek-R1 via OpenRouter
 sample). The OSS slot replaces OpenRouter-DeepSeek at zero marginal cost.
 
 ## What we already have vs. what we need to run
 
-The PoC corpus at `poc/runs/` is **not discarded.** Three uses:
+The PoC corpus, now at `outputs/poc/`, is **not discarded.** Three uses:
 
 1. **Re-score against the frozen rule library** (E2): re-run the predictor
    over the existing 88 `stream.jsonl` files using the frozen rules. No
-   LLM calls; cheap.
+   LLM calls; cheap. PoC traces are just another set of output dirs under
+   `--outputs-root outputs/`; the Campaign indexer treats them like any
+   other sub-campaign.
 2. **PoC Sonnet + Gemini-Pro data stays as cross-cost-tier validation.**
 3. **Leave-one-out (E3) and auto-rule (E11) work runs against existing
    trace data**, no new LLM calls.

@@ -35,16 +35,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         type=str,
         default="outputs",
         help="Root directory containing campaign run outputs — both trace-only "
-             "probes and end-to-end runs share this root, organized as "
-             "outputs/<task>_<model>_<config>_s<seed>/ (default: outputs)",
-    )
-    group.addoption(
-        "--legacy-trace-root",
-        type=str,
-        default="poc/runs",
-        help="Legacy PoC trace corpus (88 probes from before the rule freeze). "
-             "Tests that re-score the PoC corpus against frozen rules read from "
-             "here (default: poc/runs)",
+             "probes and end-to-end runs share this root. The PoC corpus, if "
+             "kept for cross-cost-tier validation, lives under outputs/poc/ as "
+             "a sub-campaign. (default: outputs)",
     )
     group.addoption(
         "--io-report-root",
@@ -86,19 +79,6 @@ def outputs_root(request: pytest.FixtureRequest) -> Path:
     p = Path(request.config.getoption("--outputs-root"))
     if not p.is_dir():
         pytest.skip(f"--outputs-root not found: {p}")
-    return p
-
-
-@pytest.fixture(scope="session")
-def legacy_trace_root(request: pytest.FixtureRequest) -> Path | None:
-    """Legacy PoC trace corpus (88 probes from before rule freeze).
-
-    Some H1-H7 tests run against both --outputs-root (new campaign) and
-    --legacy-trace-root (PoC re-scored against frozen rules).
-    """
-    p = Path(request.config.getoption("--legacy-trace-root"))
-    if not p.is_dir():
-        return None
     return p
 
 

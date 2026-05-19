@@ -10,16 +10,16 @@ This suite is independent of `tests/`, which contains fast unit tests over
 evals run with an explicit path:
 
 ```bash
-# Trace-only evaluations against the 88-probe PoC corpus
-uv run pytest paper_evals/ --trace-root poc/runs
+# Run against the full campaign root (includes PoC at outputs/poc/ if present)
+uv run pytest paper_evals/ --outputs-root outputs/
 
 # Single hypothesis (e.g. the headline H3 predictability claim)
-uv run pytest paper_evals/ -m h3 --trace-root poc/runs
+uv run pytest paper_evals/ -m h3 --outputs-root outputs/
 
-# Once end-to-end staging campaigns exist (E5+)
+# With historical empirical-GT root for E2 re-score
 uv run pytest paper_evals/ \
-    --trace-root poc/runs \
-    --staging-root results/staging/<date> \
+    --outputs-root outputs/ \
+    --io-report-root $SCIIOBENCH_ROOT/outputs \
     --rule-library-version v1
 ```
 
@@ -27,8 +27,7 @@ uv run pytest paper_evals/ \
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--outputs-root` | `outputs` | Root for campaign run outputs (trace + end-to-end share this root) |
-| `--legacy-trace-root` | `poc/runs` | Legacy 88-probe PoC corpus for E2 re-score |
+| `--outputs-root` | `outputs` | Root for all campaign run outputs (PoC corpus at outputs/poc/ if present, plus new trace + end-to-end runs) |
 | `--io-report-root` | _none_ | Historical io_report.json files for empirical GT (e.g. $SCIIOBENCH_ROOT/outputs) |
 | `--min-seeds` | `3` | Min seeds per (task, model, prompt) cell to include |
 | `--rule-library-version` | _none_ | Expected frozen rule version (H6/H7 assert match) |

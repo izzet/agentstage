@@ -23,7 +23,7 @@ Read it first. Everything else here is operational scaffolding.
 | `external/benchmarks/` | Git submodules: ScienceAgentBench (pinned `72220ee8`, ICLR 2025), KramaBench (pinned `a9d0023`, MIT DB Lab preprint), AgentIOBench (pinned `29a2070`, branch `feat/agentstage-integration`) |
 | `external/datasets/` | Gitignored. Populated by `scripts/fetch_datasets.sh`. |
 | `outputs/` | Gitignored. Campaign run outputs (trace + end-to-end share this root, one dir per `<task>_<model>_<config>_s<seed>`). |
-| `poc/` | Gitignored. Trace-only PoC script + 88 captured probe runs (referenced by `AGENTSTAGE.md` §6). |
+| `poc/` | Gitignored. Holds only `probe_reasoning_slack.py` as historical artifact (the script that produced the §6 numbers). Run outputs moved to `outputs/poc/`. Production code does not depend on this directory. |
 | `paper/` | Gitignored. Working directory for paper drafts. |
 | `results/` | Gitignored. Experiment driver outputs (microbenchmarks, plotting scratch). |
 
@@ -51,8 +51,8 @@ cp .env.example .env
 # 5. Verify
 ~/.local/bin/uv run pytest                          # unit tests
 ~/.local/bin/uv run pytest paper_evals/                         # claim-verification stubs
-~/.local/bin/uv run pytest paper_evals/ --outputs-root outputs/ # against the live campaign root
-~/.local/bin/uv run pytest paper_evals/ --legacy-trace-root poc/runs --io-report-root $SCIIOBENCH_ROOT/outputs  # E2 re-score against PoC + historical GT
+~/.local/bin/uv run pytest paper_evals/ --outputs-root outputs/ # against the live campaign root (includes outputs/poc/ if present)
+~/.local/bin/uv run pytest paper_evals/ --outputs-root outputs/ --io-report-root $SCIIOBENCH_ROOT/outputs  # with historical empirical GT for E2 re-score
 ```
 
 ## Hard rules
