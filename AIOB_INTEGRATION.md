@@ -6,11 +6,18 @@ forking it. Companion to `CAMPAIGN.md` (which says *what* to run) and
 
 Source-of-truth code lives on the `feat/agentstage-integration` branch
 of `git@github.com:grc-iit/agentiobench.git`. Our submodule pin
-(`external/benchmarks/agentiobench/`) tracks that branch. Two commits
+(`external/benchmarks/agentiobench/`) tracks that branch. Four commits
 constitute the integration as of 2026-05-19:
 
 - `f4d5723` Add public API surface + run_agentic turn-hook integration points
 - `4b78210` Make agentiobench public-API re-exports lazy
+- `813d477` Verify run_agentic hooks fire correctly under mocked LLM + tools
+- `9f07f9b` gitignore: .venv-test/
+
+The contract this document describes is **verified by AIOB's own
+pytest suite** — see §3.5 below for the five behavioral tests that
+exercise the hooks under mocked LLM + tools, and §6 for the property
+table mapping each guarantee to the test that pins it.
 
 ---
 
@@ -275,6 +282,49 @@ If AgentStage development ever wants to *enforce* hook correctness,
 the right place is a `--strict-hooks` flag on AgentStage's runner,
 not in AIOB.
 
+### 3.5 Contract verification — `tests/test_run_agentic_hooks.py`
+
+Each property in §3.1–3.4 is pinned by a behavioral test on the AIOB
+branch (committed in `813d477`). The tests mock `chat_completion`,
+`extract_tool_calls`, `extract_text`, `extract_llm_metrics`,
+`dispatch_tool`, the tracing runtime, `is_netns_isolated_runtime`,
+`set_active_llm_accumulator`, `build_network_block`, `record_replay`,
+`structured_validate`, `collect_output_files`, and
+`tracing_metadata_dict` so that only the hook invocation logic
+runs through real code.
+
+| Test | Pins |
+|---|---|
+| `test_hooks_fire_per_turn_normal_path` | 3-turn run, every turn returns tool calls. Pre fires 3× with `turn=0,1,2` in order; post fires 3× with matching response object; `messages` grows monotonically across turns; `trajectory` snapshot grows monotonically. |
+| `test_post_turn_hook_fires_on_early_break_path` | Turn 2 returns empty `tool_calls`. Pre fires for turns 0/1/2; post **also** fires for turn 2 (the early-break path) and sees the `{"type": "final_message"}` entry that AIOB just appended; `verdict["total_turns"] == 3`. |
+| `test_broken_pre_hook_does_not_abort_run` | `pre_turn_hook` raises `RuntimeError` on every turn. Run still completes; post hook still fires; `verdict.json` still written. |
+| `test_broken_post_hook_does_not_corrupt_verdict` | `post_turn_hook` raises `ValueError` on every turn. All turns still execute; `verdict["total_turns"]` correct; `verdict.json` round-trips through `json.load`. |
+| `test_run_agentic_without_hooks_is_unchanged` | `run_agentic(cfg)` with no hook kwargs runs to completion exactly as before the integration patch — the backwards-compat guarantee the submodule-pin policy depends on. |
+
+**How to run them locally:**
+
+```bash
+cd external/benchmarks/agentiobench
+uv venv .venv-test --python 3.12
+uv pip install --python .venv-test/bin/python -e '.[science]' pytest
+.venv-test/bin/python -m pytest tests/test_run_agentic_hooks.py -v
+```
+
+Expected: `5 passed`. The `.venv-test/` is gitignored by `9f07f9b`.
+
+**Regression scope verified:** running the runner-adjacent suite
+(`test_runner.py + test_run_agentic_hooks.py + test_cache.py +
+test_llm.py + test_tracing.py`) gives **50/50 pass** with the patched
+`runner.py`. The pre-existing `test_run_oneshot_uses_single_step_…`
+continues to pass — the `run_oneshot` sibling code path is untouched.
+
+**Pre-existing failures observed in the broader AIOB suite** (23
+tests in `test_validation.py`, `test_tools.py`, `test_orchestrate.py`)
+are all environment issues (`pyarrow`, `fastparquet`, `structlog`
+missing from the `[science]` extras set) — none touch `run_agentic`,
+the public API surface, or the hook plumbing. They fail equivalently
+on AIOB main.
+
 ---
 
 ## 4. The public API re-export — `agentiobench/__init__.py`
@@ -465,14 +515,15 @@ Notes:
 
 ## 6. Robustness properties
 
-| Property | Mechanism | Why it matters |
-|---|---|---|
-| Backwards-compatible signature | Keyword-only params with `None` defaults | Existing AIOB callers (e.g. AIOB's own CLI, the companion-paper experiments) keep working unchanged |
-| Hook failures don't kill the run | `_safe_call_hook` try/except + log.warning | AgentStage development can't cost AIOB benchmark data |
-| Hook fires exactly once per turn | Two explicit call sites covering normal + break paths | No double-counting in cost / prediction accounting; no missing turn in the predictor's state |
-| Top-level `import agentiobench` is cheap | Lazy `__getattr__` in `__init__.py` | AgentStage's trace-only path, linters, and IDEs work without `science` extras |
-| Static analyzers see the surface | `if TYPE_CHECKING:` eager-import branch | mypy / pyright / IDE auto-complete remain useful |
-| Submodule pin lockstep | AgentStage commit `651c9cb` pins exact AIOB SHA | Reviewers re-running the campaign get the same hooks we used |
+| Property | Mechanism | Verified by | Why it matters |
+|---|---|---|---|
+| Backwards-compatible signature | Keyword-only params with `None` defaults | `test_run_agentic_without_hooks_is_unchanged` | Existing AIOB callers (AIOB CLI, companion-paper experiments) keep working unchanged |
+| Hook failures don't kill the run | `_safe_call_hook` try/except + log.warning | `test_broken_pre_hook_does_not_abort_run` + `test_broken_post_hook_does_not_corrupt_verdict` | AgentStage development can't cost AIOB benchmark data |
+| Hook fires exactly once per turn | Three explicit call sites covering top + normal-end + early-break paths | `test_hooks_fire_per_turn_normal_path` + `test_post_turn_hook_fires_on_early_break_path` | No double-counting in cost / prediction accounting; no missing turn in the predictor's state |
+| `pre` receives the *outgoing* messages, `post` receives the *response* | Hook insertion sites bracket the LLM call | `test_hooks_fire_per_turn_normal_path` asserts `n_messages` growth + `response_step` identity | Predictor sees the same prompt the model saw; post-hook can extract tokens/thinking from the same response object AIOB used |
+| Top-level `import agentiobench` is cheap | Lazy `__getattr__` in `__init__.py` | Live smoke test (`import agentiobench` in the agentstage venv without `[science]` extras succeeds) | AgentStage's trace-only path, linters, and IDEs work without `science` extras |
+| Static analyzers see the surface | `if TYPE_CHECKING:` eager-import branch | (not pytest-verified; relies on mypy/pyright behavior) | mypy / pyright / IDE auto-complete remain useful |
+| Submodule pin lockstep | AgentStage commit `2e5ff93` pins AIOB `9f07f9b` (including the tests) | `git submodule status` | Reviewers re-running the campaign get the same hooks AND the test suite that pins their behavior |
 
 ---
 
@@ -587,8 +638,9 @@ Eventually `feat/agentstage-integration` should merge into AIOB
 
 - The AIOB-companion-paper effort accepting the public-API stability
   promise (a §4.1 commitment is implicit in re-exports).
-- A PR review that runs AIOB's full test suite against the branch
-  (currently not blocked but also not done — see §9 below).
+- A PR review (the test suite in `813d477` makes this lower-friction —
+  five new tests document the contract; passing them is the merge
+  criterion the reviewer can pin on).
 - AgentStage's eScience submission landing, so the integration code
   is referenced from a published paper.
 
@@ -601,11 +653,14 @@ merge commit.
 
 ## 9. Open follow-ups
 
-1. **Run AIOB's pytest suite against `feat/agentstage-integration`.**
-   The patch parses syntactically and the lazy-import path is
-   verified locally, but `tests/` was not run because it needs the
-   AIOB `science` extras venv. Before opening a PR back to AIOB main,
-   spin up that venv and confirm green.
+1. ~~**Run AIOB's pytest suite against `feat/agentstage-integration`.**~~
+   **Done in `813d477`.** Five behavioral tests for the hook contract
+   are now part of the AIOB branch (see §3.5). 50/50 pass on the
+   runner-adjacent subset of AIOB's existing suite
+   (`test_runner.py + test_cache.py + test_llm.py + test_tracing.py +
+   test_run_agentic_hooks.py`). The 23 broader-suite failures are
+   pre-existing environment issues (`pyarrow`/`fastparquet`/`structlog`
+   missing from `[science]` extras) unrelated to the integration.
 
 2. **Fix CAMPAIGN.md's `dftracer_context` reference.** §6 said
    `dftracer_context` is re-exported; it isn't. The real symbols are
@@ -623,6 +678,12 @@ merge commit.
    AND stager AND cost-tracker AND temperature-logger), add a
    `compose_hooks(*fns)` utility on the AgentStage side. AIOB stays
    single-hook.
+
+5. **Open a draft PR on `grc-iit/agentiobench` for visibility.** Not
+   for immediate merge — for upstream awareness, any CI hooks the
+   org has configured, and an in-progress citation when the AIOB
+   companion paper drafts come together. The verified-tests state
+   (§3.5) makes this lower-stakes than it would have been pre-`813d477`.
 
 ---
 
@@ -651,4 +712,10 @@ verdict = run_agentic(
 ```
 
 Upstream branch: <https://github.com/grc-iit/agentiobench/tree/feat/agentstage-integration>
-AgentStage submodule pin: see `external/benchmarks/agentiobench` (commit `651c9cb` set it to AIOB `4b78210`)
+AgentStage submodule pin: see `external/benchmarks/agentiobench` (commit `2e5ff93` set it to AIOB `9f07f9b`, which includes the verified-tests commit `813d477`).
+
+**Branch contents at the current pin:**
+- `f4d5723` Add public API surface + `run_agentic` turn-hook integration points
+- `4b78210` Make agentiobench public-API re-exports lazy
+- `813d477` Verify run_agentic hooks fire correctly under mocked LLM + tools (5 tests, all pass)
+- `9f07f9b` gitignore: `.venv-test/`
