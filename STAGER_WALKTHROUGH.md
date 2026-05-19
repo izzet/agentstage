@@ -1,13 +1,18 @@
 # Stager Walkthrough
 
 Tutorial-style explanation of how the AgentStage staging daemon and
-LD_PRELOAD shim actually work in practice. Companion to
-[`STAGER_DESIGN.md`](STAGER_DESIGN.md), which is the spec; this doc is
-the explainer with concrete timelines, scenarios, and reasoning.
+LD_PRELOAD shim actually work in practice.
 
-When you come back to this in a month, read this first. Then dive into
-`STAGER_DESIGN.md` for the implementation contract or
-`src/agentstage/stager/` for the code itself.
+Three docs in this set:
+- This file — the explainer (read first when coming back cold)
+- [`STAGER_DESIGN.md`](STAGER_DESIGN.md) — the implementation contract
+- [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.md) — what we tested
+  pre-Day-5, what we measured (168-306× speedup, eviction confirmed),
+  and which bugs surfaced during testing.
+
+For implementation contracts, go to the spec. For "did it actually
+work?" go to the verification doc. Code lives in
+`src/agentstage/stager/`.
 
 ## Contents
 
