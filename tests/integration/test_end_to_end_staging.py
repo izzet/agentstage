@@ -87,14 +87,31 @@ Path({str(summary_path)!r}).write_text(json.dumps(results))
 """
 
 
-def test_end_to_end_synthetic_5_file_workload(shim_lib, tmp_path):
-    """Five-file mini-workload:
+@pytest.mark.parametrize("with_dftracer", [False, True], ids=["no_dftracer", "with_dftracer"])
+def test_end_to_end_synthetic_5_file_workload(shim_lib, tmp_path, with_dftracer):
+    """Five-file mini-workload, parametrized to run with and without DFTracer
+    in the LD_PRELOAD chain:
+
       - Stager pre-stages files 1, 2, 3 (NOT 4, 5)
       - Subprocess opens all 5 via LD_PRELOAD shim
       - Files 1-3 must come from hot (fast); 4-5 from cold
+      - Byte identity preserved on all 5
 
-    Verifies the full stager + shim contract end-to-end.
+    With dftracer in the chain, additionally verifies the integration
+    still works (no crashes, redirect still functions). DFTracer's own
+    trace correctness is tested in tests/test_dftracer_chain.py.
     """
+    if with_dftracer:
+        from tests.test_dftracer_chain import _find_dftracer_preload
+        dftracer = _find_dftracer_preload()
+        if dftracer is None:
+            pytest.skip(
+                "DFTracer .so not found; set AGENTSTAGE_DFTRACER_PRELOAD "
+                "or build external/libs/dftracer/"
+            )
+    else:
+        dftracer = None
+
     cold_dir = tmp_path / "cold"
     hot_dir = tmp_path / "hot"
     cold_dir.mkdir()
@@ -132,7 +149,18 @@ def test_end_to_end_synthetic_5_file_workload(shim_lib, tmp_path):
     script = _agent_subprocess_script(cold_paths, summary_path)
 
     env = os.environ.copy()
-    env["LD_PRELOAD"] = str(shim_lib)
+    # LD_PRELOAD chain: dftracer first if present (logs intent),
+    # then our shim (redirects).
+    if dftracer is not None:
+        env["LD_PRELOAD"] = f"{dftracer}:{shim_lib}"
+        # Minimal dftracer config so it loads without crashing
+        env["DFTRACER_ENABLE"] = "1"
+        env["DFTRACER_LOG_FILE"] = str(tmp_path / "dftracer_trace")
+        env["DFTRACER_DATA_DIR"] = str(cold_dir)
+        env["DFTRACER_DISABLE_IO"] = "0"
+        env["DFTRACER_INIT"] = "PRELOAD"
+    else:
+        env["LD_PRELOAD"] = str(shim_lib)
     env["AGENTSTAGE_HOT_ROOT"] = str(hot_dir)
     env["AGENTSTAGE_COLD_ROOTS"] = str(cold_dir)
     env["AGENTSTAGE_RETRY_SPIN_MS"] = "5"

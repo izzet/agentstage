@@ -276,19 +276,37 @@ print(st.st_size)
 # T6: DFTracer load-order compatibility (smoke)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skip(
-    reason="DFTracer chain test needs a real wrapper library (libdftracer.so), "
-           "not libc.so.6 as a stand-in: libc DEFINES openat (we'd intercept "
-           "its definition, not chain through it), whereas a tracer WRAPS "
-           "openat via dlsym(RTLD_NEXT). Re-enable on Day 5 (T29) once "
-           "dftracer is in external/dftracer/."
-)
 def test_shim_works_with_dftracer_before_it(shim_lib, cold_dir, hot_dir):
-    """LD_PRELOAD chain: dftracer wraps agentstage wraps libc.
-    dftracer's openat runs first, logs the cold path (agent intent),
-    then calls dlsym(RTLD_NEXT, "openat") → agentstage's openat →
-    redirects → calls libc's openat with hot path."""
-    pass  # will exercise the real chain on Day 5
+    """LD_PRELOAD chain: dftracer + agentstage shim together.
+
+    Verifies our shim still works when dftracer is in the chain. The
+    cold/hot redirect must function correctly regardless of dftracer's
+    presence. The detailed chain semantics live in
+    tests/test_dftracer_chain.py; this is the spot-check that our shim's
+    own test suite has dftracer-compatibility coverage.
+    """
+    # Reuse the chain test's dftracer discovery
+    from tests.test_dftracer_chain import _find_dftracer_preload
+    dftracer = _find_dftracer_preload()
+    if dftracer is None:
+        pytest.skip(
+            "libdftracer_preload.so not found; set "
+            "AGENTSTAGE_DFTRACER_PRELOAD or build external/libs/dftracer/"
+        )
+
+    cold_file = cold_dir / "chained.txt"
+    cold_file.write_text("COLD_CHAINED")
+    place_hot_copy(hot_dir, cold_file, b"HOT_CHAINED")
+
+    env = shim_env(shim_lib, hot_dir, cold_dir, extra_ld_preload=str(dftracer))
+    # Minimal dftracer config so it doesn't crash on missing env vars
+    env["DFTRACER_ENABLE"] = "0"  # we don't care about traces here, just chain compat
+
+    r = run_python(env, f"print(open({str(cold_file)!r}).read())")
+    assert r.returncode == 0, f"stderr: {r.stderr}"
+    assert r.stdout.strip() == "HOT_CHAINED", (
+        "shim didn't redirect when dftracer was loaded first; chain broken"
+    )
 
 
 # ---------------------------------------------------------------------------

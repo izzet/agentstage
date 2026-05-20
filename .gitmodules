@@ -7,3 +7,9 @@
 [submodule "external/benchmarks/kramabench"]
 	path = external/benchmarks/kramabench
 	url = https://github.com/mitdbg/Kramabench.git
+[submodule "external/libs/dftracer"]
+	path = external/libs/dftracer
+	url = https://github.com/izzet/dftracer.git
+[submodule "external/libs/dfanalyzer"]
+	path = external/libs/dfanalyzer
+	url = https://github.com/izzet/dfanalyzer.git
