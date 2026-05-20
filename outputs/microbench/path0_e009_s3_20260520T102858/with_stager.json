@@ -1,0 +1,53 @@
+{
+  "mode": "with-stager",
+  "ld_preload_set": true,
+  "shim_in_ld_preload": true,
+  "workload": "aiob_107_s3",
+  "stream": "outputs/poc/20260518-171234_aiob_107_anthropic_claude-sonnet-4-5_t1_b16384_pp_s0_azure/stream.jsonl",
+  "rule_library_version": "v1",
+  "n_tier1_files_predicted": 1,
+  "n_tier3_files_predicted": 6042,
+  "n_samples_measured": 5,
+  "hot_root": "/dev/shm/agentstage_path0",
+  "cold_root": "/tmp/s3-noaa-goes16",
+  "aggregate": {
+    "n_samples": 5,
+    "p50_ms": 0.055088,
+    "p95_ms": 0.078806,
+    "mean_ms": 0.0588892,
+    "min_ms": 0.029642,
+    "max_ms": 0.090918
+  },
+  "per_file": [
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+      "size_bytes": 2960235,
+      "cold_resident_frac_before": 1.0,
+      "first_read_ms": 0.090918
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220006170_e20241220008543_c20241220009044.nc",
+      "size_bytes": 2957644,
+      "cold_resident_frac_before": 1.0,
+      "first_read_ms": 0.078806
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220011170_e20241220013543_c20241220014039.nc",
+      "size_bytes": 2955437,
+      "cold_resident_frac_before": 1.0,
+      "first_read_ms": 0.055088
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220016170_e20241220018543_c20241220019015.nc",
+      "size_bytes": 2954620,
+      "cold_resident_frac_before": 1.0,
+      "first_read_ms": 0.039992
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220021170_e20241220023543_c20241220024030.nc",
+      "size_bytes": 2952783,
+      "cold_resident_frac_before": 1.0,
+      "first_read_ms": 0.029642
+    }
+  ]
+}

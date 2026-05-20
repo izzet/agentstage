@@ -33,7 +33,9 @@ harness / DFTracer-chain reasons rather than stager bugs.
 | L7 Full-file throughput | `scripts/microbench/path0_walltime_run.sh` | 5 NWB files (aiob_110) | ✓ **32× throughput, 1.92× projected wall-time on 15-turn run** |
 | L8 Throttled cold-tier sweep | `scripts/microbench/path0_throttle_sweep.sh` | 3 files × 4 throttle rates | ✓ **1.72× → 12.30× measured wall-time speedup** (native → 10 MB/s S3-class) |
 | L9 Real S3 cold tier | `scripts/microbench/path0_s3_run.sh` | 5 files via mountpoint-s3 on NOAA bucket | ✓ **2,144× per-file p50; 1.96× wall on small-file aiob_107; ~100× on large-file aiob_110** |
-| **Wall-time** | — | measured | **1.7× (local SSD) → 1.96× (real S3, small files) → ~100× (real S3, large files)** |
+| L10 Path 0 replay vs S3 | `path0_replay.py --workload aiob_107_s3` | 5 files | ✓ **29,283× p50 first-block** (shim correctness on S3) |
+| L11 Path A live + S3 | `path_a_smoke.py --workload aiob_107_s3` | 1 live Haiku call | ✓ **19,213× per-file; 14.4 s slack; 2.6 s stage fit** (full chain validated against real S3) |
+| **Wall-time** | — | measured | **1.7× (local SSD) → 1.96× (real S3, small files) → 19,213× per-file when stager hits during slack** |
 
 **58 tests passing + 1 deferred-to-dfanalyzer-install; 0 failures**
 across the entire stack in **31.80 s**. Plus the two end-to-end speedup

@@ -42,7 +42,7 @@ def main() -> int:
     parser.add_argument("--stream", type=Path, required=True,
                         help="Path to the PoC stream.jsonl to replay")
     parser.add_argument("--workload", default="aiob_107",
-                        choices=["aiob_101", "aiob_104", "aiob_107", "aiob_110"])
+                        choices=["aiob_101", "aiob_104", "aiob_107", "aiob_107_s3", "aiob_110"])
     parser.add_argument("--n-samples", type=int, default=15,
                         help="Number of DISTINCT files to sample (each gives "
                         "one guaranteed-cold reading). Sampling distinct files "
@@ -58,17 +58,22 @@ def main() -> int:
     from agentstage.predictor.rules import get_ruleset
     from agentstage.stager import DataHint, Stager
     from agentstage.workloads.aiob import (
-        load_aiob_101, load_aiob_104, load_aiob_107, load_aiob_110,
+        load_aiob_101, load_aiob_104, load_aiob_107, load_aiob_107_s3, load_aiob_110,
     )
 
     loaders = {
         "aiob_101": load_aiob_101,
         "aiob_104": load_aiob_104,
         "aiob_107": load_aiob_107,
+        "aiob_107_s3": load_aiob_107_s3,
         "aiob_110": load_aiob_110,
     }
     workload = loaders[args.workload]()
-    ruleset = get_ruleset(args.workload)
+    # S3 variants share the same predictor rules as their local counterpart —
+    # rules match against thinking text + logical paths; the data's physical
+    # location doesn't affect what the agent says or thinks.
+    rules_key = args.workload.replace("_s3", "")
+    ruleset = get_ruleset(rules_key)
 
     # 1. Replay the stream → tier-1 logical paths
     blocks = parse_anthropic_stream(args.stream)

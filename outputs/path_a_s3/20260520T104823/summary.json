@@ -1,0 +1,51 @@
+{
+  "model": "claude-haiku-4-5",
+  "budget": 8192,
+  "base_url": "https://izzet-2249-resource.openai.azure.com/anthropic",
+  "task": "aiob_107_s3",
+  "fired_rules": [
+    "all_bands",
+    "all_files_signal",
+    "band_08",
+    "first_inspect"
+  ],
+  "n_fired_rules": 4,
+  "slack_ms": 14433.222823143005,
+  "first_thinking_chunk_at_ms": 6730.858548879623,
+  "first_tool_use_at_ms": 21164.08137202263,
+  "tool_calls": [
+    {
+      "name": "list_dir",
+      "input_json": "{\"path\": \"/data/goes_cmi_composites/raw\"}",
+      "id": "toolu_01URP1jvuaa7T6g2Bs2iyZT4"
+    },
+    {
+      "name": "list_dir",
+      "input_json": "{\"path\": \"/data/goes_cmi_composites/raw/2024\"}",
+      "id": "toolu_01U27azRCsZyz57K6mqJxx6D"
+    }
+  ],
+  "measurements": {
+    "target_logical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+    "target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+    "target_source": "stager:first_staged",
+    "size_bytes": 2960235,
+    "was_staged_at_tool_use": true,
+    "hot_read_ms": 0.039,
+    "cold_read_ms": 754.483,
+    "speedup": 19212.7
+  },
+  "staging_report": {
+    "n_events": 1,
+    "n_staged": 1,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 2960235,
+    "fetch_ms": {
+      "p50": 2590.969,
+      "p95": 2590.969,
+      "max": 2590.969,
+      "mean": 2590.969
+    }
+  }
+}

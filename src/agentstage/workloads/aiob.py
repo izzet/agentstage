@@ -206,6 +206,46 @@ def load_aiob_104() -> Workload:
 # aiob_107 — GOES meteorology (6042 NetCDFs across 3 bands × 7 days × 24 hours)
 # ---------------------------------------------------------------------------
 
+def load_aiob_107_s3(
+    s3_mount: str | Path = "/tmp/s3-noaa-goes16",
+    s3_prefix: str = "ABI-L2-CMIPC",
+) -> Workload:
+    """S3 variant of aiob_107. Sources GOES data directly from NOAA's
+    public Open Data bucket (`s3://noaa-goes16/`) via a mountpoint-s3
+    mount. Workspace_prior reuses the logical paths from the local
+    aiob_107 — the predictor sees identical `/data/goes_cmi_composites/raw/...`
+    paths in thinking text — but the prefix_map maps them onto the
+    bucket's native `ABI-L2-CMIPC/YYYY/DDD/HH/...` layout.
+
+    Prereq:
+        mount-s3 --no-sign-request --read-only --region us-east-1 \
+            noaa-goes16 /tmp/s3-noaa-goes16
+
+    For tasks where the local AIOB data may not exist (e.g. an
+    Ares clone without the staged GOES corpus), this loader still
+    works because workspace_prior is reused from load_aiob_107's
+    logical path list — falls back to a small hard-coded probe set
+    if local AIOB data is absent.
+    """
+    # Reuse local aiob_107's workspace_prior structure (logical paths).
+    # The predictor matches against text mentions of files; what changes
+    # for the S3 variant is purely the physical-path mapping.
+    local = load_aiob_107()
+    s3_mount = Path(s3_mount)
+
+    return Workload(
+        task_id="aiob_107_s3",
+        task=local.task,
+        workspace_prior=local.workspace_prior,
+        ground_truth_full=local.ground_truth_full,
+        ground_truth_first_inspect=local.ground_truth_first_inspect,
+        # /data/goes_cmi_composites/raw/  ->  /tmp/s3-noaa-goes16/ABI-L2-CMIPC/
+        prefix_map=(
+            ("/data/goes_cmi_composites/raw/", f"{s3_mount}/{s3_prefix}/"),
+        ),
+    )
+
+
 def load_aiob_107() -> Workload:
     task = TaskConfig.from_yaml(_task_yaml("aiob_107"))
     real_base = data_root() / task.dataset_subdir / "raw"

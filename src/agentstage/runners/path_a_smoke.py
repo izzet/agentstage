@@ -30,7 +30,7 @@ from pathlib import Path
 from agentstage.client.anthropic import AnthropicClient
 from agentstage.predictor.rules import get_ruleset
 from agentstage.stager import Stager, StagingReport
-from agentstage.workloads.aiob import load_aiob_107
+from agentstage.workloads.aiob import load_aiob_107, load_aiob_107_s3
 
 
 # Task prompt — same shape the PoC used for aiob_107 sonnet+PP probes
@@ -102,6 +102,11 @@ def main() -> int:
                         help="Anthropic model id (default: claude-haiku-4-5)")
     parser.add_argument("--budget", type=int, default=8192,
                         help="thinking_budget tokens (default: 8192)")
+    parser.add_argument("--workload", default="aiob_107",
+                        choices=["aiob_107", "aiob_107_s3"],
+                        help="Which workload to load (default: aiob_107). "
+                             "aiob_107_s3 uses mountpoint-s3 against the "
+                             "public NOAA bucket; data lives on S3.")
     parser.add_argument("--out", type=Path, required=True,
                         help="Output directory (one run)")
     args = parser.parse_args()
@@ -132,8 +137,13 @@ def main() -> int:
               file=sys.stderr)
         return 2
 
-    # Load workload + ruleset
-    workload = load_aiob_107()
+    # Load workload + ruleset. S3 variant shares aiob_107's rules
+    # (predictor rules match against thinking text + logical paths;
+    # the data's physical location doesn't affect what the agent thinks).
+    if args.workload == "aiob_107_s3":
+        workload = load_aiob_107_s3()
+    else:
+        workload = load_aiob_107()
     ruleset = get_ruleset("aiob_107")
     print(f"workload: {workload.task_id}, prior buckets: {len(workload.workspace_prior)}, "
           f"total files in prior: {sum(len(v) for v in workload.workspace_prior.values())}",
