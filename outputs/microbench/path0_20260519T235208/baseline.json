@@ -1,0 +1,143 @@
+{
+  "mode": "baseline",
+  "ld_preload_set": false,
+  "shim_in_ld_preload": false,
+  "workload": "aiob_107",
+  "stream": "outputs/poc/20260518-171234_aiob_107_anthropic_claude-sonnet-4-5_t1_b16384_pp_s0_azure/stream.jsonl",
+  "rule_library_version": "v1",
+  "n_tier1_files_predicted": 1,
+  "n_tier3_files_predicted": 6042,
+  "n_samples_measured": 20,
+  "hot_root": "/dev/shm/agentstage_path0",
+  "cold_root": "/mnt/common/datasets-staging/agentiobench/datasets",
+  "aggregate": {
+    "n_samples": 20,
+    "p50_ms": 185.74371150000002,
+    "p95_ms": 574.566697,
+    "mean_ms": 225.75312035,
+    "min_ms": 10.304004,
+    "max_ms": 803.572813
+  },
+  "per_file": [
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+      "size_bytes": 2960235,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 244.734936
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220006170_e20241220008543_c20241220009044.nc",
+      "size_bytes": 2957644,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 252.566418
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220011170_e20241220013543_c20241220014039.nc",
+      "size_bytes": 2955437,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 57.404613
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220016170_e20241220018543_c20241220019015.nc",
+      "size_bytes": 2954620,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 185.130424
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220021170_e20241220023543_c20241220024030.nc",
+      "size_bytes": 2952783,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 213.082295
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220026170_e20241220028543_c20241220029039.nc",
+      "size_bytes": 2951995,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 241.239675
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220031170_e20241220033543_c20241220034008.nc",
+      "size_bytes": 2952015,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 10.304004
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220036170_e20241220038543_c20241220039015.nc",
+      "size_bytes": 2950923,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 357.943946
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220041170_e20241220043543_c20241220044015.nc",
+      "size_bytes": 2949620,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 13.289285
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220046170_e20241220048543_c20241220049062.nc",
+      "size_bytes": 2949511,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 803.572813
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220051170_e20241220053543_c20241220054052.nc",
+      "size_bytes": 2948195,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 186.356999
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220056170_e20241220058543_c20241220059031.nc",
+      "size_bytes": 2948250,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 65.052344
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220001170_e20241220003549_c20241220004013.nc",
+      "size_bytes": 2858464,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 33.12
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220006170_e20241220008549_c20241220009033.nc",
+      "size_bytes": 2857780,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 574.566697
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220011170_e20241220013549_c20241220014039.nc",
+      "size_bytes": 2856742,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 59.57806
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220016170_e20241220018549_c20241220019022.nc",
+      "size_bytes": 2855898,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 105.492687
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220021170_e20241220023549_c20241220024020.nc",
+      "size_bytes": 2855106,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 162.829178
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220026170_e20241220028549_c20241220029050.nc",
+      "size_bytes": 2853307,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 366.00729
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220031170_e20241220033550_c20241220034018.nc",
+      "size_bytes": 2851895,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 409.568315
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220036170_e20241220038549_c20241220039024.nc",
+      "size_bytes": 2852251,
+      "cold_resident_frac_before": 0.0,
+      "first_read_ms": 173.222428
+    }
+  ]
+}
