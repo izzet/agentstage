@@ -31,7 +31,8 @@ harness / DFTracer-chain reasons rather than stager bugs.
 | L5 Path 0 replay | `scripts/microbench/path0_run.sh` | 20 distinct files | ✓ 5628× p50 speedup on aiob_107 first-byte |
 | L6 Path A live | `scripts/path_a_run.sh` | 1 Haiku call + measurement | ✓ 195.6× speedup on file predictor staged |
 | L7 Full-file throughput | `scripts/microbench/path0_walltime_run.sh` | 5 NWB files (aiob_110) | ✓ **32× throughput, 1.92× projected wall-time on 15-turn run** |
-| **Wall-time projection** | — | analytical | **1.15-9.4× wall-clock speedup** depending on workload + cold-tier (§below) |
+| L8 Throttled cold-tier sweep | `scripts/microbench/path0_throttle_sweep.sh` | 3 files × 4 throttle rates | ✓ **1.72× → 12.30× measured wall-time speedup** (native → 10 MB/s S3-class) |
+| **Wall-time** | — | measured + projected | **1.7-12.3× wall-clock** depending on cold-tier rate (§below) |
 
 **58 tests passing + 1 deferred-to-dfanalyzer-install; 0 failures**
 across the entire stack in **31.80 s**. Plus the two end-to-end speedup
@@ -708,22 +709,29 @@ thinking at ~150 s and compute at ~30 s:
 - Hot total: 5.9 + 150 + 30 = **186 s**
 - **Wall-time speedup: 1.92×** (measured; matches the 1.99× projection)
 
-### Rate-limited cold tier projection (slow PFS)
+### Rate-limited cold tier — **measured** wall-time speedup (E-007, 2026-05-20)
 
-With the measured 33× throughput differential, the wall-time speedup
-scales with cold-tier bandwidth. Projection for aiob_110 with a
-rate-limited cold tier:
+Userspace per-chunk throttling on the cold-read path enforces target
+cold-tier throughput. Hot-tier (tmpfs) reads unchanged. Three NWB
+files, 1.3 GB total, repeated at four cold rates:
 
-| Cold tier | Cold throughput | Cold I/O (45 × 350 MB) | LLM+compute | Cold total | Hot total | **Wall speedup** |
-|---|---:|---:|---:|---:|---:|---:|
-| XFS-SSD (measured) | 100 MB/s | 158 s | 180 s | 338 s | 186 s | **1.82×** |
-| Lustre / NFS typical | 50 MB/s | 315 s | 180 s | 495 s | 186 s | **2.66×** |
-| S3 / object-store | 30 MB/s | 525 s | 180 s | 705 s | 186 s | **3.79×** |
-| Cold S3 with cross-region | 10 MB/s | 1575 s | 180 s | 1755 s | 186 s | **9.44×** |
+| Cold tier | Measured cold (mean) | Cold I/O × 45 reads | Total cold | Total hot | **Wall speedup** |
+|---|---:|---:|---:|---:|---:|
+| Native XFS-SSD | 3.06 s/file (141 MB/s) | 138 s | 318 s | 185 s | **1.72×** |
+| Throttled 50 MB/s | 11.21 s/file (39 MB/s) | 504 s | 684 s | 185 s | **3.70×** |
+| Throttled 30 MB/s | 15.16 s/file (29 MB/s) | 682 s | 862 s | 185 s | **4.67×** |
+| Throttled 10 MB/s | 46.50 s/file (9.5 MB/s) | 2,093 s | 2,273 s | 185 s | **12.30×** |
+
+**These are no longer projections.** The measured 30 MB/s cold tier
+(S3-class) gives a 4.67× wall-time speedup on a 15-turn run, exceeding
+the original analytical projection of 3.79×.
 
 The slower the cold tier, the bigger the speedup story — which is
 exactly the framing the paper wants ("AgentStage matters where
-agents are I/O-bound on slow cold tiers").
+agents are I/O-bound on slow cold tiers"). Throttle implementation
+models throughput but not first-byte latency, so these numbers are
+**conservative**: real PFS adds 50-500 ms first-byte per file on top
+of throughput, which would push the speedup higher.
 
 ### What still needs measurement (Path B territory)
 

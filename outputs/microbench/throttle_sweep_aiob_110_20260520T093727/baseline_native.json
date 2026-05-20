@@ -1,0 +1,50 @@
+{
+  "mode": "baseline",
+  "workload": "aiob_110",
+  "bucket": "all_subjects",
+  "n_samples": 3,
+  "throttle_mbps": null,
+  "ld_preload_set": false,
+  "shim_in_ld_preload": false,
+  "aggregate": {
+    "full_read_ms": {
+      "p50": 2869.0,
+      "p95": 2869.0,
+      "mean": 3063.9,
+      "min": 2255.6,
+      "max": 4067.1
+    },
+    "throughput_mbps": {
+      "p50": 138.2,
+      "p95": 138.2,
+      "mean": 141.0
+    },
+    "total_bytes": 1311091519
+  },
+  "per_file": [
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Cori/sub-Cori_ses-20161214T120000.nwb",
+      "size_bytes": 311814662,
+      "size_mb": 311.8,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 2255.6,
+      "throughput_mbps": 138.2
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Tatum/sub-Tatum_ses-20171209T120000.nwb",
+      "size_bytes": 379929985,
+      "size_mb": 379.9,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 2869.0,
+      "throughput_mbps": 132.4
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Lederberg/sub-Lederberg_ses-20171206T120000.nwb",
+      "size_bytes": 619346872,
+      "size_mb": 619.3,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 4067.1,
+      "throughput_mbps": 152.3
+    }
+  ]
+}

@@ -37,6 +37,12 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=0,
                         help="RNG seed for deterministic file selection.")
+    parser.add_argument("--throttle-mbps", type=float, default=None,
+                        help="Throttle cold reads to this max throughput (MB/s) "
+                        "to simulate a slower cold tier (e.g. real PFS, S3). "
+                        "Inserts per-chunk sleep to enforce. Only applies to "
+                        "the baseline (cold) measurement; with-stager mode "
+                        "reads from tmpfs (unthrottled).")
     args = parser.parse_args()
 
     from agentiobench.utils.cache import _resident_pages
@@ -129,6 +135,14 @@ def main() -> int:
     all_full_read_ms: list[float] = []
     all_throughput_mbps: list[float] = []
 
+    # Throttling: enforce a per-chunk minimum time so cold reads don't
+    # exceed the target throughput. Only applies to baseline; with-stager
+    # reads from tmpfs (unthrottled, because the agent reads from local
+    # hot tier — that's the whole point of the design).
+    chunk_size = 1 << 20  # 1 MiB
+    apply_throttle = (args.mode == "baseline" and args.throttle_mbps is not None)
+    target_chunk_s = chunk_size / (args.throttle_mbps * 1e6) if apply_throttle else 0
+
     for phys in sample:
         size = Path(phys).stat().st_size
         evict_strict(phys)
@@ -140,8 +154,19 @@ def main() -> int:
 
         t0 = time.monotonic_ns()
         with open(phys, "rb") as f:
-            while f.read(1 << 20):  # 1 MiB chunks
-                pass
+            if apply_throttle:
+                while True:
+                    cs = time.monotonic_ns()
+                    data = f.read(chunk_size)
+                    if not data:
+                        break
+                    chunk_read_s = (time.monotonic_ns() - cs) / 1e9
+                    sleep_for = target_chunk_s - chunk_read_s
+                    if sleep_for > 0:
+                        time.sleep(sleep_for)
+            else:
+                while f.read(chunk_size):
+                    pass
         elapsed_ms = (time.monotonic_ns() - t0) / 1e6
         throughput_mbps = (size / 1e6) / (elapsed_ms / 1000) if elapsed_ms > 0 else 0
         all_full_read_ms.append(elapsed_ms)
@@ -166,6 +191,7 @@ def main() -> int:
         "workload": args.workload,
         "bucket": bucket_name,
         "n_samples": len(sample),
+        "throttle_mbps": args.throttle_mbps,
         "ld_preload_set": bool(os.environ.get("LD_PRELOAD")),
         "shim_in_ld_preload": "agentstage_shim" in os.environ.get("LD_PRELOAD", ""),
         "aggregate": {
