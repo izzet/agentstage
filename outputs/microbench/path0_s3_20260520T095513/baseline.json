@@ -1,0 +1,55 @@
+{
+  "mode": "baseline",
+  "cold_backend": "noaa-goes16 (mountpoint-s3, us-east-1)",
+  "s3_mount": "/tmp/s3-noaa-goes16",
+  "prefix": "ABI-L2-CMIPC/2024/122/00",
+  "n_samples": 5,
+  "ld_preload_set": false,
+  "shim_in_ld_preload": false,
+  "aggregate": {
+    "full_read_ms": {
+      "p50": 4288.5,
+      "p95": 4292.9,
+      "mean": 3838.6,
+      "min": 1847.5,
+      "max": 4587.7
+    },
+    "throughput_mbps": {
+      "p50": 0.7,
+      "mean": 0.9
+    },
+    "total_bytes": 14700000
+  },
+  "per_file": [
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220006170_e20241220008543_c20241220009044.nc",
+      "size_mb": 3.0,
+      "full_read_ms": 4587.7,
+      "throughput_mbps": 0.6
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220046170_e20241220048543_c20241220049062.nc",
+      "size_mb": 2.9,
+      "full_read_ms": 4176.4,
+      "throughput_mbps": 0.7
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220041170_e20241220043543_c20241220044015.nc",
+      "size_mb": 2.9,
+      "full_read_ms": 4288.5,
+      "throughput_mbps": 0.7
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220026170_e20241220028543_c20241220029039.nc",
+      "size_mb": 3.0,
+      "full_read_ms": 1847.5,
+      "throughput_mbps": 1.6
+    },
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220051170_e20241220053543_c20241220054052.nc",
+      "size_mb": 2.9,
+      "full_read_ms": 4292.9,
+      "throughput_mbps": 0.7
+    }
+  ]
+}

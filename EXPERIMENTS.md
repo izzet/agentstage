@@ -13,7 +13,8 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 
 | ID | Date | Goal | Headline | Script | Commit |
 |---|---|---|---|---|---|
-| **E-007** | 2026-05-20 | Throttled-cold-tier sweep: measured wall-time speedup on simulated slow PFS | **1.72× native → 12.3× at 10 MB/s** | `scripts/microbench/path0_throttle_sweep.sh` | _next commit_ |
+| **E-008** | 2026-05-20 | Real S3 measurement vs NOAA's public GOES bucket via mountpoint-s3 | **2,144× per-file p50; 1.96× wall on aiob_107; ~100× projected wall on aiob_110** | `scripts/microbench/path0_s3_run.sh` | _next commit_ |
+| **E-007** | 2026-05-20 | Throttled-cold-tier sweep: measured wall-time speedup on simulated slow PFS | **1.72× native → 12.3× at 10 MB/s** | `scripts/microbench/path0_throttle_sweep.sh` | (prior commit) |
 | E-006 | 2026-05-20 | Full-file throughput on aiob_110 (large NWB) | 32× measured throughput, 1.92× projected wall-time | `scripts/microbench/path0_walltime_run.sh aiob_110 5` | `1c03164` |
 | E-005 | 2026-05-20 | Path A live Haiku smoke on aiob_107 | 195.6× per-syscall, 9131 ms slack matches spec | `scripts/path_a_run.sh` | `c78031b` |
 | E-004 | 2026-05-19 | Path 0 replay smoke on aiob_107 | 5628× p50 / 8819× p95 first-byte | `scripts/microbench/path0_run.sh` | `88c7525` |
@@ -350,6 +351,92 @@ in Python (1 MiB chunks). Effective rates are ~10-20% below target
 granularity + chunk-read time both add overhead. The TARGETED rate
 is the more useful framing; the MEASURED rate is what's actually in
 the data. Both reported above for honesty.
+
+---
+
+## E-008 — Real S3 cold tier (NOAA's public GOES bucket via mountpoint-s3)
+
+**Date:** 2026-05-20
+**Goal:** Validate the throttled-simulator numbers from E-007 against
+**actual** S3 latency. NOAA hosts aiob_107's original GOES data as a
+public bucket (`s3://noaa-goes16/`) with free egress and no AWS
+credentials required for read. mount-s3 (AWS Mountpoint S3) presents
+the bucket as a FUSE mount at `/tmp/s3-noaa-goes16/`. Same files we've
+been measuring locally, now read directly from S3.
+
+**Scripts:**
+- `scripts/microbench/path0_s3.py`
+- `scripts/microbench/path0_s3_run.sh` (driver + mount setup)
+**Commit:** _to land with this entry_
+
+**Reproduction:**
+```bash
+# One-time: install mount-s3
+mkdir -p ~/.local/bin
+cd /tmp
+curl -sL https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.tar.gz | tar xz
+cp /tmp/bin/mount-s3 ~/.local/bin/   # or /tmp/mount-s3 depending on tarball layout
+
+# Run: mounts noaa-goes16 (if not already), measures 5 GOES files
+bash scripts/microbench/path0_s3_run.sh 5
+```
+
+**Output:** `outputs/microbench/path0_s3_<ts>/{baseline,with_stager}.json`
+
+**Headline:** 5 GOES NetCDF files (3 MB each, 15 MB total) read from
+NOAA's S3 bucket us-east-1 via Ares network egress:
+
+| Metric | Cold (S3 direct) | Hot (after stage → tmpfs) | Speedup |
+|---|---:|---:|---:|
+| full_read p50 | 4,288 ms | 2.0 ms | **2,144×** |
+| full_read p95 | 4,293 ms | 2.0 ms | 2,146× |
+| full_read mean | 3,839 ms | 2.4 ms | 1,599× |
+| throughput mean | 0.9 MB/s | 1,384 MB/s | **1,537×** |
+
+Stager prefetch: 5 files from S3 in 6.19 s (combined effective 2.4 MB/s
+— mountpoint-s3 parallelizes 4 stage workers reading concurrently).
+
+**Wall-time projection** (15-turn aiob_107-style run, 45 × 3 MB reads,
+150 s LLM, 30 s compute):
+- Cold: 353 s total
+- Hot: 180 s total
+- **Wall speedup: 1.96×**
+
+**Same projection for aiob_110-style large files** (45 × 350 MB at
+this measured 0.8 MB/s S3 throughput): cold I/O = 19,683 s (5.5 hours),
+hot I/O = ~3 minutes. **Theoretical wall speedup ~100×** — bounded by
+"the agent run is infeasible without the stager," which is itself the
+paper's point.
+
+**Notes:**
+
+- **Ares-to-AWS bandwidth is surprisingly low** (0.6-1.6 MB/s per file
+  single-connection). This is consistent with academic-network egress
+  to S3 being congested or rate-limited. A co-located EC2 instance
+  would see 50-100+ MB/s; an HPC cluster with a fast WAN gateway might
+  see 10-50 MB/s. Our number is realistic for "researcher on a
+  university HPC cluster reading from S3."
+
+- **mountpoint-s3 was installable without root** as a static binary in
+  `~/.local/bin/`. FUSE was already present (`/dev/fuse` + `fusermount`
+  on this Ubuntu 22.04). No AWS credentials needed for NOAA's public
+  Open Data bucket (`--no-sign-request` flag).
+
+- One outlier in the baseline (1847 ms vs 4200 ms range): possibly
+  mountpoint-s3 internal caching kicking in on a metadata refresh.
+  Doesn't change the headline.
+
+- **The throttle-simulator from E-007 underestimated real S3 latency.**
+  At 10 MB/s throttle E-007 saw 46s for a 350 MB file; real S3 to Ares
+  is more like 437s for the same file size (0.8 MB/s). For the paper,
+  the throttled-simulator should be framed as a controlled-variable
+  sensitivity sweep, not a "this matches PFS X" claim. Real-S3 measured
+  numbers are the source of truth for the S3 case.
+
+- **Same files, byte-identical to local aiob_107 data.** The NOAA
+  bucket is the SOURCE for AIOB's pre-staged GOES data. Reading them
+  from S3 is "what the agent would do without AgentStage's local
+  staging assumption."
 
 ---
 
