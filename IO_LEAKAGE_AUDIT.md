@@ -356,7 +356,7 @@ Draft paragraph for the paper's discussion section:
 | 13 | Audit doc: experiment matrix table | ✅ done 2026-05-20 | §9 below |
 | 14 | Threats-to-validity paragraph in paper | ⏳ draft in §7 | content frozen from E-011/E-014/E-015 findings |
 
-## 9. Experiment matrix (filled in from E-011 — E-015)
+## 9. Experiment matrix (filled in from E-011 — E-017)
 
 For each experiment we record: regime, predictor variant, rules fired (by source), agent's first-opened file, and live measurement (when applicable). See [`EXPERIMENTS.md`](EXPERIMENTS.md) for full detail.
 
@@ -368,7 +368,23 @@ For each experiment we record: regime, predictor variant, rules fired (by source
 | E-013 | (replay of E-011) | full SessionPredictor | 4 | — | — | — | — | — |
 | **E-014** | B sparse multi-turn | full | 4 | 1 | 1 | 2 | **Band 01** | n/a |
 | **E-015** | B sparse multi-turn | full | 3 | 1 | 0 | 2 | **Band 02** | 0.127 ms ← 622.8 ms (4,903× — after force-prefetch; predictor's prefetch did NOT match agent's file) |
-| (E-016) | C KramaBench naturalistic | — | not yet measured | — | — | — | — | — |
+| (E-018) | C KramaBench naturalistic | — | not yet measured | — | — | — | — | — |
+
+### Ablation matrix (E-016 / E-017)
+
+Adds the false-positive / wall-time ablation dimension on top of the
+above. Same captured corpora, different metrics.
+
+| Corpus | Precision (files) | Recall (files) | **Jaccard (files)** | byte_overfetch | **Realistic wall-time speedup** | Oracle speedup |
+|---|---|---|---|---|---|---|
+| E-011 hinted | 100% | 100% | **100%** | 1.00× | **3886×** | 3886× |
+| E-014 sparse | 0% | 0% | **0%** | 0.44× (misleading) | **1.0×** | 3512× |
+| E-015 sparse_live | 0% | 0% | **0%** | 0.07× (misleading) | **1.0×** | 4220× |
+
+**The 3886×-vs-1.0× gap is the audit's headline number for the paper.**
+The architecture's potential is regime-independent (3500-4200× oracle).
+What changes is whether the static rule library realizes that potential
+or wastes it on the wrong file.
 
 ## 10. The unflattering finding (paper-relevant)
 

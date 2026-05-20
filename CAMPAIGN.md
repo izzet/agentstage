@@ -413,3 +413,115 @@ acknowledge it has not yet completed peer review."
 ## Known gaps (populated as the campaign progresses)
 
 _None yet — campaign begins after Day 1 rule freeze._
+
+---
+
+## Campaign C — I/O-leakage-bias ablations (Days 5-10, parallel with B)
+
+Added 2026-05-20 in response to the I/O-leakage audit
+([`IO_LEAKAGE_AUDIT.md`](IO_LEAKAGE_AUDIT.md)). Smoke versions of these
+ran on a single workload × single model and are recorded as E-011
+through E-017. This section sizes the **paper-grade** ablation suite.
+
+### Goals (each measured per cell)
+
+For every (model, workload, regime) triple, we record four numbers:
+
+1. **Activation count by source** — how many rules fire, attributed to
+   `thinking` / `text` / `tool_result` (predictor-extension contribution)
+2. **Precision / recall / Jaccard** — false-positive rate on prefetched
+   files (E-016 methodology)
+3. **Oracle vs. realistic wall-time** — what the architecture *could*
+   save vs. what this run *did* save (E-017 methodology)
+4. **Slack-window utilization** — did the predictor's first-turn hint
+   land inside the agent's thinking-to-first-tool slack? (yes/no)
+
+### Per-cell protocol
+
+1. Cold-cache eviction + temperature snapshot (same as Campaign B)
+2. Run `path_b_multiturn.py --prompt-mode <hinted|sparse>` with up to
+   15 turns (paper-grade) or 8 turns (smoke). For each run:
+   - Save full multi-turn corpus under
+     `outputs/multi_turn/<model>_<workload>_<regime>_<seed>_<ts>/`
+3. **Post-run analyses** (offline, no extra API cost):
+   - `path_b_falsepos.py` → `falsepos.json` (E-016 metrics)
+   - `path_b_walltime.py` → `walltime_replay.json` (E-017 metrics)
+   - `path_b_replay.py`   → `replay_variants.json` (Variant A→D lift)
+
+### Matrix (paper-grade)
+
+| Workload | Models | Regimes | Seeds | Runs |
+|---|---|---|---:|---:|
+| aiob_107 (or aiob_107_s3) | Haiku, Gemini Flash, OSS | hinted, sparse | 3 | 18 |
+| aiob_110 | Haiku, Gemini Flash, OSS | hinted, sparse | 3 | 18 |
+| aiob_104 | Haiku, Gemini Flash, OSS | hinted, sparse | 3 | 18 |
+| KramaBench (natural-sparse, Regime C) | Haiku, Flash | (single regime) | 3 | 6 |
+| **Total** | | | | **60 runs** |
+
+**Cost projection (Campaign C):**
+60 runs × $0.30/run ≈ **$18** (similar to Campaign B's E5 cell — same
+multi-turn cost profile).
+
+**Total campaign with Campaign C added: ~$117** under the $150 ceiling.
+Drops the "1.5× re-run buffer" margin from $32 to $14, which is still
+safe given each cell only burns ~$0.30.
+
+### Smoke-vs-full comparison
+
+| Dimension | Smoke (E-011 — E-017) | Full Campaign C |
+|---|---|---|
+| Models | Haiku only | Haiku + Gemini Flash + OSS |
+| Workloads | aiob_107_s3 only | aiob_107 + aiob_110 + aiob_104 + KramaBench |
+| Regimes | hinted, sparse, sparse_live (1 each) | hinted × 3 seeds, sparse × 3 seeds |
+| Turn cap | 8 | 15 |
+| Ablation runs | 3 (E-016, E-017, E-012 ablation triplet) | 60 |
+| Cost | ~$2 (one session) | ~$18 |
+| Coverage | "exists" proof | per-model, per-workload, statistical replicates |
+
+### What the smoke ablations already establish (and what they don't)
+
+**Established by smoke** (and need only confirmation, not novelty):
+- The architecture works end-to-end (E-010, E-015 confirm shim + stager + multi-turn agent all compose)
+- The multi-turn predictor extensions (`tool_result`-aware + `text`-aware) lift activation count by +100% to +300% over thinking-only
+- Hinted-vs-sparse regime separation produces a measurable behavior delta (E-016: 100% vs 0% Jaccard; E-017: 3886× vs 1.0× realized wall-time)
+
+**NOT established by smoke** (needs full Campaign C):
+- Per-model variance — only Haiku tested so far; Gemini Flash and OSS may show different rule-activation patterns
+- Per-workload generality — only aiob_107 tested; aiob_110 (NWB) and aiob_104 (genomics) have different file naming conventions and may stress different rules
+- Statistical confidence — single-seed observations; 3-seed minimum needed for per-cell mean ± std
+- KramaBench naturalistic regime (Regime C) — Campaign B's E10 cell already plans this, but we haven't run it; comparing C to A+B is novel
+- Whether sparse-mode 0% precision is a STABLE finding or a single-seed unlucky draw
+
+### Schedule fit
+
+Campaign C runs on top of Campaign B's existing infrastructure:
+- Day 5-6 (T29-T35): builds the Path B multi-turn runner. **Already done** as part of the E-011 smoke work.
+- Day 7-8 (T36-T42): runs Campaign B's E5 cell (3 workloads × 2 models × 5 seeds × 2 configs = 60 runs). Adding Campaign C means *also* running the same workloads × models × **hinted/sparse** axis. Doubles the count but same machinery.
+- Day 9-10 (T43-T49): adds the 3 external benchmarks (KramaBench, SAB) end-to-end. KramaBench is "naturally sparse" per the audit; running it satisfies both Campaign B's E10 cell AND Campaign C's Regime C cell with zero extra work.
+
+### Acceptance criteria for Campaign C
+
+A Campaign C cell is **done** when:
+- All planned seeds produced a captured corpus under `outputs/multi_turn/`
+- `falsepos.json` written per corpus (precision, recall, Jaccard)
+- `walltime_replay.json` written per corpus (oracle, realistic speedup)
+- `replay_variants.json` written per corpus (predictor-extension lift)
+- The per-model, per-workload, per-regime aggregate is written to
+  `outputs/campaign_c/<model>_<workload>_<regime>_aggregate.json`
+
+A Campaign C cell **passes** the H3 hypothesis test (working-set
+predictability) at:
+- **Regime A (hinted)**: byte recall ≥ 0.85, byte overfetch ≤ 1.5× (paper claim C2 baseline)
+- **Regime B (sparse)**: Jaccard ≥ 0.50, realistic wall-time speedup ≥ 2× over baseline (lower bar — acknowledges static rule library limitation)
+- **Regime C (KramaBench)**: byte recall ≥ 0.50 (per AGENTSTAGE.md §11.10 Level 2)
+
+### Why split the campaign rather than rolling C into B
+
+Campaign B was designed around the existing single-regime hypothesis
+(H3). Campaign C is a *threats-to-validity* ablation — it answers
+"would your numbers survive a stripped prompt?" rather than "does
+your system work?" Bundling them risks reviewers confusing "we ran 60
+end-to-end multi-turn runs" with "the existing C2 claim is now
+multi-regime." Keeping them separate clarifies that C is the *audit*
+arm and B is the *main results* arm.
+

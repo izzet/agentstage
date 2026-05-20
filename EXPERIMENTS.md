@@ -13,6 +13,8 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 
 | ID | Date | Goal | Headline | Script | Commit |
 |---|---|---|---|---|---|
+| **E-017** | 2026-05-20 | Wall-time replay ablation (oracle vs realistic predictor) | **Hinted: 3886× realized = 3886× oracle; Sparse: 1.0× realized vs 3512× oracle — 100% of potential savings lost to rule mismatch** | `scripts/microbench/path_b_walltime_run.sh <corpus>` | _next commit_ |
+| **E-016** | 2026-05-20 | False-positive / precision-recall ablation on captured corpora | **Hinted: 100% precision, 100% recall, Jaccard 100%; Sparse: 0% precision, 0% recall, Jaccard 0% (sets disjoint, byte_overfetch metric collapses)** | `scripts/microbench/path_b_falsepos.py --corpus <run>` | _next commit_ |
 | **E-015** | 2026-05-20 | Path B sparse-prompt live multi-turn + cold/hot measurement | **3 rules fired across 8 turns; live cold→hot 622.8→0.127 ms after force-prefetch; agent picked Band 02 (sparse-mode behavior)** | `scripts/path_b_run.sh sparse_live` | _next commit_ |
 | **E-014** | 2026-05-20 | Path B sparse-prompt multi-turn capture (Regime B, AIOB_STRIP_HINTS analog) | **4 rules across 8 turns; rule mix diverges from hinted (`one_hour` instead of `all_files_signal`); Band 01 opened first** | `scripts/path_b_run.sh sparse` | _next commit_ |
 | **E-013** | 2026-05-20 | SessionPredictor replay on E-011 corpus (offline, free) | **Variant D = Variant C activation count; multi-turn delta tracking confirmed** | `scripts/microbench/path_b_replay.py --corpus <E-011>` | _next commit_ |
@@ -796,4 +798,154 @@ for.
 
 - The shim *itself* still functions correctly under sparse mode: cold/hot mechanics work, force-prefetch works, redirect works. The architectural failure is at the *prediction* layer, not the *staging* layer.
 - Multi-turn loop, S3 cold tier, LD_PRELOAD shim, live LLM — all of these continue to work end-to-end under the harder regime. The honest paper claim is: "the architecture works; the rule library needs adaptation."
+
+
+---
+
+## E-016 — False-positive / precision-recall ablation (2026-05-20)
+
+**Goal**: Quantify "how much data did we move that the agent never used"
+across the multi-turn corpora. The original C2 claim
+(`byte_overfetch ≤ 1.5×` on 98% of turn-1 seeds) was measured on
+hinted-mode single-turn replays where the predicted set is a
+superset of the accessed set. In multi-turn live runs with sparse
+prompts, the two sets can be **disjoint**, and the overfetch
+ratio becomes misleading.
+
+Adds the **Jaccard overlap** metric which is well-defined regardless of
+set relationship (subset, superset, disjoint, overlapping).
+
+**Reproduction**
+
+```bash
+~/.local/bin/uv run python scripts/microbench/path_b_falsepos.py \
+    --corpus outputs/multi_turn/<run> \
+    --workload aiob_107_s3 \
+    --out outputs/multi_turn/<run>/falsepos.json
+```
+
+Force-prefetch events (`rule_id == "force"`) are excluded from the
+"prefetched" set — they're a measurement artifact, not predictor output.
+
+**Results**
+
+| Corpus | Prefetched | Opened | Hits | Wasted | Precision | Recall | **Jaccard** | byte_overfetch |
+|---|---|---|---|---|---|---|---|---|
+| **E-011 hinted** | 1 file (2.82 MB) | 1 file (2.82 MB) | 1 (2.82 MB) | 0 | **100%** | **100%** | **100%** | 1.00× |
+| **E-014 sparse** | 1 file (2.82 MB) | 1 file (6.49 MB) | 0 | 1 (2.82 MB) | **0%** | **0%** | **0%** | 0.44× |
+| **E-015 sparse_live** | 1 file (2.82 MB) | 1 file (42.26 MB) | 0 | 1 (2.82 MB) | **0%** | **0%** | **0%** | 0.07× |
+
+**Findings**
+
+1. **Hinted mode**: perfect precision and recall. The predictor's
+   first_inspect rule predicted Band 08; agent opened Band 08;
+   exactly one file each. No false positives.
+
+2. **Sparse mode (both runs)**: predicted and opened sets are
+   **completely disjoint**. The predictor's static targets (Band 08)
+   miss the agent's actual choice (Band 01 in E-014, Band 02 in
+   E-015). 100% of predictor-driven prefetches were wasted.
+
+3. **byte_overfetch metric collapse**: in sparse mode the metric reads
+   "0.44× / 0.07×" because the agent's chosen file is *larger* than the
+   one we prefetched. The original C2 ceiling (1.5×) is satisfied —
+   but only trivially, because the metric assumed prefetched ⊇ accessed
+   and that assumption fails. **Jaccard correctly reports 0% overlap**.
+
+**Implication for paper claim C2**
+
+> Claim C2 (94% byte recall ≥ 0.85; 98% overfetch ≤ 1.5×) was measured
+> on the **hinted-prompt single-turn seed corpus** where the predicted
+> set was constructed to be a superset of (or equal to) the agent's
+> immediate-need set. In multi-turn live runs under the sparse-prompt
+> regime, the predicted and accessed sets can be disjoint, and the
+> overfetch metric becomes uninformative. We recommend Jaccard overlap
+> for cross-regime comparisons.
+
+**Notes**
+
+- The 2.82 MB wasted byte cost per sparse run is small in absolute terms because the predictor only dispatched ONE tier-1 hint. If the rule library dispatched more aggressively (e.g. ALL bands as tier-1), waste would scale linearly with the rule's target set size.
+
+---
+
+## E-017 — Wall-time replay ablation: oracle vs realistic (2026-05-20)
+
+**Goal**: Convert the per-syscall speedup numbers (E-010's 19,213×) into
+honest end-to-end wall-time savings per agent session, separating two
+scenarios:
+
+- **ORACLE**: every file the agent opens is pre-staged. Upper bound on
+  speedup that *perfect* prediction would yield.
+- **REALISTIC**: only files the predictor actually pre-staged in this
+  run get hot reads; predictor-misses pay cold cost. The wall-time
+  speedup that this specific run actually realized.
+
+Reads the first 4 KB of each opened file twice — once cold (subprocess,
+shim disabled, page cache evicted), once hot (shim active, file
+pre-staged). Sums across the entire agent session.
+
+**Reproduction**
+
+```bash
+./scripts/microbench/path_b_walltime_run.sh outputs/multi_turn/<run>
+```
+
+(Sets LD_PRELOAD, AGENTSTAGE_HOT_ROOT, AGENTSTAGE_COLD_ROOTS, runs the
+Python ablator which manages both cold subprocess + hot in-process reads.)
+
+**Results**
+
+| Corpus | Files opened | Files predictor-staged | Cold total | Oracle | Realistic | **Oracle speedup** | **Realistic speedup** | Lost potential |
+|---|---|---|---|---|---|---|---|---|
+| **E-011 hinted** | 1 | 1 | 487.9 ms | 0.126 ms | 0.126 ms | **3886×** | **3886×** | 0% |
+| **E-014 sparse** | 1 | 0 (wrong file) | 491.9 ms | 0.140 ms | 491.857 ms | **3512×** | **1.0×** | **100%** |
+| **E-015 sparse_live** | 1 | 0 (wrong file) | 493.8 ms | 0.117 ms | 493.815 ms | **4220×** | **1.0×** | **100%** |
+
+**Findings**
+
+1. **Architecture potential is regime-independent**. Oracle speedup is
+   ~3500-4200× across all three runs. The cold-vs-hot ratio at the file-
+   read level doesn't care which file the agent picked — once the right
+   file is in the hot tier, the redirect is fast.
+
+2. **Predictor realization is regime-dependent**. In hinted mode the
+   predictor captured 100% of the oracle potential (3886× = 3886×). In
+   sparse mode the predictor captured 0% (1.0× vs 3512-4220× oracle).
+   The gap is the cost of the static rule library's brittleness.
+
+3. **The headline number for the paper is the gap**: under hinted
+   prompts, the architecture delivers near-oracle wall-time savings.
+   Under sparse prompts, the architecture is wasted because the rule
+   library cannot adapt.
+
+**Caveat — file-count scaling**
+
+These runs all happen to feature just ONE distinct `open_file` call
+(the agent spent most turns on `list_dir` exploration). A
+production-style agent run that opens many files would multiply both
+oracle and realistic savings, but the **ratio** would stay
+approximately the same — predictor accuracy is the bottleneck, not
+file count.
+
+For aiob_107's full eventual working set (~6042 files), the oracle
+wall-time savings would be ~6042 × 487 ms ≈ 49 minutes per run under
+the same per-file cost model. The realistic savings depend on what
+fraction of those 6042 files the predictor correctly identifies.
+
+**Why this is the paper-headline number, not E-010's 19,213×**
+
+E-010 reports a per-syscall 19,213× speedup (`open()+read(4096)` on a
+3 MB file: 754 ms cold → 0.039 ms hot). That's the *theoretical*
+upper bound. E-017 reports the *session-level* speedup taking into
+account predictor accuracy: 3886× when prediction matches, 1.0× when
+it doesn't. For paper purposes, both numbers matter:
+
+- Per-syscall (E-010 / E-009): demonstrates the *mechanism* works.
+- Session-wall-time (E-017): demonstrates the *system* works
+  end-to-end, modulo predictor accuracy.
+
+The honest story for reviewers: "the architecture has 3500-4200×
+ceiling per file-access; the static rule library realizes 100% of
+that under hinted prompts and 0% under sparse prompts; future work
+on learned predictors closes the gap."
 

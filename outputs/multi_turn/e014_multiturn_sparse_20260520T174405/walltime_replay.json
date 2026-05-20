@@ -1,0 +1,23 @@
+{
+  "corpus": "outputs/multi_turn/e014_multiturn_sparse_20260520T174405",
+  "workload": "aiob_107_s3",
+  "n_files_opened": 1,
+  "n_files_predictor_staged": 0,
+  "cold_total_ms": 491.857,
+  "oracle_total_ms": 0.14,
+  "realistic_total_ms": 491.857,
+  "speedup_oracle": 3512.1,
+  "speedup_realistic": 1.0,
+  "savings_oracle_ms": 491.717,
+  "savings_realistic_ms": 0.0,
+  "per_file": [
+    {
+      "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241220001170_e20241220003543_c20241220004002.nc",
+      "size_bytes": 6800372,
+      "cold_ms": 491.857,
+      "hot_ms": 0.14,
+      "speedup_per_file": 3512.1,
+      "was_predictor_staged": false
+    }
+  ]
+}
