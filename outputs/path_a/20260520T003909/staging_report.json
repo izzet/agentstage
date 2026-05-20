@@ -1,0 +1,29 @@
+{
+  "events": [
+    {
+      "cold_path": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+      "hot_path": "/dev/shm/agentstage_path_a/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+      "size_bytes": 2960235,
+      "fetch_ms": 194.969676,
+      "tier": 1,
+      "rule_id": "first_inspect",
+      "t_predicted_ms": 22010.200505018234,
+      "t_completed_ms": 1392883630.190484,
+      "outcome": "staged",
+      "error": ""
+    }
+  ],
+  "summary": {
+    "n_events": 1,
+    "n_staged": 1,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 2960235,
+    "fetch_ms": {
+      "p50": 194.97,
+      "p95": 194.97,
+      "max": 194.97,
+      "mean": 194.97
+    }
+  }
+}
