@@ -1,0 +1,65 @@
+{
+  "mode": "with-stager",
+  "workload": "aiob_110",
+  "bucket": "all_subjects",
+  "n_samples": 5,
+  "ld_preload_set": true,
+  "shim_in_ld_preload": true,
+  "aggregate": {
+    "full_read_ms": {
+      "p50": 121.6,
+      "p95": 157.2,
+      "mean": 130.9,
+      "min": 85.3,
+      "max": 198.8
+    },
+    "throughput_mbps": {
+      "p50": 3124.8,
+      "p95": 3655.3,
+      "mean": 3351.7
+    },
+    "total_bytes": 2143044628
+  },
+  "per_file": [
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Cori/sub-Cori_ses-20161214T120000.nwb",
+      "size_bytes": 311814662,
+      "size_mb": 311.8,
+      "cold_resident_frac_before": 1.0,
+      "full_read_ms": 85.3,
+      "throughput_mbps": 3655.3
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Tatum/sub-Tatum_ses-20171209T120000.nwb",
+      "size_bytes": 379929985,
+      "size_mb": 379.9,
+      "cold_resident_frac_before": 1.0,
+      "full_read_ms": 121.6,
+      "throughput_mbps": 3124.8
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Lederberg/sub-Lederberg_ses-20171206T120000.nwb",
+      "size_bytes": 619346872,
+      "size_mb": 619.3,
+      "cold_resident_frac_before": 1.0,
+      "full_read_ms": 198.8,
+      "throughput_mbps": 3115.4
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Tatum/sub-Tatum_ses-20171206T120000.nwb",
+      "size_bytes": 485782265,
+      "size_mb": 485.8,
+      "cold_resident_frac_before": 1.0,
+      "full_read_ms": 157.2,
+      "throughput_mbps": 3090.4
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Radnitz/sub-Radnitz_ses-20170111T120000.nwb",
+      "size_bytes": 346170844,
+      "size_mb": 346.2,
+      "cold_resident_frac_before": 1.0,
+      "full_read_ms": 91.8,
+      "throughput_mbps": 3772.8
+    }
+  ]
+}

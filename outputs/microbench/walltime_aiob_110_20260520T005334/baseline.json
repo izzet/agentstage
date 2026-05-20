@@ -1,0 +1,65 @@
+{
+  "mode": "baseline",
+  "workload": "aiob_110",
+  "bucket": "all_subjects",
+  "n_samples": 5,
+  "ld_preload_set": false,
+  "shim_in_ld_preload": false,
+  "aggregate": {
+    "full_read_ms": {
+      "p50": 3887.3,
+      "p95": 6499.3,
+      "mean": 4688.4,
+      "min": 2456.8,
+      "max": 7744.6
+    },
+    "throughput_mbps": {
+      "p50": 89.1,
+      "p95": 126.9,
+      "mean": 100.8
+    },
+    "total_bytes": 2143044628
+  },
+  "per_file": [
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Cori/sub-Cori_ses-20161214T120000.nwb",
+      "size_bytes": 311814662,
+      "size_mb": 311.8,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 2456.8,
+      "throughput_mbps": 126.9
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Tatum/sub-Tatum_ses-20171209T120000.nwb",
+      "size_bytes": 379929985,
+      "size_mb": 379.9,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 2854.1,
+      "throughput_mbps": 133.1
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Lederberg/sub-Lederberg_ses-20171206T120000.nwb",
+      "size_bytes": 619346872,
+      "size_mb": 619.3,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 7744.6,
+      "throughput_mbps": 80.0
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Tatum/sub-Tatum_ses-20171206T120000.nwb",
+      "size_bytes": 485782265,
+      "size_mb": 485.8,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 6499.3,
+      "throughput_mbps": 74.7
+    },
+    {
+      "path": "/mnt/common/datasets-staging/agentiobench/datasets/steinmetz_neuropixels/raw/sub-Radnitz/sub-Radnitz_ses-20170111T120000.nwb",
+      "size_bytes": 346170844,
+      "size_mb": 346.2,
+      "cold_resident_frac_before": 0.0,
+      "full_read_ms": 3887.3,
+      "throughput_mbps": 89.1
+    }
+  ]
+}
