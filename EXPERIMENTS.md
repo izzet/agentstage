@@ -13,6 +13,11 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 
 | ID | Date | Goal | Headline | Script | Commit |
 |---|---|---|---|---|---|
+| **E-015** | 2026-05-20 | Path B sparse-prompt live multi-turn + cold/hot measurement | **3 rules fired across 8 turns; live cold→hot 622.8→0.127 ms after force-prefetch; agent picked Band 02 (sparse-mode behavior)** | `scripts/path_b_run.sh sparse_live` | _next commit_ |
+| **E-014** | 2026-05-20 | Path B sparse-prompt multi-turn capture (Regime B, AIOB_STRIP_HINTS analog) | **4 rules across 8 turns; rule mix diverges from hinted (`one_hour` instead of `all_files_signal`); Band 01 opened first** | `scripts/path_b_run.sh sparse` | _next commit_ |
+| **E-013** | 2026-05-20 | SessionPredictor replay on E-011 corpus (offline, free) | **Variant D = Variant C activation count; multi-turn delta tracking confirmed** | `scripts/microbench/path_b_replay.py --corpus <E-011>` | _next commit_ |
+| **E-012** | 2026-05-20 | tool_result-aware predictor replay on E-011 corpus (offline, free) | **Variant A 2 rules → Variant C 4 rules (+100%); load-bearing extension confirmed** | `scripts/microbench/path_b_replay.py --corpus <E-011>` | _next commit_ |
+| **E-011** | 2026-05-20 | Path B hinted multi-turn baseline capture on `aiob_107_s3` | **8 turns / 10 tool_use / 4 rules fired (first_inspect, all_files_signal from thinking; band_08, band_09 from tool_result)** | `scripts/path_b_run.sh hinted` | _next commit_ |
 | **E-010** | 2026-05-20 | Path A live Haiku end-to-end with S3-backed cold tier (`aiob_107_s3`) | **19,213× per-file speedup; 2.59 s stage fit inside 14.4 s slack** | `agentstage.runners.path_a_smoke --workload aiob_107_s3` | _next commit_ |
 | **E-009** | 2026-05-20 | Path 0 replay against S3-mounted cold (shim correctness with S3 backend) | **29,283× p50 first-block speedup; shim redirect works on S3 mount** | `scripts/microbench/path0_replay.py --workload aiob_107_s3` | _next commit_ |
 | **E-008** | 2026-05-20 | Real S3 measurement vs NOAA's public GOES bucket via mountpoint-s3 | **2,144× per-file p50; 1.96× wall on aiob_107; ~100× projected wall on aiob_110** | `scripts/microbench/path0_s3_run.sh` | (committed) |
@@ -591,3 +596,204 @@ Before logging an experiment, verify:
 - [ ] Commit hash matches the repo HEAD when the experiment ran
 - [ ] If the experiment uses a submodule (dftracer, agentiobench), note its commit too
 - [ ] Notes section captures any surprises, bugs found, methodology gotchas
+
+---
+
+## E-011 — Path B hinted multi-turn baseline (2026-05-20)
+
+**Goal**: First multi-turn end-to-end run on the new `path_b_multiturn.py`
+runner. Capture per-turn stream / tool_use / tool_result / thinking
+artifacts to serve as replay fodder for E-012 / E-013. Hinted prompt
+mode (Regime A, our pre-existing condition).
+
+**Reproduction**
+
+```bash
+LD_PRELOAD=$SHIM \
+AGENTSTAGE_HOT_ROOT=/dev/shm/agentstage_path_b \
+AGENTSTAGE_COLD_ROOTS=/tmp/s3-noaa-goes16/ABI-L2-CMIPC \
+~/.local/bin/uv run python -m agentstage.runners.path_b_multiturn \
+    --workload aiob_107_s3 \
+    --prompt-mode hinted \
+    --max-turns 8 \
+    --budget 4096 \
+    --out outputs/multi_turn/e011_multiturn_hinted_<ts>
+```
+
+Or via the wrapper:
+
+```bash
+./scripts/path_b_run.sh hinted
+```
+
+**Outputs**: `outputs/multi_turn/e011_multiturn_hinted_20260520T174301/`
+- `turns/turn_NN/stream.jsonl` — every SSE event for that turn
+- `turns/turn_NN/tool_use.jsonl` — assistant-emitted tool calls (one line each)
+- `turns/turn_NN/tool_result.jsonl` — what the runner returned to the agent
+- `turns/turn_NN/thinking.txt` — the full thinking block text
+- `turns/turn_NN/summary.json` — per-turn rule activations
+- `summary.json` — top-level run summary with all activations annotated by source + turn
+- `messages.json` — full message history for replay
+
+**Results**
+
+| Metric | Value |
+|---|---|
+| Prompt mode | hinted (full I/O hints) |
+| Turns used | 8 (max allowed) |
+| Total tool_uses | 10 |
+| Total rules fired | 4 |
+| Rules from thinking | 2 (`first_inspect`, `all_files_signal` on turn 0) |
+| Rules from text | 0 |
+| Rules from tool_result | 2 (`band_08`, `band_09` on turn 4) |
+| First agent-opened file | `OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_...nc` (Band 08) |
+
+The agent navigated `/data → /data/goes_cmi_composites → /data/goes_cmi_composites/raw → 2024/122/00 → open_file` over 8 turns. Path resolution worked through the synthetic ancestor listings (`_synthesize_ancestor_listing`) for `/data` and `/data/goes_cmi_composites` (workload prefix_map has only `/data/goes_cmi_composites/raw/` as a real LP).
+
+**Notes**
+
+- After turn 0, the model stopped emitting `thinking` blocks and emitted `text` blocks instead. This was unexpected and prompted the predictor extension that scans text blocks (see `_SCANNABLE_BLOCK_TYPES` in `engine.py`). Without that extension, Variant A (thinking-only) would have caught only the 2 turn-0 rules.
+- The `band_08` and `band_09` rules fired from a `tool_result` containing the directory listing of `/data/goes_cmi_composites/raw/2024/122/00/` (which contains files named with `M6C08`, `M6C09`, `M6C10`). This is the canonical "tool_result-aware predictor adds signal" case — it would have been missed by a thinking-only predictor.
+
+---
+
+## E-012 — tool_result-aware predictor replay on E-011 corpus (2026-05-20)
+
+**Goal**: Quantify the lift from extending the predictor to consume
+`tool_result` content blocks. Offline replay against E-011's captured
+corpus → no API cost.
+
+**Reproduction**
+
+```bash
+~/.local/bin/uv run python scripts/microbench/path_b_replay.py \
+    --corpus outputs/multi_turn/e011_multiturn_hinted_20260520T174301 \
+    --workload aiob_107_s3 \
+    --out outputs/multi_turn/e011_multiturn_hinted_20260520T174301/replay_variants.json
+```
+
+**Results** (E-011 hinted corpus)
+
+| Variant | Description | Rules fired | Sources |
+|---|---|---|---|
+| A | thinking only (legacy) | 2 | thinking=2 |
+| B | thinking + tool_result | 4 | thinking=2, tool_result=2 |
+| C | full (thinking + text + tool_result) | 4 | thinking=2, tool_result=2 |
+| D | SessionPredictor (streaming feed) | 4 | thinking=2, tool_result=2 |
+
+**Lift from tool_result-awareness**: **+100% activations** (2 → 4) on hinted prompt.
+
+The `band_08` and `band_09` rules would not fire without scanning `tool_result` content — they appear only in the agent's `list_dir` output of the bands directory, never in the agent's own thinking text.
+
+**Notes**
+
+- Variant D (SessionPredictor multi-turn deltas) confirmed equivalent to Variant C single-shot on this corpus — the delta tracking does not lose activations.
+
+---
+
+## E-013 — SessionPredictor delta-tracking confirmation (2026-05-20)
+
+**Goal**: Confirm that multi-turn `feed_turn` / `feed_tool_results` calls
+produce the same cumulative activation set as a single-shot
+`run_predictor` over all blocks at once. Catches bugs in the
+`fired_rule_names` deduplication and the across-turn state hand-off.
+
+**Reproduction**: same as E-012 — variant D in the replay table.
+
+**Result**: SessionPredictor's cumulative prediction matches Variant C exactly across all three captured corpora (E-011, E-014, E-015). Counts of 4=4, 4=4, 3=3 with identical rule names.
+
+The source attribution differs between B/C and D on E-015 (D reports `text=2` where B/C report `tool_result=2`) because SessionPredictor processes assistant text blocks before that turn's tool_result blocks, while the single-shot variant sees them in strict chronological order. Both reach the same activation set; only the "which signal caused the rule to fire first" attribution differs.
+
+---
+
+## E-014 — Path B sparse-prompt multi-turn capture (Regime B) (2026-05-20)
+
+**Goal**: First end-to-end measurement of the architecture under the
+"sparse prompt" regime — where the task instruction is stripped of
+chunking, file counts, band numbers, locations, and dimensions. The
+agent must discover the dataset structure via `list_dir` / `open_file`
+before producing useful I/O-relevant tokens. This bounds the impact of
+the prompt-leakage confounder identified in
+[`IO_LEAKAGE_AUDIT.md`](IO_LEAKAGE_AUDIT.md).
+
+**Reproduction**
+
+```bash
+./scripts/path_b_run.sh sparse
+```
+
+(equivalent to `path_b_multiturn --prompt-mode sparse --workload aiob_107_s3 --max-turns 8`)
+
+**Results**
+
+| Metric | Hinted (E-011) | **Sparse (E-014)** |
+|---|---|---|
+| Total rules fired | 4 | 4 |
+| Rules from turn-0 thinking | 2 | **1** (just `first_inspect`) |
+| Rules from text | 0 | 1 (`one_hour`, turn 4) |
+| Rules from tool_result | 2 | 2 (`band_08`, `band_09`) |
+| First agent-opened file | Band 08 | **Band 01** (different choice without hint) |
+
+**Findings**
+
+1. **The hinted-only `all_files_signal` rule does not fire under sparse**.
+   That rule's pattern matches "6000 files" / total-count tokens which the sparse prompt explicitly strips. The agent's thinking in sparse mode does not echo back a count, so the rule never matches.
+
+2. **The agent opens a different band file (Band 01 vs. Band 08)**. Without the hinted "bands 08, 09, 10" guidance, the model picks an alphabetically-earlier band. This is a meaningful behavioral difference — and a **rule-library weakness**: our `first_inspect` rule's target_keys resolve to a fixed Band 08 file, but the agent picked Band 01. The stager prefetched the wrong file.
+
+3. **`tool_result` band rules fire identically across regimes**. Once the agent does `list_dir(/data/.../2024/122/00/)`, the directory listing contains all bands (C01–C16), and `band_08` / `band_09` rules fire on those filenames regardless of prompt mode.
+
+4. **Total activation count is the same (4)**, but the composition differs (`one_hour` instead of `all_files_signal`). The predictor's coverage is robust across regimes; what changes is which rule wins.
+
+**Notes**
+
+- The replay variants table for E-014 shows Variant A=1, B=3, C=4, D=4. Tool_result extension adds +2 rules; text extension adds +1. Combined lift is **+300%** over the legacy thinking-only predictor in sparse mode.
+
+---
+
+## E-015 — Path B sparse-prompt live cold→hot measurement (2026-05-20)
+
+**Goal**: E-014 plus the live cold/hot measurement step. Mirrors E-010 (which did this for Regime A) so we have a Regime B equivalent. Captures wall-time speedup AND the rule-mismatch consequences when prediction picks the wrong file.
+
+**Reproduction**
+
+```bash
+./scripts/path_b_run.sh sparse_live
+```
+
+**Results**
+
+| Metric | Value |
+|---|---|
+| Turns used | 8 |
+| Total rules fired | 3 (`first_inspect`, `band_08`, `band_09`) |
+| First agent-opened file | `OR_ABI-L2-CMIPC-M6C02_G16_...nc` (Band 02 — different from E-014 too) |
+| `was_staged_at_end_of_run` | **False** |
+| Hot read | 0.127 ms |
+| Cold read | 622.8 ms |
+| **Speedup** | 4,903× (after force-prefetch) |
+
+**Honest interpretation**
+
+The headline 4,903× is the speedup **after the runner force-prefetched** the target file at the end of the loop — it shows the *shim still works* on a sparse-mode agent's chosen file, but it does **not** demonstrate that the *predictor* successfully predicted that file ahead of time.
+
+In E-015's actual session, the predictor's `first_inspect` rule prefetched a Band 08 file, but the agent (lacking a "use bands 08/09/10" hint) opened a Band 02 file. The stager's prefetch was **wasted** — `was_staged_at_end_of_run: False` for the agent's target.
+
+**This is the headline finding for the I/O-leakage audit**:
+
+> Under the sparse prompt, the predictor's hardcoded `first_inspect → Band 08` mapping does not match the model's actual file choice. **The 19,213× speedup reported in E-010 reflects a setup where the hinted prompt aligned the model's selection with our rule library**. In a realistic sparse regime, the rule library would need to adapt — either by waiting until the agent's first `list_dir` reveals the band naming, or by generating rules dynamically from `tool_result` content.
+
+**Implications for paper architecture / future work**
+
+1. **Static rule library is insufficient for sparse-prompt agents.** The library was tuned against hinted-prompt thinking; the sparse-prompt agent's actual file choices diverge.
+2. **`tool_result`-aware predictor still helps** (it fires `band_08`/`band_09` from the listing), but those activations come too LATE in the session (turn 5+) for slack-window prefetching.
+3. **A "deferred" tier-1 dispatch policy** — only prefetch after observing the agent's first concrete band reference — would have higher precision at the cost of latency.
+
+This is exactly the threats-to-validity content the audit doc was preparing
+for.
+
+**Notes**
+
+- The shim *itself* still functions correctly under sparse mode: cold/hot mechanics work, force-prefetch works, redirect works. The architectural failure is at the *prediction* layer, not the *staging* layer.
+- Multi-turn loop, S3 cold tier, LD_PRELOAD shim, live LLM — all of these continue to work end-to-end under the harder regime. The honest paper claim is: "the architecture works; the rule library needs adaptation."
+

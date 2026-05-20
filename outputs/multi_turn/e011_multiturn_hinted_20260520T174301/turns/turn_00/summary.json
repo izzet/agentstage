@@ -1,0 +1,11 @@
+{
+  "turn": 0,
+  "n_events": 29,
+  "n_tool_uses": 1,
+  "thinking_chars": 1120,
+  "fired_rules_on_turn": [
+    "all_files_signal",
+    "first_inspect"
+  ],
+  "duration_ms": 5797.169570922852
+}

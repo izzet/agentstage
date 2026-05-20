@@ -1,0 +1,96 @@
+{
+  "corpus": "outputs/multi_turn/e011_multiturn_hinted_20260520T174301",
+  "n_blocks": {
+    "all": 19,
+    "thinking": 1,
+    "text": 8,
+    "tool_result": 10
+  },
+  "variants": {
+    "A_thinking_only": {
+      "n_activations": 2,
+      "by_source": {
+        "thinking": 2
+      },
+      "by_turn": {
+        "0": [
+          "all_files_signal",
+          "first_inspect"
+        ]
+      },
+      "rule_names": [
+        "all_files_signal",
+        "first_inspect"
+      ]
+    },
+    "B_thinking_plus_tool_result": {
+      "n_activations": 4,
+      "by_source": {
+        "thinking": 2,
+        "tool_result": 2
+      },
+      "by_turn": {
+        "0": [
+          "all_files_signal",
+          "first_inspect"
+        ],
+        "5": [
+          "band_08",
+          "band_09"
+        ]
+      },
+      "rule_names": [
+        "all_files_signal",
+        "band_08",
+        "band_09",
+        "first_inspect"
+      ]
+    },
+    "C_full": {
+      "n_activations": 4,
+      "by_source": {
+        "thinking": 2,
+        "tool_result": 2
+      },
+      "by_turn": {
+        "0": [
+          "all_files_signal",
+          "first_inspect"
+        ],
+        "5": [
+          "band_08",
+          "band_09"
+        ]
+      },
+      "rule_names": [
+        "all_files_signal",
+        "band_08",
+        "band_09",
+        "first_inspect"
+      ]
+    },
+    "D_session_predictor": {
+      "n_activations": 4,
+      "by_source": {
+        "thinking": 2,
+        "tool_result": 2
+      },
+      "by_turn": {
+        "0": [
+          "all_files_signal",
+          "first_inspect"
+        ],
+        "6": [
+          "band_08",
+          "band_09"
+        ]
+      },
+      "rule_names": [
+        "all_files_signal",
+        "band_08",
+        "band_09",
+        "first_inspect"
+      ]
+    }
+  }
+}

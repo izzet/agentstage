@@ -43,19 +43,27 @@ from agentstage.predictor.rules import (
 
 @dataclass(frozen=True)
 class StreamBlock:
-    """One thinking / text / tool-use block reconstructed from a stream.jsonl.
+    """One thinking / text / tool-use / tool-result block.
 
     `t_first` and `t_stop` are the timestamps (in ms from urlopen start) of
     the first and last delta event for this block. `text` is the
     concatenated content; for tool_use blocks it's the JSON string of the
-    arguments.
+    arguments; for tool_result blocks it's the result text returned to
+    the model on the next turn.
+
+    Block types:
+      - "thinking"     : extended thinking content (Anthropic thinking_delta)
+      - "text"         : visible assistant text (text_delta)
+      - "tool_use"     : assistant-emitted tool call (JSON args)
+      - "tool_result"  : user-message tool_result content (next-turn input)
     """
-    type: str           # "thinking" | "text" | "tool_use"
+    type: str
     t_first: float | None
     t_stop: float | None
     text: str
     chunks: int
     tool_name: str | None = None
+    turn: int = 0  # Turn index (0 = first assistant turn). For multi-turn replay.
 
 
 def parse_anthropic_stream(stream_path: Path) -> list[StreamBlock]:
@@ -157,6 +165,98 @@ def parse_gemini_stream(stream_path: Path) -> list[StreamBlock]:
         blocks.append(StreamBlock(**text))
     for tc in tool_calls:
         blocks.append(StreamBlock(**tc))
+    return blocks
+
+
+def blocks_from_messages(
+    messages: list[dict],
+    *,
+    base_t_ms: float = 0.0,
+    per_turn_ms: float = 1000.0,
+) -> list[StreamBlock]:
+    """Parse an Anthropic message history into StreamBlocks in chronological order.
+
+    Used by multi-turn replay. Walks the message list:
+      - assistant messages → thinking / text / tool_use blocks (turn=N)
+      - user messages with tool_result content → tool_result blocks
+        (turn=N, where N is the next assistant turn)
+
+    Since the message-history view lacks per-chunk timestamps (only the
+    live SDK stream has those), we synthesize block timings: each
+    assistant turn N gets ``t_first = base_t_ms + N*per_turn_ms``,
+    ``t_stop = base_t_ms + (N+1)*per_turn_ms``, so the relative ordering
+    of activations across turns is preserved.
+
+    For *single-turn* replay with real timings, prefer
+    ``parse_anthropic_stream`` (which reads the live stream.jsonl with
+    real ms-level event times).
+    """
+    blocks: list[StreamBlock] = []
+    turn = 0
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content")
+        if not content:
+            continue
+        # content may be a string (legacy) or a list of content blocks
+        if isinstance(content, str):
+            if role == "assistant":
+                blocks.append(StreamBlock(
+                    type="text",
+                    t_first=base_t_ms + turn * per_turn_ms,
+                    t_stop=base_t_ms + (turn + 1) * per_turn_ms,
+                    text=content,
+                    chunks=1,
+                    turn=turn,
+                ))
+                turn += 1
+            continue
+        if role == "assistant":
+            tf = base_t_ms + turn * per_turn_ms
+            ts = base_t_ms + (turn + 1) * per_turn_ms
+            for cb in content:
+                cb_type = cb.get("type") if isinstance(cb, dict) else None
+                if cb_type == "thinking":
+                    blocks.append(StreamBlock(
+                        type="thinking", t_first=tf, t_stop=ts,
+                        text=cb.get("thinking", ""), chunks=1, turn=turn,
+                    ))
+                elif cb_type == "text":
+                    blocks.append(StreamBlock(
+                        type="text", t_first=tf, t_stop=ts,
+                        text=cb.get("text", ""), chunks=1, turn=turn,
+                    ))
+                elif cb_type == "tool_use":
+                    args = cb.get("input") or {}
+                    import json as _json
+                    blocks.append(StreamBlock(
+                        type="tool_use", t_first=tf, t_stop=ts,
+                        text=_json.dumps(args), chunks=1,
+                        tool_name=cb.get("name"), turn=turn,
+                    ))
+            turn += 1
+        elif role == "user":
+            # tool_result content blocks feed the NEXT assistant turn
+            tf = base_t_ms + turn * per_turn_ms - 0.5 * per_turn_ms
+            ts = base_t_ms + turn * per_turn_ms
+            for cb in content:
+                cb_type = cb.get("type") if isinstance(cb, dict) else None
+                if cb_type == "tool_result":
+                    # content can be string or list of {type:"text",text:"..."}
+                    result_content = cb.get("content", "")
+                    if isinstance(result_content, list):
+                        text_parts = [
+                            sub.get("text", "")
+                            for sub in result_content
+                            if isinstance(sub, dict) and sub.get("type") == "text"
+                        ]
+                        text = "\n".join(text_parts)
+                    else:
+                        text = str(result_content)
+                    blocks.append(StreamBlock(
+                        type="tool_result", t_first=tf, t_stop=ts,
+                        text=text, chunks=1, turn=turn,
+                    ))
     return blocks
 
 
@@ -301,6 +401,8 @@ class RuleActivation:
     char_offset: int
     prior_keys: tuple[str, ...]
     predicted_files: tuple[str, ...]
+    source: str = "thinking"  # "thinking" | "tool_result" | "text"
+    turn: int = 0  # Turn at which the rule fired (0-indexed)
 
 
 @dataclass(frozen=True)
@@ -360,16 +462,35 @@ def _tier_for_size(n: int) -> int:
     return 3
 
 
+_SCANNABLE_BLOCK_TYPES = ("thinking", "text", "tool_result")
+# We scan all three because in practice:
+#   - Turn 0 of an assistant response: thinking carries reasoning.
+#   - Turns 1+ in a multi-turn agentic loop: the model often emits
+#     visible *text* instead of thinking after a tool_result, and the
+#     text contains the I/O-relevant tokens (e.g. "C08 (Band 8) file").
+#   - tool_result content from prior turns provides discovery signal.
+# Deduplication by rule_name ensures a rule only fires once per session,
+# so scanning thinking + text together does NOT double-count.
+
+
 def run_predictor(
     blocks: list[StreamBlock],
     prior: dict[str, tuple[str, ...] | list[str]],
     ruleset: RuleSet,
 ) -> Prediction:
-    """Replay thinking text through the ruleset; emit tiered prediction.
+    """Replay thinking text + tool_result content through the ruleset;
+    emit tiered prediction.
 
-    For each rule, the FIRST char-offset at which it matches the
-    accumulated thinking text wins. Activation time is interpolated
-    linearly over the containing block's (t_first, t_stop) span.
+    For each rule, the FIRST match wins (across all scanned blocks in
+    stream order). Activation time:
+      - thinking blocks: char-offset interpolated over the block's
+        (t_first, t_stop) span (PoC behavior)
+      - tool_result blocks: t_first of the block (atomic arrival —
+        the full tool output is delivered in one synchronous response)
+
+    Each activation carries `source` ("thinking" | "tool_result") and
+    `turn` (0-indexed) so the consumer can audit "which signal fired
+    each rule, and at which point in the conversation."
 
     Rules are tiered by the total file count their target_keys resolve
     to (in the workspace prior), per PoC §6.2.
@@ -381,37 +502,72 @@ def run_predictor(
     fired_names: set[str] = set()
     accumulated = ""
     for b in blocks:
-        if b.type != "thinking" or not b.text:
+        if b.type not in _SCANNABLE_BLOCK_TYPES or not b.text:
             continue
         tf = b.t_first
         ts = b.t_stop
         text = b.text
-        # Per-char extension: re-evaluate every character (PoC behavior).
-        # For ≤ 2 KB thinking text, this is fine.
-        for end in range(1, len(text) + 1):
-            cur = accumulated + text[:end]
+        if b.type == "thinking":
+            # Per-char extension: re-evaluate every character (PoC behavior).
+            # For ≤ 2 KB thinking text per block, this is fine.
+            for end in range(1, len(text) + 1):
+                cur = accumulated + text[:end]
+                for rule, regex in compiled:
+                    if rule.name in fired_names:
+                        continue
+                    if regex.search(cur):
+                        if tf is not None and ts is not None and len(text) > 0:
+                            t_est = tf + (ts - tf) * (end / len(text))
+                        else:
+                            t_est = tf if tf is not None else ts
+                        predicted = tuple(
+                            p for k in rule.target_keys for p in prior.get(k, ())
+                        )
+                        activations.append(
+                            RuleActivation(
+                                rule_name=rule.name,
+                                fired_at_ms=t_est,
+                                char_offset=len(accumulated) + end,
+                                prior_keys=rule.target_keys,
+                                predicted_files=predicted,
+                                source="thinking",
+                                turn=b.turn,
+                            )
+                        )
+                        fired_names.add(rule.name)
+            accumulated += text
+        else:
+            # tool_result OR text: scan the block atomically.
+            # Source tag is the block type so downstream consumers can
+            # distinguish "rule fired because thinking" vs "rule fired
+            # because visible text" vs "rule fired because tool_result".
+            block_source = b.type
+            # The whole result text appears at once (no per-char streaming).
+            # Use the block's t_first as the activation time; if absent, ts.
+            t_est_block = tf if tf is not None else ts
+            full = accumulated + text
             for rule, regex in compiled:
                 if rule.name in fired_names:
                     continue
-                if regex.search(cur):
-                    if tf is not None and ts is not None and len(text) > 0:
-                        t_est = tf + (ts - tf) * (end / len(text))
-                    else:
-                        t_est = tf if tf is not None else ts
+                m = regex.search(full)
+                if m is not None and m.start() >= len(accumulated):
+                    # Rule matches inside the new tool_result text
                     predicted = tuple(
                         p for k in rule.target_keys for p in prior.get(k, ())
                     )
                     activations.append(
                         RuleActivation(
                             rule_name=rule.name,
-                            fired_at_ms=t_est,
-                            char_offset=len(accumulated) + end,
+                            fired_at_ms=t_est_block,
+                            char_offset=m.start(),
                             prior_keys=rule.target_keys,
                             predicted_files=predicted,
+                            source=block_source,
+                            turn=b.turn,
                         )
                     )
                     fired_names.add(rule.name)
-        accumulated += text
+            accumulated += text
 
     # Tiered aggregation
     tier_files: dict[int, set[str]] = {1: set(), 2: set(), 3: set()}

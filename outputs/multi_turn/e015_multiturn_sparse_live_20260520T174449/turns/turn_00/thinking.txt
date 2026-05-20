@@ -1,0 +1,26 @@
+Let me break down this task step-by-step:
+
+1. **What I know:**
+   - There's GOES-16 ABI-L2 weather satellite data under `/data/goes_cmi_composites/`
+   - The dataset spans a 7-day window in May 2024
+   - I need to extract brightness-temperature time series at US city locations
+   - I need to process each available channel band
+   - I need to compute the diurnal cycle
+   - I need to produce 3 outputs: CSV, PNG, and MD report
+
+2. **What I need to learn:**
+   - The structure of the data directory
+   - What files are present and in what format
+   - The spatial and temporal resolution
+   - Which channel bands are available
+   - How the data is organized (by date, by channel, etc.)
+   - The file format (NetCDF, HDF5, GeoTIFF, etc.)
+   - The geospatial structure (how to extract points for US cities)
+
+3. **Smallest discovery steps:**
+   - First, list the top-level directory to see how data is organized
+   - Then explore subdirectories to understand the structure
+   - Look at a sample file to understand its format and contents
+   - Determine what metadata and data variables are available
+
+Let me start by exploring the workspace.

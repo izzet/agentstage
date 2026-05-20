@@ -1,0 +1,88 @@
+{
+  "corpus": "outputs/multi_turn/e015_multiturn_sparse_live_20260520T174449",
+  "n_blocks": {
+    "all": 18,
+    "thinking": 1,
+    "text": 8,
+    "tool_result": 9
+  },
+  "variants": {
+    "A_thinking_only": {
+      "n_activations": 1,
+      "by_source": {
+        "thinking": 1
+      },
+      "by_turn": {
+        "0": [
+          "first_inspect"
+        ]
+      },
+      "rule_names": [
+        "first_inspect"
+      ]
+    },
+    "B_thinking_plus_tool_result": {
+      "n_activations": 3,
+      "by_source": {
+        "thinking": 1,
+        "tool_result": 2
+      },
+      "by_turn": {
+        "0": [
+          "first_inspect"
+        ],
+        "6": [
+          "band_08",
+          "band_09"
+        ]
+      },
+      "rule_names": [
+        "band_08",
+        "band_09",
+        "first_inspect"
+      ]
+    },
+    "C_full": {
+      "n_activations": 3,
+      "by_source": {
+        "thinking": 1,
+        "tool_result": 2
+      },
+      "by_turn": {
+        "0": [
+          "first_inspect"
+        ],
+        "6": [
+          "band_08",
+          "band_09"
+        ]
+      },
+      "rule_names": [
+        "band_08",
+        "band_09",
+        "first_inspect"
+      ]
+    },
+    "D_session_predictor": {
+      "n_activations": 3,
+      "by_source": {
+        "thinking": 1,
+        "text": 2
+      },
+      "by_turn": {
+        "0": [
+          "first_inspect"
+        ],
+        "6": [
+          "band_08",
+          "band_09"
+        ]
+      },
+      "rule_names": [
+        "band_08",
+        "band_09",
+        "first_inspect"
+      ]
+    }
+  }
+}

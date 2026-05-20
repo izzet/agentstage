@@ -1,0 +1,26 @@
+Let me think through this step-by-step:
+
+1. **What I know:**
+   - The data is under `/data/goes_cmi_composites/`
+   - It's GOES-16 ABI-L2 weather satellite data
+   - It spans a 7-day window in May 2024
+   - I need to extract brightness-temperature time series at several US city locations
+   - I need to compute the diurnal cycle for each available channel band
+   - I need to save results to `/repo/result/` with specific filenames
+
+2. **What I need to learn:**
+   - The structure/layout of the dataset
+   - How many files are in the directory
+   - What the file naming convention is
+   - The format of the data files (NetCDF, HDF5, etc.)
+   - What channel bands are available
+   - How the data is organized by time
+   - The actual data structure within files (dimensions, variables, coordinates)
+
+3. **Smallest discovery step first:**
+   - Start by exploring `/data/goes_cmi_composites/` to see what's there
+   - Look at the file structure and naming conventions
+   - Open a sample file to understand its format and contents
+   - Then determine what processing is needed
+
+Let me start by listing the directory.
