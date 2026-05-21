@@ -13,6 +13,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 
 | ID | Date | Goal | Headline | Script | Commit |
 |---|---|---|---|---|---|
+| **E-020** | 2026-05-21 | Pathful-prompt live ablation (system-prompt asks LLM to write full paths) | **Literal-path detection fired ZERO times; LLM writes path templates with placeholders, not concrete paths. Pathful prompt INCREASED rule activations +25% hinted, +100% sparse — complement to rules, not replacement** | `./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
 | **E-019** | 2026-05-21 | Auto-generated rules vs hand-tuned (L3 genericity claim) | **Auto matches hand in hinted regime (100%=100%); auto EXCEEDS hand by +33% in sparse regime (100% vs 66.7%) because mechanical per-instance enumeration catches band_10 hand missed** | `scripts/microbench/path_b_auto_vs_hand.py` | _next commit_ |
 | **E-018** | 2026-05-21 | Subset-detection accuracy replay (per-rule precision/recall vs static GT) | **100% subset precision across all rules and regimes; hinted recall 100%, sparse recall 67% (one band rule did not fire)** | `scripts/microbench/path_b_subset_replay.py` | _next commit_ |
 | **E-017** | 2026-05-20 | Wall-time replay ablation (oracle vs realistic detector) | **Hinted: 3886× realized = 3886× oracle; Sparse: 1.0× realized vs 3512× oracle — 100% of potential savings lost to rule mismatch** | `scripts/microbench/path_b_walltime_run.sh <corpus>` | _next commit_ |
@@ -1137,4 +1138,127 @@ tokens.
 - `src/agentstage/detector/auto_rules.py` — real implementation
 - `scripts/microbench/path_b_auto_vs_hand.py` — replay driver
 - `outputs/multi_turn/<run>/auto_vs_hand.json` per corpus
+
+
+---
+
+## E-020 — Pathful-prompt ablation (2026-05-21)
+
+**Goal**: Test whether injecting "write FULL file paths in your reasoning"
+into the system prompt enables literal-path detection (`hot_path_scan`)
+to replace the hand-coded regex rule library.
+
+If literal-path matching works, the genericity story becomes: "13 lines
+of system prompt + a substring scan over the workspace prior replaces
+~480 lines of per-workload regex rules."
+
+**Reproduction**
+
+```bash
+./scripts/path_b_run.sh hinted_pathful   # E-020a
+./scripts/path_b_run.sh sparse_pathful   # E-020b
+```
+
+(Adds `--pathful-prompt` flag to `path_b_multiturn`; injects the
+following clause into the system prompt:
+
+> "IMPORTANT: When reasoning about which files you intend to access,
+> write the FULL absolute path of each file in your thinking..."
+
+Wired in `hot_path_scan` to the live dispatch path via
+`SessionDetector.new_hot_paths()`.)
+
+**Results**
+
+| Run | Rules fired | **Literal-path dispatches** | First file opened | vs static GT (T3 recall) |
+|---|---:|---:|---|---:|
+| E-011 hinted (control)  | 4 | n/a (not wired then) | Band 08 day 122 | 100% |
+| **E-020a hinted+pathful**     | **5** | **0** | Band 08 day 121 | 100% |
+| E-014 sparse (control)  | 4 | n/a | Band 01 day 122 | 67% |
+| **E-020b sparse+pathful**     | **8** | **0** | Band 01 day 122 | 100% |
+
+**Findings**
+
+1. **Literal-path detection did NOT fire in either pathful run.** Zero
+   `hot_path_scan` hits despite the explicit system prompt instruction.
+   `SessionDetector.new_hot_paths()` returned empty every turn.
+
+2. **Why**: the LLM follows the instruction but writes **path
+   templates with placeholders**, not concrete paths:
+
+   ```
+   /data/goes_cmi_composites/raw/YYYY/DDD/HH/OR_ABI-L2-CMIPC-M6C{08,09,10}_G16_s<timestamp>_e<...>_c<...>.nc
+   ```
+
+   versus the concrete paths in the workspace prior:
+
+   ```
+   /data/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc
+   ```
+
+   Literal-substring matching cannot bridge templates to concrete files.
+   The LLM's natural reasoning style for file collections is at the
+   class level (`M6C{08,09,10}`, `YYYY/DDD/HH`), not the instance level.
+
+3. **Pathful prompts INCREASE rule activations.** Hinted: 4 → 5 rules
+   fired (+25%); sparse: 4 → 8 rules (+100%). The instruction "list
+   every file you plan to read" causes the LLM to enumerate file
+   types/structures more explicitly, which triggers MORE matches in the
+   regex rule library — including output-file rules (`csv_out`,
+   `fig_out`, `report_out`) that the standard prompt didn't activate.
+
+4. **The agent's file choice in sparse mode is stable across runs.**
+   E-014, E-015, and now E-020b all picked Band 01 or Band 02 — outside
+   the workload spec's 6042-file GT subset. This is consistent enough
+   to look structural, not stochastic: sparse-prompt agents pick the
+   alphabetically-first available band.
+
+5. **Per-file precision/recall remains 0% in sparse pathful** (same as
+   E-014/E-015). The pathful prompt does not change the underlying
+   "agent chooses outside our prior's GT subset" problem.
+
+**Implication for paper claims**
+
+The pathful-prompt path **is not a replacement for the rule library**.
+It's complementary — it makes the LLM enumerate more I/O-relevant
+tokens that the regex rules then catch. The "literal-path layer" of
+claim C2 (AGENTSTAGE.md) remains the secondary detector, not the
+primary, even when explicitly prompted to surface paths.
+
+**Recommended paper position**:
+
+> "We considered a system-prompt-injection variant that asks the LLM
+> to write full file paths in its reasoning, hoping to replace the
+> regex rule library with a literal-substring scan. In our measurements
+> (E-020), the LLM complies with the instruction but writes path
+> *templates* containing placeholders (`M6C{08,09,10}`, `YYYY/DDD/HH`),
+> not concrete file paths. Literal-substring matching cannot bridge
+> templates to specific files in the workspace prior. The instruction
+> does, however, cause the LLM to enumerate more file-class tokens,
+> which the regex-rule layer catches (+25%–100% additional rule
+> activations in our runs). We therefore recommend the rule-based
+> detector — particularly the auto-generated variant (E-019, L3) — as
+> the primary mechanism, with literal-path matching as a complement
+> rather than a replacement."
+
+**Caveats**
+
+- n=1 seed per pathful cell. Some of the rule-count delta (+25/+100%)
+  may be stochastic. Campaign C will need ≥3 seeds per cell.
+- A more aggressive system prompt ("after each tool result, write out
+  the exact filenames you just discovered") might produce concrete
+  paths. We didn't test that — it's a deeper prompt-engineering
+  experiment that goes beyond a single ablation cell.
+- Output paths ARE concrete (the LLM writes `/repo/result/report.md`
+  verbatim). Output-file detection works under pathful prompts; only
+  input-data detection fails because of the template phenomenon.
+
+**Files**
+
+- `src/agentstage/runners/path_b_multiturn.py` — `--pathful-prompt` flag
+- `src/agentstage/detector/session.py` — `SessionDetector.new_hot_paths()`
+- `src/agentstage/detector/engine.py` — `hot_path_scan` now scans
+  thinking + text + tool_result (was thinking-only)
+- `outputs/multi_turn/e020_multiturn_hinted_pathful_*/`
+- `outputs/multi_turn/e020_multiturn_sparse_pathful_*/`
 

@@ -38,6 +38,7 @@ from agentstage.detector.engine import (
     RuleActivation,
     StreamBlock,
     _tier_for_size,
+    hot_path_scan,
     run_detector,
 )
 from agentstage.detector.rules import RuleSet
@@ -63,6 +64,10 @@ class SessionDetector:
     activations: list[RuleActivation] = field(default_factory=list)
     fired_rule_names: set[str] = field(default_factory=set)
     current_turn: int = 0
+    # Literal-path matches we've already reported / dispatched.
+    # Tracked separately from rule activations so the pathful-prompt
+    # detection path can independently dispatch literal hits.
+    reported_hot_paths: set[str] = field(default_factory=set)
 
     def feed_blocks(self, new_blocks: list[StreamBlock]) -> list[RuleActivation]:
         """Append `new_blocks` to the session and return newly-fired rules.
@@ -137,6 +142,24 @@ class SessionDetector:
     def cumulative_detection(self) -> Detection:
         """Return a Detection snapshot for all blocks seen so far."""
         return run_detector(self.all_blocks, self.prior, self.ruleset)
+
+    def new_hot_paths(self) -> dict[str, float]:
+        """Return literal-path matches discovered since the last call.
+
+        Companion to feed_turn / feed_tool_results: those return new rule
+        activations; this returns new literal-path hits from
+        `hot_path_scan` over the full accumulated block list, filtered to
+        paths not previously reported. Used by the pathful-prompt
+        dispatch path where the LLM is asked to write absolute file
+        paths and the detector identifies them by substring match
+        instead of regex rules.
+
+        Output: {logical_path: t_ms_of_first_mention}.
+        """
+        hits = hot_path_scan(self.all_blocks, self.prior)
+        new = {p: t for p, t in hits.items() if p not in self.reported_hot_paths}
+        self.reported_hot_paths.update(new.keys())
+        return new
 
     def tier1_activations(self) -> list[RuleActivation]:
         """Convenience: filter activations to those producing a tier-1

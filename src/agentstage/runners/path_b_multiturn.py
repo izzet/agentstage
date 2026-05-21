@@ -631,6 +631,27 @@ def main() -> int:
             stager.prefetch(hint)
             dispatched_this_turn.append(act.rule_name)
 
+        # Pathful-prompt path: dispatch any literal-path hits the
+        # session detector has discovered. This runs alongside the rule
+        # dispatch above — a file mentioned literally AND matched by a
+        # rule is fine (the stager dedupes on the cold_path key).
+        dispatched_hot_paths: list[str] = []
+        new_hot = session_pred.new_hot_paths()
+        for logical_path in new_hot:
+            phys = _resolve_logical_to_physical(
+                logical_path, prefix_map, cold_root=str(cold_root))
+            if not Path(phys).is_file():
+                continue
+            hint = DataHint(
+                detected_files=(phys,),
+                tier=1,
+                fired_at_ms=new_hot[logical_path] or 0.0,
+                rule_id=f"turn{turn}:hot_path",
+                byte_estimate=0,
+            )
+            stager.prefetch(hint)
+            dispatched_hot_paths.append(logical_path)
+
         print(f"  thinking: {len(thinking_text)} chars", file=sys.stderr)
         print(f"  tool_uses this turn: {len(tool_uses_this_turn)}", file=sys.stderr)
         print(f"  new rules fired: {[a.rule_name for a in new_acts]} "
@@ -640,6 +661,11 @@ def main() -> int:
               file=sys.stderr)
         print(f"  dispatched tier-1 prefetches: {dispatched_this_turn}",
               file=sys.stderr)
+        if dispatched_hot_paths:
+            print(f"  dispatched literal-path prefetches: "
+                  f"{len(dispatched_hot_paths)} files (e.g. "
+                  f"{dispatched_hot_paths[0].split('/')[-1]})",
+                  file=sys.stderr)
 
         # Append the assistant message
         messages.append({"role": "assistant", "content": assistant_blocks})
@@ -705,6 +731,27 @@ def main() -> int:
         if tr_acts:
             print(f"  tool_result fired NEW rules: "
                   f"{[a.rule_name for a in tr_acts]}",
+                  file=sys.stderr)
+
+        # Also dispatch any literal-path hits the tool_result revealed
+        # (e.g. agent did `list_dir /raw/2024/122/00` and the result
+        # text contains paths the LLM now knows literally).
+        new_hot_tr = session_pred.new_hot_paths()
+        for logical_path in new_hot_tr:
+            phys = _resolve_logical_to_physical(
+                logical_path, prefix_map, cold_root=str(cold_root))
+            if not Path(phys).is_file():
+                continue
+            stager.prefetch(DataHint(
+                detected_files=(phys,),
+                tier=1,
+                fired_at_ms=new_hot_tr[logical_path] or 0.0,
+                rule_id=f"turn{turn}_tr:hot_path",
+                byte_estimate=0,
+            ))
+        if new_hot_tr:
+            print(f"  tool_result revealed literal paths: "
+                  f"{len(new_hot_tr)} new files staged",
                   file=sys.stderr)
 
         all_tool_uses_executed.extend(tool_uses_this_turn)

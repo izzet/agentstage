@@ -1,0 +1,20 @@
+Let me understand the task:
+
+1. I need to analyze GOES-16 ABI-L2 weather satellite data under `/data/goes_cmi_composites/`
+2. The dataset spans 7 days in May 2024
+3. I need to extract brightness-temperature time series at several US city locations for each available channel band
+4. Compute the diurnal cycle
+5. Save results to three files:
+   - `/repo/result/goes_cmi_timeseries.csv`
+   - `/repo/result/goes_cmi_point_timeseries.png`
+   - `/repo/result/report.md`
+
+The approach should be:
+1. First, explore `/data/goes_cmi_composites/` to understand the directory structure and data layout
+2. Identify what files are available, their format, and structure
+3. Understand the data schema - what variables are available, coordinate systems, etc.
+4. Understand what channels/bands are available
+5. Identify how to extract point data from the satellite grid data for US cities
+6. Plan the analysis approach
+
+Let me start by exploring the workspace.

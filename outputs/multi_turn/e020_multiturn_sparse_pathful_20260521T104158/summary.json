@@ -1,0 +1,92 @@
+{
+  "workload": "aiob_107_s3",
+  "prompt_mode": "sparse",
+  "model": "claude-haiku-4-5",
+  "budget": 4096,
+  "max_turns_allowed": 8,
+  "turns_used": 8,
+  "total_tool_uses": 8,
+  "fired_rule_names": [
+    "all_files_signal",
+    "band_08",
+    "band_09",
+    "csv_out",
+    "fig_out",
+    "first_inspect",
+    "one_hour",
+    "report_out"
+  ],
+  "activations": [
+    {
+      "rule_name": "csv_out",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 1321.090326071036,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "fig_out",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 1493.5259695524464,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "report_out",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 1596.9873556412927,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "first_inspect",
+      "source": "text",
+      "turn": 4,
+      "fired_at_ms": 11181.412409991026,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "one_hour",
+      "source": "text",
+      "turn": 4,
+      "fired_at_ms": 11181.412409991026,
+      "n_detected_files": 36
+    },
+    {
+      "rule_name": "band_08",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 13547.131628962234,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "band_09",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 13547.131628962234,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "all_files_signal",
+      "source": "text",
+      "turn": 7,
+      "fired_at_ms": 22669.469367014244,
+      "n_detected_files": 6042
+    }
+  ],
+  "first_target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241220001170_e20241220003543_c20241220004002.nc",
+  "measurements": {},
+  "staging_report": {
+    "n_events": 1,
+    "n_staged": 1,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 2960235,
+    "fetch_ms": {
+      "p50": 1180.021,
+      "p95": 1180.021,
+      "max": 1180.021,
+      "mean": 1180.021
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "corpus": "outputs/multi_turn/e020_multiturn_hinted_pathful_20260521T104047",
+  "workload": "aiob_107_s3",
+  "counts": {
+    "prefetched_files": 1,
+    "opened_files": 1,
+    "hits": 0,
+    "wasted_prefetches": 1,
+    "misses_no_prefetch": 1
+  },
+  "bytes": {
+    "prefetched": 2960235,
+    "opened": 2814245,
+    "hit": 0,
+    "wasted": 2960235,
+    "missed_no_prefetch": 2814245
+  },
+  "metrics": {
+    "precision_files": 0.0,
+    "recall_files": 0.0,
+    "byte_overfetch_ratio": 1.0518753697705778,
+    "byte_precision": 0.0,
+    "byte_recall": 0.0,
+    "jaccard_files": 0.0,
+    "jaccard_bytes": 0.0
+  },
+  "detail": {
+    "prefetched": [
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+        "size": 2960235
+      }
+    ],
+    "opened": [
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241210001170_e20241210003543_c20241210004053.nc",
+        "size": 2814245
+      }
+    ],
+    "hits": [],
+    "wasted": [
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc"
+    ],
+    "misses_no_prefetch": [
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241210001170_e20241210003543_c20241210004053.nc"
+    ]
+  }
+}

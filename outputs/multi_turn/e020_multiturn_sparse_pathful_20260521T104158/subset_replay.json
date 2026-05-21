@@ -1,0 +1,207 @@
+{
+  "corpus": "outputs/multi_turn/e020_multiturn_sparse_pathful_20260521T104158",
+  "workload": "aiob_107_s3",
+  "gt_actual_files": 1,
+  "gt_static_files": 6042,
+  "fired_rules": [
+    "csv_out",
+    "fig_out",
+    "report_out",
+    "first_inspect",
+    "one_hour",
+    "band_08",
+    "band_09",
+    "all_files_signal"
+  ],
+  "tier_unions": {
+    "tier_1_size": 4,
+    "tier_2_size": 39,
+    "tier_3_size": 6045
+  },
+  "tier_1_vs_actual": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "jaccard": 0.0,
+    "hits": 0,
+    "predicted_size": 4,
+    "gt_size": 1
+  },
+  "tier_2_vs_actual": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "jaccard": 0.0,
+    "hits": 0,
+    "predicted_size": 39,
+    "gt_size": 1
+  },
+  "tier_3_vs_actual": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "jaccard": 0.0,
+    "hits": 0,
+    "predicted_size": 6045,
+    "gt_size": 1
+  },
+  "tier_1_vs_static_gt": {
+    "precision": 0.25,
+    "recall": 0.00016550810989738498,
+    "jaccard": 0.00016542597187758478,
+    "hits": 1,
+    "predicted_size": 4,
+    "gt_size": 6042
+  },
+  "tier_2_vs_static_gt": {
+    "precision": 0.9230769230769231,
+    "recall": 0.005958291956305859,
+    "jaccard": 0.005955334987593052,
+    "hits": 36,
+    "predicted_size": 39,
+    "gt_size": 6042
+  },
+  "tier_3_vs_static_gt": {
+    "precision": 0.9995037220843672,
+    "recall": 1.0,
+    "jaccard": 0.9995037220843672,
+    "hits": 6042,
+    "predicted_size": 6045,
+    "gt_size": 6042
+  },
+  "rule_detail": [
+    {
+      "rule": "csv_out",
+      "source": "thinking",
+      "turn": 0,
+      "tier": 1,
+      "subset_size": 1,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    },
+    {
+      "rule": "fig_out",
+      "source": "thinking",
+      "turn": 0,
+      "tier": 1,
+      "subset_size": 1,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    },
+    {
+      "rule": "report_out",
+      "source": "thinking",
+      "turn": 0,
+      "tier": 1,
+      "subset_size": 1,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    },
+    {
+      "rule": "first_inspect",
+      "source": "text",
+      "turn": 4,
+      "tier": 1,
+      "subset_size": 1,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 1,
+        "precision": 1.0,
+        "recall": 0.00016550810989738498
+      }
+    },
+    {
+      "rule": "one_hour",
+      "source": "text",
+      "turn": 4,
+      "tier": 2,
+      "subset_size": 36,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 36,
+        "precision": 1.0,
+        "recall": 0.005958291956305859
+      }
+    },
+    {
+      "rule": "band_08",
+      "source": "tool_result",
+      "turn": 5,
+      "tier": 3,
+      "subset_size": 2014,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 2014,
+        "precision": 1.0,
+        "recall": 0.3333333333333333
+      }
+    },
+    {
+      "rule": "band_09",
+      "source": "tool_result",
+      "turn": 5,
+      "tier": 3,
+      "subset_size": 2014,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 2014,
+        "precision": 1.0,
+        "recall": 0.3333333333333333
+      }
+    },
+    {
+      "rule": "all_files_signal",
+      "source": "text",
+      "turn": 7,
+      "tier": 3,
+      "subset_size": 6042,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 6042,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    }
+  ]
+}

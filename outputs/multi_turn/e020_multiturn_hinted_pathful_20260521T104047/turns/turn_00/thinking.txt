@@ -1,0 +1,23 @@
+The user is asking me to analyze GOES-16 satellite data. Let me break down what they're asking:
+
+1. They have GOES-16 ABI-L2-CMIPC data for 2024-05-01 through 2024-05-07
+2. The data has bands 08, 09, 10 as NetCDF files
+3. ~6000 files total
+4. I need to extract brightness temperature (CMI) at 5 locations
+5. For each location, use a 10x10 pixel box
+6. Filter by DQF == 0 (good quality)
+7. Compute spatial mean
+8. Save results as CSV, PNG, and MD report
+
+The workspace layout is:
+/data/goes_cmi_composites/raw/YYYY/DDD/HH/OR_ABI-L2-CMIPC-M6C{08,09,10}_G16_s<timestamp>_e<...>_c<...>.nc
+
+So the steps are:
+1. First, explore the directory structure to understand what data is available
+2. Understand the NetCDF file structure (what variables are available, dimensions, etc.)
+3. Extract the brightness temperature data for the 5 locations
+4. Filter by DQF
+5. Create time series and visualizations
+6. Generate report
+
+Let me start by exploring the data directory structure.

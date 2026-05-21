@@ -349,11 +349,15 @@ def hot_path_scan(
             needles.append(short)
         needles_by_path[p] = needles
 
-    # Concatenate thinking text and track per-block char-offset segments
+    # Concatenate ALL detection-scannable block types and track per-block
+    # char-offset segments. We scan the same set that run_detector scans
+    # (thinking + text + tool_result) so a pathful-prompt experiment —
+    # where the LLM writes literal paths in visible text or after seeing
+    # them in tool_result — gets credit for the literal-path mention.
     segments: list[tuple[int, int, float | None, float | None]] = []
     full_text = ""
     for b in blocks:
-        if b.type != "thinking":
+        if b.type not in _SCANNABLE_BLOCK_TYPES:
             continue
         if not b.text:
             continue
