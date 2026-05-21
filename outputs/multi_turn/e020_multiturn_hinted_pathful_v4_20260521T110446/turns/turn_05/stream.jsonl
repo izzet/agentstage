@@ -1,0 +1,31 @@
+{"t_ms": 1023.3615979086608, "type": "message_start", "t_ms_in_turn": 1023.4035170078278}
+{"t_ms": 1023.982860846445, "type": "content_block_start", "block_idx": 0, "block_type": "text", "t_ms_in_turn": 1024.0542058944702}
+{"t_ms": 1024.7560068964958, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "Good", "t_ms_in_turn": 1024.7993350028992}
+{"t_ms": 1239.4625269807875, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "! I can see C08 and C09 files in the listing.", "t_ms_in_turn": 1239.5095019340515}
+{"t_ms": 1429.2812359053642, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " Now let me examine one of these NetCDF files to understand its structure. Let me read one C08 file:", "t_ms_in_turn": 1429.326534986496}
+{"t_ms": 1657.6443088706583, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "\n\nNEXT_FILES:\n/data/goes_c", "t_ms_in_turn": 1657.6903219223022}
+{"t_ms": 1869.5374438539147, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "mi_composites/raw/2024/122/00/OR_ABI-L2-", "t_ms_in_turn": 1869.5827128887177}
+{"t_ms": 2047.82371991314, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc", "t_ms_in_turn": 2047.8677160739899}
+{"t_ms": 2049.3827150203288, "type": "content_block_stop", "block_idx": 0, "t_ms_in_turn": 2049.41801404953}
+{"t_ms": 2051.340991863981, "type": "content_block_start", "block_idx": 1, "block_type": "tool_use", "tool_name": "open_file", "t_ms_in_turn": 2051.3829617500305}
+{"t_ms": 2051.586135989055, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "", "t_ms_in_turn": 2051.627862930298}
+{"t_ms": 2396.3081298861653, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "{\"path\": \"/", "t_ms_in_turn": 2396.3533461093903}
+{"t_ms": 2397.72269083187, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "data/go", "t_ms_in_turn": 2397.7670907974243}
+{"t_ms": 2397.9724009986967, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "es_cmi", "t_ms_in_turn": 2398.0119767189026}
+{"t_ms": 2398.1669538188726, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_composites", "t_ms_in_turn": 2398.20529794693}
+{"t_ms": 2398.3393758535385, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "/raw", "t_ms_in_turn": 2398.3772218227386}
+{"t_ms": 2398.723129881546, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "/2024/12", "t_ms_in_turn": 2398.7618968486786}
+{"t_ms": 2400.747983949259, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "2/00/", "t_ms_in_turn": 2400.7918729782104}
+{"t_ms": 2401.01638995111, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "OR_ABI-L2-CM", "t_ms_in_turn": 2401.0566189289093}
+{"t_ms": 2403.8484399206936, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "IPC-M6C08_G", "t_ms_in_turn": 2403.89275598526}
+{"t_ms": 2404.1277798824012, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "16", "t_ms_in_turn": 2404.167739868164}
+{"t_ms": 2405.8417649939656, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_s2024122000", "t_ms_in_turn": 2405.884258747101}
+{"t_ms": 2406.061450019479, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "1170_e202412", "t_ms_in_turn": 2406.1001768112183}
+{"t_ms": 2406.234312802553, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "200", "t_ms_in_turn": 2406.2718629837036}
+{"t_ms": 2406.3864678610116, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "03543", "t_ms_in_turn": 2406.4229748249054}
+{"t_ms": 2406.559422845021, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_c202412", "t_ms_in_turn": 2406.5961208343506}
+{"t_ms": 2406.702467938885, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "20004042.n", "t_ms_in_turn": 2406.738362789154}
+{"t_ms": 2406.8379630334675, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "c\"}", "t_ms_in_turn": 2406.873825788498}
+{"t_ms": 2406.95428987965, "type": "content_block_stop", "block_idx": 1, "t_ms_in_turn": 2406.987072944641}
+{"t_ms": 2429.6384709887207, "type": "message_delta", "t_ms_in_turn": 2429.6729350090027}
+{"t_ms": 2429.872651817277, "type": "message_stop", "t_ms_in_turn": 2429.9062209129333}

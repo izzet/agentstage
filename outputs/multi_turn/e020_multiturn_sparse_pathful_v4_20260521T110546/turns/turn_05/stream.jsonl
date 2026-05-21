@@ -1,0 +1,39 @@
+{"t_ms": 2175.8841490373015, "type": "message_start", "t_ms_in_turn": 2175.9236133098602}
+{"t_ms": 2176.846355898306, "type": "content_block_start", "block_idx": 0, "block_type": "text", "t_ms_in_turn": 2176.8994450569153}
+{"t_ms": 2177.210277877748, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "NEXT", "t_ms_in_turn": 2177.2488811016083}
+{"t_ms": 2389.5487268455327, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "_FILES:\n/data/goes_cmi_compos", "t_ms_in_turn": 2389.5915541648865}
+{"t_ms": 2613.4963349904865, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "ites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C01", "t_ms_in_turn": 2613.5370693206787}
+{"t_ms": 2834.2389308381826, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "_G16_s20241220001170_e20241220003543_c20241220004002.nc\n/data/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-", "t_ms_in_turn": 2834.2800703048706}
+{"t_ms": 3069.099792977795, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "CMIPC-M6C02_G16_s20241220001170_e20241220003543_c20241220004030.nc\n\nExcellent! I can", "t_ms_in_turn": 3069.1418249607086}
+{"t_ms": 3278.8970849942416, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " see:\n- Files are NetCDF format (`.nc`)\n- Organized as:", "t_ms_in_turn": 3278.940038204193}
+{"t_ms": 3519.2945739254355, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " YEAR/DOY/HOUR/CHANNEL_*.nc\n- Multiple", "t_ms_in_turn": 3519.3365693092346}
+{"t_ms": 3758.0017510335892, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " 5-minute scans per hour (notice the timestamps in filenames)\n- Multiple", "t_ms_in_turn": 3758.043892145157}
+{"t_ms": 3961.3969968631864, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " channels: C01 through C09+ visible\n- Multiple sc", "t_ms_in_turn": 3961.4382090568542}
+{"t_ms": 4170.4447560478, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "ans within each hour\n\nLet me read a sample file", "t_ms_in_turn": 4170.514511346817}
+{"t_ms": 4403.136568842456, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " to understand the structure:", "t_ms_in_turn": 4403.209422111511}
+{"t_ms": 4405.997254885733, "type": "content_block_stop", "block_idx": 0, "t_ms_in_turn": 4406.028567075729}
+{"t_ms": 4407.8552320133895, "type": "content_block_start", "block_idx": 1, "block_type": "tool_use", "tool_name": "read_file", "t_ms_in_turn": 4407.894756317139}
+{"t_ms": 4418.5215218458325, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "", "t_ms_in_turn": 4418.562553167343}
+{"t_ms": 4892.532087862492, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "{\"path", "t_ms_in_turn": 4892.57538318634}
+{"t_ms": 4909.990423824638, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "\": \"/data/", "t_ms_in_turn": 4910.030710935593}
+{"t_ms": 4918.668063823134, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "goe", "t_ms_in_turn": 4918.707619190216}
+{"t_ms": 4920.184678863734, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "s_cmi_c", "t_ms_in_turn": 4920.223251104355}
+{"t_ms": 4925.794982817024, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "omposi", "t_ms_in_turn": 4925.836146116257}
+{"t_ms": 4930.818150984123, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "tes/", "t_ms_in_turn": 4930.8570392131805}
+{"t_ms": 4937.9830518737435, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "raw/20", "t_ms_in_turn": 4938.023639202118}
+{"t_ms": 4938.515784917399, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "24/122/0", "t_ms_in_turn": 4938.553993225098}
+{"t_ms": 4938.990287017077, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "0/OR_AB", "t_ms_in_turn": 4939.028004169464}
+{"t_ms": 4941.278233891353, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "I-L2", "t_ms_in_turn": 4941.315961122513}
+{"t_ms": 4942.305366043001, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "-CMIPC", "t_ms_in_turn": 4942.3425080776215}
+{"t_ms": 4948.092056903988, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "-M6C01_G16_", "t_ms_in_turn": 4948.134099245071}
+{"t_ms": 4948.612913955003, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "s2", "t_ms_in_turn": 4948.651538133621}
+{"t_ms": 4951.2802618555725, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "024122000117", "t_ms_in_turn": 4951.318695068359}
+{"t_ms": 4951.70401991345, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "0_e2024", "t_ms_in_turn": 4951.7410390377045}
+{"t_ms": 4955.361247994006, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "122", "t_ms_in_turn": 4955.402115106583}
+{"t_ms": 4955.637505976483, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "0003543_c20", "t_ms_in_turn": 4955.675357103348}
+{"t_ms": 4955.848507815972, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "24122", "t_ms_in_turn": 4955.884458065033}
+{"t_ms": 4956.534106982872, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "0004002.n", "t_ms_in_turn": 4956.571226119995}
+{"t_ms": 4956.734617939219, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "c\"}", "t_ms_in_turn": 4956.769765138626}
+{"t_ms": 4960.181081900373, "type": "content_block_stop", "block_idx": 1, "t_ms_in_turn": 4960.213192939758}
+{"t_ms": 4996.049261884764, "type": "message_delta", "t_ms_in_turn": 4996.081406116486}
+{"t_ms": 4996.344681829214, "type": "message_stop", "t_ms_in_turn": 4996.375422000885}

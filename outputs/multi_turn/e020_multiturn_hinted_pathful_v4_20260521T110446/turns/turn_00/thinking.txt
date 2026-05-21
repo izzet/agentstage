@@ -1,0 +1,32 @@
+Let me break down what I need to do:
+
+1. **Task Overview**: Analyze GOES-16 ABI-L2-CMIPC bundle data for May 1-7, 2024
+2. **Data location**: `/data/goes_cmi_composites/raw/` with structure `YYYY/DDD/HH/OR_ABI-L2-CMIPC-M6C{08,09,10}_G16_s<timestamp>_e<...>_c<...>.nc`
+3. **Extract brightness temperature** at 5 named locations (with grid coordinates given)
+4. **Read variables**: CMI (brightness temperature) and DQF (data quality flag)
+5. **Processing**: 10x10 pixel box around each location, filter DQF==0, compute spatial mean
+6. **Output**: 
+   - CSV with one row per location-band-file
+   - PNG showing diurnal cycle per band
+   - Markdown report
+
+**Step-by-step thinking:**
+
+(1) **What I know vs. need to learn:**
+   - KNOW: The task, output structure, location coordinates
+   - NEED TO LEARN:
+     - Exact structure of the data directory
+     - How many files exist
+     - The structure and variables in the NetCDF files
+     - The date range mapping (May 1-7, 2024 = which day of year numbers?)
+
+(2) **Smallest discovery step:**
+   - List `/data/goes_cmi_composites/raw/` to see the year structure
+   - Then navigate into 2024
+   - Then list a day directory to see the hour structure
+   - Then open one example NetCDF file to understand its structure
+
+(3) **Files I ultimately need to read:**
+   - All NetCDF files from May 1-7, 2024 (bands 08, 09, 10)
+   - May 1-7 corresponds to day-of-year 122-128 (accounting for 2024 being a leap year with 29 days in February)
+   - I'll need to explore `/data/goes_cmi_composites/raw/2024/` across those day directories to locate all available files.

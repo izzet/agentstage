@@ -1,0 +1,92 @@
+{
+  "workload": "aiob_107_s3",
+  "prompt_mode": "sparse",
+  "model": "claude-haiku-4-5",
+  "budget": 4096,
+  "max_turns_allowed": 8,
+  "turns_used": 8,
+  "total_tool_uses": 8,
+  "fired_rule_names": [
+    "all_files_signal",
+    "band_08",
+    "band_09",
+    "csv_out",
+    "fig_out",
+    "first_inspect",
+    "one_hour",
+    "report_out"
+  ],
+  "activations": [
+    {
+      "rule_name": "csv_out",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 1401.2773595391152,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "fig_out",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 1575.0964191689766,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "report_out",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 1679.3878549468934,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "first_inspect",
+      "source": "text",
+      "turn": 4,
+      "fired_at_ms": 12115.850258851424,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "one_hour",
+      "source": "text",
+      "turn": 4,
+      "fired_at_ms": 12115.850258851424,
+      "n_detected_files": 36
+    },
+    {
+      "rule_name": "band_08",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 14739.980833837762,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "band_09",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 14739.980833837762,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "all_files_signal",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 14739.980833837762,
+      "n_detected_files": 6042
+    }
+  ],
+  "first_target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210001170_e20241210003543_c20241210004037.nc",
+  "measurements": {},
+  "staging_report": {
+    "n_events": 1,
+    "n_staged": 1,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 2960235,
+    "fetch_ms": {
+      "p50": 1596.398,
+      "p95": 1596.398,
+      "max": 1596.398,
+      "mean": 1596.398
+    }
+  }
+}

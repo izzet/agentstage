@@ -1,0 +1,20 @@
+{"t_ms": 765.9153509885073, "type": "message_start", "t_ms_in_turn": 765.9457750320435}
+{"t_ms": 766.3366689812392, "type": "content_block_start", "block_idx": 0, "block_type": "text", "t_ms_in_turn": 766.3996999263763}
+{"t_ms": 766.6780508589, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "Good", "t_ms_in_turn": 766.7140429019928}
+{"t_ms": 988.4659359231591, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "! Within each day there are 24 hourly subdirectories. Let me check what files", "t_ms_in_turn": 988.5062730312347}
+{"t_ms": 1202.1457029040903, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " are in one hour:", "t_ms_in_turn": 1202.1869058609009}
+{"t_ms": 1202.4789259303361, "type": "content_block_stop", "block_idx": 0, "t_ms_in_turn": 1202.5076327323914}
+{"t_ms": 1203.056569909677, "type": "content_block_start", "block_idx": 1, "block_type": "tool_use", "tool_name": "list_dir", "t_ms_in_turn": 1203.1290788650513}
+{"t_ms": 1203.3870189916342, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "", "t_ms_in_turn": 1203.4231588840485}
+{"t_ms": 1311.2157888244838, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "{\"path\": ", "t_ms_in_turn": 1311.2558097839355}
+{"t_ms": 1311.9629540015012, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "\"/data/goes", "t_ms_in_turn": 1312.0004358291626}
+{"t_ms": 1312.2036349959671, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_c", "t_ms_in_turn": 1312.238049030304}
+{"t_ms": 1312.6859138719738, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "mi_", "t_ms_in_turn": 1312.7200438976288}
+{"t_ms": 1313.2477127946913, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "composi", "t_ms_in_turn": 1313.2825238704681}
+{"t_ms": 1313.503615790978, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "tes/", "t_ms_in_turn": 1313.5371799468994}
+{"t_ms": 1338.7166608590633, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "raw/2", "t_ms_in_turn": 1338.757120847702}
+{"t_ms": 1339.0361319761723, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "024/", "t_ms_in_turn": 1339.0717108249664}
+{"t_ms": 1339.3067228607833, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "122/00\"}", "t_ms_in_turn": 1339.3667659759521}
+{"t_ms": 1339.5273350179195, "type": "content_block_stop", "block_idx": 1, "t_ms_in_turn": 1339.5553288459778}
+{"t_ms": 1346.7051659245044, "type": "message_delta", "t_ms_in_turn": 1346.7347660064697}
+{"t_ms": 1346.989116864279, "type": "message_stop", "t_ms_in_turn": 1347.0172667503357}

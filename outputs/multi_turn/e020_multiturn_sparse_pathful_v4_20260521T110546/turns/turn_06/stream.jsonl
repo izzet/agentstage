@@ -1,0 +1,15 @@
+{"t_ms": 949.3795831222087, "type": "message_start", "t_ms_in_turn": 949.3994009494781}
+{"t_ms": 949.7368570882827, "type": "content_block_start", "block_idx": 0, "block_type": "text", "t_ms_in_turn": 949.7631740570068}
+{"t_ms": 949.9799970071763, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "Good", "t_ms_in_turn": 950.0048770904541}
+{"t_ms": 1174.8652760870755, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": ", it's definitely NetCDF (starts with `HDF5` magic", "t_ms_in_turn": 1174.8945400714874}
+{"t_ms": 1376.042631920427, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " bytes). Since this is scientific data, I need to check if there's Python/", "t_ms_in_turn": 1376.0720641613007}
+{"t_ms": 1641.206145985052, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "xarray available to read NetCDF files. Let me check for documentation or a script that might", "t_ms_in_turn": 1641.2358570098877}
+{"t_ms": 1814.67509502545, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " help. First, let me explore what's available in the repo:", "t_ms_in_turn": 1814.7052772045135}
+{"t_ms": 1953.4984070342034, "type": "content_block_stop", "block_idx": 0, "t_ms_in_turn": 1953.51815199852}
+{"t_ms": 1953.9224789477885, "type": "content_block_start", "block_idx": 1, "block_type": "tool_use", "tool_name": "list_dir", "t_ms_in_turn": 1953.9487211704254}
+{"t_ms": 1955.530873965472, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "", "t_ms_in_turn": 1955.5578150749207}
+{"t_ms": 1957.877865061164, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "{\"path", "t_ms_in_turn": 1957.9027869701385}
+{"t_ms": 1958.3834460936487, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "\": \"/repo\"}", "t_ms_in_turn": 1958.4078090190887}
+{"t_ms": 1958.558453945443, "type": "content_block_stop", "block_idx": 1, "t_ms_in_turn": 1958.5752389431}
+{"t_ms": 1985.19332613796, "type": "message_delta", "t_ms_in_turn": 1985.2113161087036}
+{"t_ms": 1985.4175429791212, "type": "message_stop", "t_ms_in_turn": 1985.4343299865723}

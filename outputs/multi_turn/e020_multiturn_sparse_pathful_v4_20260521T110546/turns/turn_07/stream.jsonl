@@ -1,0 +1,20 @@
+{"t_ms": 956.159298075363, "type": "message_start", "t_ms_in_turn": 956.1720361709595}
+{"t_ms": 956.5562640782446, "type": "content_block_start", "block_idx": 0, "block_type": "text", "t_ms_in_turn": 956.5759630203247}
+{"t_ms": 956.8243979010731, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "I", "t_ms_in_turn": 956.8419969081879}
+{"t_ms": 1263.4175249841064, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " see - /repo is for outputs. Let me check if there are more days to understand", "t_ms_in_turn": 1263.4391179084778}
+{"t_ms": 1388.8011910021305, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " the 7-day window. Let me look at day 123", "t_ms_in_turn": 1388.823028087616}
+{"t_ms": 1597.1584969665855, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " as well:", "t_ms_in_turn": 1597.1804010868073}
+{"t_ms": 1597.4267120473087, "type": "content_block_stop", "block_idx": 0, "t_ms_in_turn": 1597.4379489421844}
+{"t_ms": 1597.7447230834514, "type": "content_block_start", "block_idx": 1, "block_type": "tool_use", "tool_name": "list_dir", "t_ms_in_turn": 1597.7627210617065}
+{"t_ms": 1597.949025919661, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "", "t_ms_in_turn": 1597.9672000408173}
+{"t_ms": 1682.3524970095605, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "{\"path\"", "t_ms_in_turn": 1682.373928785324}
+{"t_ms": 1685.442432994023, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": ": \"/data/go", "t_ms_in_turn": 1685.4632229804993}
+{"t_ms": 1685.7020880561322, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "es", "t_ms_in_turn": 1685.7190902233124}
+{"t_ms": 1685.8954469207674, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_cmi", "t_ms_in_turn": 1685.9101328849792}
+{"t_ms": 1689.5526070147753, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_comp", "t_ms_in_turn": 1689.5738439559937}
+{"t_ms": 1690.1252339594066, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "osites/ra", "t_ms_in_turn": 1690.1431930065155}
+{"t_ms": 1690.3373720124364, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "w/2024/12", "t_ms_in_turn": 1690.3532509803772}
+{"t_ms": 1692.8729659412056, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "3\"}", "t_ms_in_turn": 1692.8943750858307}
+{"t_ms": 1693.7971920706332, "type": "content_block_stop", "block_idx": 1, "t_ms_in_turn": 1693.8081579208374}
+{"t_ms": 1748.116262955591, "type": "message_delta", "t_ms_in_turn": 1748.1279790401459}
+{"t_ms": 1748.3789259567857, "type": "message_stop", "t_ms_in_turn": 1748.3891849517822}

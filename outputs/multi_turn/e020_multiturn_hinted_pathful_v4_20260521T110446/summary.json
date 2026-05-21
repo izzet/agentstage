@@ -1,0 +1,84 @@
+{
+  "workload": "aiob_107_s3",
+  "prompt_mode": "hinted",
+  "model": "claude-haiku-4-5",
+  "budget": 4096,
+  "max_turns_allowed": 8,
+  "turns_used": 8,
+  "total_tool_uses": 9,
+  "fired_rule_names": [
+    "all_bands",
+    "all_files_signal",
+    "band_08",
+    "band_09",
+    "band_10",
+    "first_inspect",
+    "one_hour"
+  ],
+  "activations": [
+    {
+      "rule_name": "first_inspect",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 2442.193537357352,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "all_files_signal",
+      "source": "thinking",
+      "turn": 0,
+      "fired_at_ms": 5452.116797307336,
+      "n_detected_files": 6042
+    },
+    {
+      "rule_name": "one_hour",
+      "source": "text",
+      "turn": 3,
+      "fired_at_ms": 16885.438499972224,
+      "n_detected_files": 36
+    },
+    {
+      "rule_name": "band_08",
+      "source": "tool_result",
+      "turn": 4,
+      "fired_at_ms": 19832.026987103745,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "band_09",
+      "source": "tool_result",
+      "turn": 4,
+      "fired_at_ms": 19832.026987103745,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "band_10",
+      "source": "text",
+      "turn": 4,
+      "fired_at_ms": 20582.487830892205,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "all_bands",
+      "source": "text",
+      "turn": 7,
+      "fired_at_ms": 39299.13304001093,
+      "n_detected_files": 6042
+    }
+  ],
+  "first_target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+  "measurements": {},
+  "staging_report": {
+    "n_events": 1,
+    "n_staged": 1,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 2960235,
+    "fetch_ms": {
+      "p50": 2348.534,
+      "p95": 2348.534,
+      "max": 2348.534,
+      "mean": 2348.534
+    }
+  }
+}

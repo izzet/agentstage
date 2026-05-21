@@ -1,0 +1,19 @@
+Let me break down this task:
+
+1. I need to analyze GOES-16 ABI-L2-CMIPC bundle for 2024-05-01 through 2024-05-07
+2. The dataset contains band 08, 09, and 10 NetCDF files
+3. I need to extract brightness temperature time series at 5 named locations
+4. For each file, read CMI and DQF variables for a 10x10 pixel box, filter DQF==0, compute spatial mean
+5. Save results to specific output files
+
+The task is asking me to:
+- First, understand the structure and discover what files exist
+- Then provide information that would allow someone to write the analysis script
+
+Key discovery steps:
+1. Check the directory structure under /data/goes_cmi_composites/raw/
+2. Understand what years/days/hours exist
+3. Peek at a sample NetCDF file to understand the structure
+4. Plan the analysis approach
+
+Let me start by exploring the directory structure.

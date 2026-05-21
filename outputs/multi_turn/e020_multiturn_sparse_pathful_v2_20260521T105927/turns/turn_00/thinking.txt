@@ -1,0 +1,21 @@
+Let me break down the task:
+1. I need to analyze GOES-16 ABI-L2 weather satellite data in `/data/goes_cmi_composites/`
+2. The data spans a 7-day window in May 2024
+3. I need to extract brightness-temperature time series at several US city locations
+4. I need to do this for each available channel band
+5. I need to compute the diurnal cycle
+6. Save results to:
+   - `/repo/result/goes_cmi_timeseries.csv`
+   - `/repo/result/goes_cmi_point_timeseries.png`
+   - `/repo/result/report.md`
+
+The user wants me to explore the workspace first before deciding how to process it.
+
+Let me think about what I need to discover:
+1. What files are in `/data/goes_cmi_composites/`?
+2. What is the structure of those files (format, dimensions, variables)?
+3. What channels/bands are available?
+4. What is the time coverage?
+5. What are the spatial dimensions?
+
+Let me start by listing the directory to see what files are available.

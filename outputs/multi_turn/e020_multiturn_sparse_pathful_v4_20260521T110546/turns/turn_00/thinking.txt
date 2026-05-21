@@ -1,0 +1,18 @@
+The user wants me to analyze GOES-16 ABI-L2 weather satellite data under `/data/goes_cmi_composites/`. Let me think about what I need to do:
+
+1. First, I need to explore the directory structure to understand the layout of the data
+2. Discover how many files there are and what their format is
+3. Understand the data structure (what channels/bands are available)
+4. Learn what time period is covered and what spatial coverage exists
+5. Identify city locations and extract brightness-temperature time series
+6. Compute diurnal cycles
+7. Create visualizations and a report
+
+Let me start by exploring the directory structure:
+
+STEP 1: List the contents of `/data/goes_cmi_composites/` to see what we're working with
+STEP 2: Pick one or a few sample files to understand the structure
+STEP 3: Understand the data format and metadata
+STEP 4: Then create a plan for extracting the data and computing the time series
+
+Let me start with the first step - discovering the directory structure.

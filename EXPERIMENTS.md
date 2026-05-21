@@ -14,6 +14,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 | ID | Date | Goal | Headline | Script | Commit |
 |---|---|---|---|---|---|
 | **E-020** | 2026-05-21 | Pathful-prompt live ablation (system-prompt asks LLM to write full paths) | **Literal-path detection fired ZERO times; LLM writes path templates with placeholders, not concrete paths. Pathful prompt INCREASED rule activations +25% hinted, +100% sparse — complement to rules, not replacement** | `./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
+| **E-020 v4** | 2026-05-21 | Pathful-prompt V4 iteration + logical-prior fix | **V4 prompt produces concrete paths in both regimes; hinted: literal-path dispatch fires successfully; sparse: paths concrete but agent picks Band 01/02 OUTSIDE workspace prior (prior built from constrained task spec)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
 | **E-019** | 2026-05-21 | Auto-generated rules vs hand-tuned (L3 genericity claim) | **Auto matches hand in hinted regime (100%=100%); auto EXCEEDS hand by +33% in sparse regime (100% vs 66.7%) because mechanical per-instance enumeration catches band_10 hand missed** | `scripts/microbench/path_b_auto_vs_hand.py` | _next commit_ |
 | **E-018** | 2026-05-21 | Subset-detection accuracy replay (per-rule precision/recall vs static GT) | **100% subset precision across all rules and regimes; hinted recall 100%, sparse recall 67% (one band rule did not fire)** | `scripts/microbench/path_b_subset_replay.py` | _next commit_ |
 | **E-017** | 2026-05-20 | Wall-time replay ablation (oracle vs realistic detector) | **Hinted: 3886× realized = 3886× oracle; Sparse: 1.0× realized vs 3512× oracle — 100% of potential savings lost to rule mismatch** | `scripts/microbench/path_b_walltime_run.sh <corpus>` | _next commit_ |
@@ -1262,3 +1263,158 @@ primary, even when explicitly prompted to surface paths.
 - `outputs/multi_turn/e020_multiturn_hinted_pathful_*/`
 - `outputs/multi_turn/e020_multiturn_sparse_pathful_*/`
 
+
+---
+
+## E-020 errata + V2/V3/V4 prompt iteration (2026-05-21)
+
+**Context**: The original E-020 concluded "literal-path detection
+doesn't fire under pathful prompts" because the LLM wrote path templates
+(`M6C{08,09,10}`). That conclusion was **partly wrong** — there were two
+co-occurring bugs:
+
+1. **Prompt was too soft**: V1 instructed "write full paths but list_dir
+   first if needed" — which the LLM read as permission to use templates.
+2. **Detector prior was the PHYSICAL prior**: when the LLM wrote a
+   logical path like `/data/goes_cmi_composites/raw/...nc`, our
+   `SessionDetector` was matching against the *physical* prior
+   (`/tmp/s3-noaa-goes16/ABI-L2-CMIPC/...nc`). Strings didn't match
+   literally even when both pointed at the same file.
+
+Both fixed in this iteration. New V4 prompt + logical prior makes
+literal-path detection work in hinted mode and isolates the
+sparse-mode failure cleanly.
+
+**V2 prompt** (explicit anti-template):
+
+```
+## CRITICAL — How to write file paths
+
+A data-staging system reads your reasoning ... Pre-fetch works ONLY
+by EXACT PATH MATCH against the filesystem. Templated paths cannot
+be matched and are useless to it.
+
+Rules:
+1. When you intend to read a file, write its FULL ABSOLUTE PATH
+   exactly as it exists on disk. No abbreviations.
+2. NEVER use placeholders, wildcards, braces, or template variables.
+   Specifically forbidden:
+   - brace expansion:  /data/foo_{a,b,c}.nc
+   - wildcards:        /data/foo_*.nc, /data/foo_?.nc
+   - template vars:    /data/<timestamp>.nc, /data/[N].nc, /data/YYYY/MM/file.nc
+   - ellipses:         /data/foo_001.nc, /data/foo_002.nc, ...
+3. After any list_dir result, your next reasoning MUST enumerate
+   the concrete files you discovered ...
+```
+
+V2 result: still mostly templates. Turn-0 thinking has no concrete
+paths (the LLM is in exploration mode and the rule "when you intend to
+read" doesn't apply yet).
+
+**V3 prompt** (structured `NEXT_FILES:` block):
+
+```
+After EVERY tool result, structure your next reasoning to include
+this exact block ... before your next tool_use:
+
+    NEXT_FILES:
+    /full/path/to/file1
+    /full/path/to/file2
+```
+
+V3 result: LLM produced the format but with EMPTY body. Satisfied
+the structural requirement trivially.
+
+**V4 prompt** (mandatory copy from tool_result, with worked example):
+
+```
+RULE: After EVERY list_dir result that returned a non-empty directory
+listing, your next response MUST contain this block BEFORE any
+tool_use:
+
+    NEXT_FILES:
+    <concrete path 1>
+    <concrete path 2>
+    ...
+
+The block MUST contain at least one path COPIED VERBATIM from the
+most recent tool_result, and it MUST be a path you intend to read
+next. Empty NEXT_FILES blocks are not acceptable when you have just
+received a directory listing.
+
+[+ worked example showing the copy]
+```
+
+V4 result: **concrete paths appear in BOTH regimes**. Hinted turn 5
+text and sparse turn 5 text contain real `/data/.../OR_ABI-L2-CMIPC-M6C..._G16_...nc`
+paths.
+
+**Companion fix — detector uses LOGICAL prior**:
+
+`path_b_multiturn.py` now passes `workload.workspace_prior` (logical,
+e.g. `/data/...`) to `SessionDetector` instead of the translated
+physical prior. Dispatch sites translate logical → physical at
+`stager.prefetch` time. Without this fix, LLM-written `/data/...`
+paths would never match against `/tmp/s3-noaa-goes16/...` strings in
+the prior.
+
+**Results — pathful V4 + logical-prior fix**
+
+| Run | Turn-0 thinking has concrete paths? | NEXT_FILES block with concrete paths? | Literal-path dispatches | First agent-opened file | Notes |
+|---|---|---|---:|---|---|
+| E-020 V1 hinted     | no | n/a | 0 | Band 08 day 121 | original failure |
+| E-020 V4 hinted     | no (turn 0 is plan-only) | **yes (turn 5)** | **1** | Band 08 day 122 | concrete path emitted + matched |
+| E-020 V1 sparse     | no | n/a | 0 | Band 01 day 122 | template only |
+| E-020 V4 sparse     | no | **yes (turn 5)** | **0** | Band 01 day 122 | **concrete paths emitted but outside our prior — Band 01/02 are NOT in workspace_prior, which only contains C08-C10** |
+
+**Revised conclusion**
+
+The pathful-prompt approach **does** make the LLM write concrete paths
+when instructed strongly enough (V4 prompt + worked example). The
+failure mode that defeated V1/V2/V3 was prompt-engineering, not a
+fundamental limitation of LLMs.
+
+What V4 hinted shows: **literal-path detection is viable**. The LLM
+writes a concrete path; `hot_path_scan` matches against the workspace
+prior; dispatch translates logical → physical; stager prefetches.
+Same pipeline as rule-based, just driven by literal substring rather
+than regex.
+
+What V4 sparse shows: **the residual sparse-mode failure is a
+workspace-prior coverage gap, not a detection gap.** Our prior was
+built from the AIOB task spec, which says "bands 08-10". The agent in
+sparse mode (without that hint) explores the S3 bucket and finds it
+has 16 bands (C01-C16). It picks Band 01 and writes a concrete Band 01
+path in NEXT_FILES — but Band 01 isn't in our prior, so neither rules
+nor literal-path scan can dispatch a hit. This is **the same finding
+from E-014/E-015 in a cleaner form**: the gap is between
+benchmark-defined GT (bands 08-10) and agent-discovered file universe
+(bands 01-16). The fix is dynamic GT enrichment from `list_dir`
+output, not better prompting.
+
+**Implication for paper**
+
+The pathful-prompt experiment now produces two clean results:
+
+1. **Pathful detection works** (V4 hinted) — 1 literal-path dispatch,
+   matching the agent's actual first-opened file. This is the
+   workload-agnostic detector path the original idea promised.
+
+2. **Sparse-mode brittleness is the prior, not the detector** (V4
+   sparse) — the LLM correctly writes concrete paths, but those paths
+   aren't in our prior because the prior was built from a constrained
+   task spec. Dynamic prior enrichment is the right fix.
+
+The original E-020 conclusion ("pathful prompts produce templates") is
+*overridden* by V4. The new conclusion is "pathful prompts work when
+the system prompt is sufficiently directive (≥ 4 iteration), and the
+detector's prior is in logical address space."
+
+**Files**
+
+- `src/agentstage/runners/path_b_multiturn.py` —
+  - `PATHFUL_PROMPTS` dict with v1/v2/v3/v4 versions
+  - `--pathful-version v4` (default)
+  - SessionDetector now uses logical prior; dispatch translates
+- `scripts/path_b_run.sh` — `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh hinted_pathful`
+- Captures under `outputs/multi_turn/e020_multiturn_*_pathful_v[234]_*/`

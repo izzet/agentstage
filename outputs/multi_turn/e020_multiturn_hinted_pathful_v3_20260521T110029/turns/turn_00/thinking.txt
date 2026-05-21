@@ -1,0 +1,19 @@
+Let me break down this task:
+
+1. I need to analyze GOES-16 ABI-L2-CMIPC data from 2024-05-01 through 2024-05-07
+2. The data contains bands 08, 09, and 10 in NetCDF format at ~5-minute cadence
+3. I need to extract brightness temperature time series at 5 named locations
+4. For each file, I need to:
+   - Read CMI (brightness temperature) and DQF (data quality flag) variables
+   - Extract a 10x10 pixel box centered on each location
+   - Filter to DQF == 0
+   - Compute spatial mean
+5. Save results to CSV, PNG, and markdown report
+
+Before I start reading files, I should:
+1. Understand the directory structure under /data/goes_cmi_composites/raw/
+2. See what files are actually available for the specified date range
+3. Understand the NetCDF file structure (what variables are present, dimensions, etc.)
+4. Then write a script to process them
+
+Let me start by exploring the directory structure and understanding what we have.

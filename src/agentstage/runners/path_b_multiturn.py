@@ -99,6 +99,126 @@ before deciding how to process them. The dataset's layout, file count,
 and per-file structure are not given to you upfront — discover them.
 """
 
+PATHFUL_PROMPTS: dict[str, str] = {
+    # V1 (original, E-020): soft instruction, permits "use list_dir first
+    # then name paths" — LLM responded with templates ('M6C{08,09,10}').
+    "v1": (
+        "\n\nIMPORTANT: When reasoning about which files you intend to "
+        "access, write the FULL absolute path of each file in your "
+        "thinking. Example: 'I will open /data/foo/bar.csv next' rather "
+        "than 'I will open the CSV file'. List every file you plan to "
+        "read so the data-staging system can pre-fetch them. If you do "
+        "not yet know the exact paths, first use list_dir to discover "
+        "them; then in subsequent reasoning name them by full path."
+    ),
+
+    # V2: explicit anti-template, with bad/good examples. Targets the
+    # exact failure mode V1 produced ('M6C{08,09,10}', '<timestamp>').
+    "v2": (
+        "\n\n"
+        "## CRITICAL — How to write file paths\n"
+        "\n"
+        "A data-staging system reads your reasoning and pre-fetches the "
+        "files you name BEFORE your tools run. Pre-fetch works ONLY by "
+        "EXACT PATH MATCH against the filesystem. Templated paths cannot "
+        "be matched and are useless to it.\n"
+        "\n"
+        "Rules:\n"
+        "1. When you intend to read a file, write its FULL ABSOLUTE PATH "
+        "exactly as it exists on disk. No abbreviations.\n"
+        "2. NEVER use placeholders, wildcards, braces, or template "
+        "variables. Specifically forbidden:\n"
+        "   - brace expansion:  /data/foo_{a,b,c}.nc\n"
+        "   - wildcards:        /data/foo_*.nc, /data/foo_?.nc\n"
+        "   - template vars:    /data/<timestamp>.nc, /data/[N].nc, "
+        "/data/YYYY/MM/file.nc\n"
+        "   - ellipses:         /data/foo_001.nc, /data/foo_002.nc, ...\n"
+        "3. After any list_dir result, your next reasoning MUST "
+        "enumerate the concrete files you discovered that you plan to "
+        "act on — write each one on its own line.\n"
+        "4. If you would otherwise write a template covering many files, "
+        "instead pick the SPECIFIC FILE you plan to inspect next and "
+        "write that one concrete path.\n"
+        "\n"
+        "Examples:\n"
+        "BAD : I'll open the C{08,09,10} files in /data/raw/2024/122/00/\n"
+        "BAD : Read OR_ABI-L2-CMIPC-M6C*_G16_*.nc\n"
+        "GOOD: I'll open /data/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc first\n"
+    ),
+
+    # V4: most directive — require copying specific filenames from the
+    # most recent tool_result into NEXT_FILES, with a worked example.
+    # Targets the V3 failure mode where the LLM produced an empty block.
+    "v4": (
+        "\n\n"
+        "## File-staging contract (mandatory)\n"
+        "\n"
+        "Your reasoning is read by an automated data-staging system that "
+        "pre-fetches files into a fast tier BEFORE your tool calls run. "
+        "Pre-fetch needs EXACT FILE PATHS — strings that exist on the "
+        "filesystem verbatim.\n"
+        "\n"
+        "RULE: After EVERY list_dir result that returned a non-empty "
+        "directory listing, your next response MUST contain this block "
+        "BEFORE any tool_use:\n"
+        "\n"
+        "    NEXT_FILES:\n"
+        "    <concrete path 1>\n"
+        "    <concrete path 2>\n"
+        "    ...\n"
+        "\n"
+        "The block MUST contain at least one path COPIED VERBATIM from "
+        "the most recent tool_result, and it MUST be a path you intend "
+        "to read next. Empty NEXT_FILES blocks are not acceptable when "
+        "you have just received a directory listing.\n"
+        "\n"
+        "FORBIDDEN: templates (`*`, `{a,b,c}`, `<timestamp>`), "
+        "abbreviations (`the C08 file`), or ellipses (`...`).\n"
+        "\n"
+        "Worked example:\n"
+        "  tool_result for list_dir(/data/raw/2024/122/00): \n"
+        "    FILE  OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc  (2960235 bytes)\n"
+        "    FILE  OR_ABI-L2-CMIPC-M6C09_G16_s20241220001170_e20241220003543_c20241220004029.nc  (1234567 bytes)\n"
+        "    ... and so on ...\n"
+        "  your next response:\n"
+        "    NEXT_FILES:\n"
+        "    /data/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc\n"
+        "    /data/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220001170_e20241220003543_c20241220004029.nc\n"
+        "    (then call open_file on the first one)\n"
+    ),
+
+    # V3: structured response format. Asks the LLM to mark a specific
+    # section after each tool result with the literal paths it intends
+    # to read.
+    "v3": (
+        "\n\n"
+        "## File-staging contract\n"
+        "\n"
+        "After EVERY tool result, structure your next reasoning to "
+        "include this exact block somewhere before your next tool_use:\n"
+        "\n"
+        "    NEXT_FILES:\n"
+        "    /full/path/to/file1\n"
+        "    /full/path/to/file2\n"
+        "    (etc.)\n"
+        "\n"
+        "Rules for this block:\n"
+        "- Each line is ONE concrete absolute path that exists on disk.\n"
+        "- NO templates, NO wildcards, NO braces, NO placeholders.\n"
+        "- If you don't yet have any concrete paths (e.g. before your "
+        "first list_dir), write an empty block: 'NEXT_FILES:' with no "
+        "lines after.\n"
+        "- The block is consumed by an automated staging system that "
+        "pre-fetches the listed files. Templates cannot be matched.\n"
+        "\n"
+        "Example:\n"
+        "    NEXT_FILES:\n"
+        "    /data/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc\n"
+        "    /data/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C09_G16_s20241220001170_e20241220003543_c20241220004029.nc\n"
+    ),
+}
+
+
 PLANNING_PROMPT_SUFFIX = """
 
 Before issuing any tool call, think step-by-step about:
@@ -369,6 +489,12 @@ def main() -> int:
                              "the literal-path detection mode (hot_path_scan), "
                              "potentially replacing all hand-coded regex rules. "
                              "Set up by E-020 ablation.")
+    parser.add_argument("--pathful-version",
+                        choices=list(PATHFUL_PROMPTS.keys()),
+                        default="v2",
+                        help="Which version of the pathful prompt to inject. "
+                             "v1 = original (soft); v2 = explicit anti-template; "
+                             "v3 = structured NEXT_FILES block. Default v2.")
     parser.add_argument("--max-turns", type=int, default=8,
                         help="Maximum assistant turns before giving up (default 8)")
     parser.add_argument("--out", type=Path, required=True)
@@ -430,8 +556,14 @@ def main() -> int:
         report=report,
     )
 
-    # Set up session detector (multi-turn, tool_result-aware)
-    session_pred = SessionDetector(prior=physical_prior, ruleset=ruleset)
+    # Set up session detector (multi-turn, tool_result-aware).
+    # Use the LOGICAL prior here: LLM-written paths in thinking/text are
+    # in logical form (e.g. /data/goes_cmi_composites/raw/.../C08.nc).
+    # If we used the physical prior (/tmp/s3-noaa-goes16/...) hot_path_scan
+    # would never match what the LLM writes. Dispatch sites below translate
+    # logical → physical right before calling stager.prefetch.
+    session_pred = SessionDetector(prior=workload.workspace_prior,
+                                   ruleset=ruleset)
 
     # Set up live client (we still use AnthropicClient but will manage
     # the conversation ourselves; the AnthropicClient's per-call streaming
@@ -459,15 +591,10 @@ def main() -> int:
     messages: list[dict] = [{"role": "user", "content": initial_user_msg}]
     system = "You are a careful scientific computing agent."
     if args.pathful_prompt:
-        system += (
-            "\n\nIMPORTANT: When reasoning about which files you intend to "
-            "access, write the FULL absolute path of each file in your "
-            "thinking. Example: 'I will open /data/foo/bar.csv next' rather "
-            "than 'I will open the CSV file'. List every file you plan to "
-            "read so the data-staging system can pre-fetch them. If you do "
-            "not yet know the exact paths, first use list_dir to discover "
-            "them; then in subsequent reasoning name them by full path."
-        )
+        system += PATHFUL_PROMPTS[args.pathful_version]
+        print(f"  pathful prompt version: {args.pathful_version} "
+              f"({len(PATHFUL_PROMPTS[args.pathful_version])} chars)",
+              file=sys.stderr)
 
     print(f"workload: {workload.task_id} ({args.prompt_mode} prompt mode)",
           file=sys.stderr)
@@ -614,15 +741,21 @@ def main() -> int:
                 ))
         new_acts = session_pred.feed_turn(sp_blocks)
 
-        # Auto-dispatch tier-1 hints from THIS turn's new activations
+        # Auto-dispatch tier-1 hints from THIS turn's new activations.
+        # Detector returns LOGICAL paths (from workload.workspace_prior);
+        # translate to PHYSICAL before stager.prefetch.
         dispatched_this_turn: list[str] = []
         for act in new_acts:
             n_files = len(set(act.detected_files))
             tier = 1 if n_files <= 10 else (2 if n_files <= 200 else 3)
             if tier > 1:
                 continue
+            phys_files = tuple(
+                _resolve_logical_to_physical(p, prefix_map, cold_root=str(cold_root))
+                for p in act.detected_files
+            )
             hint = DataHint(
-                detected_files=tuple(act.detected_files),
+                detected_files=phys_files,
                 tier=tier,
                 fired_at_ms=act.fired_at_ms or 0.0,
                 rule_id=f"turn{turn}:{act.rule_name}",
@@ -714,14 +847,19 @@ def main() -> int:
 
         # Feed tool_results to session detector (these stamp turn=current_turn)
         tr_acts = session_pred.feed_tool_results(tr_blocks_for_detector)
-        # Dispatch new tier-1 hints from tool_result activations as well
+        # Dispatch new tier-1 hints from tool_result activations as well.
+        # Same logical → physical translation as above.
         for act in tr_acts:
             n_files = len(set(act.detected_files))
             tier = 1 if n_files <= 10 else (2 if n_files <= 200 else 3)
             if tier > 1:
                 continue
+            phys_files = tuple(
+                _resolve_logical_to_physical(p, prefix_map, cold_root=str(cold_root))
+                for p in act.detected_files
+            )
             hint = DataHint(
-                detected_files=tuple(act.detected_files),
+                detected_files=phys_files,
                 tier=tier,
                 fired_at_ms=act.fired_at_ms or 0.0,
                 rule_id=f"turn{turn}_tr:{act.rule_name}",

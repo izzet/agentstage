@@ -1,0 +1,21 @@
+{"t_ms": 984.9902580026537, "type": "message_start", "t_ms_in_turn": 985.0053629875183}
+{"t_ms": 985.3369081392884, "type": "content_block_start", "block_idx": 0, "block_type": "text", "t_ms_in_turn": 985.3586750030518}
+{"t_ms": 985.6460080482066, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "I", "t_ms_in_turn": 985.6679699420929}
+{"t_ms": 1205.8279910124838, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " notice the filenames show C01, C02, C03, etc", "t_ms_in_turn": 1205.8524889945984}
+{"t_ms": 1412.344231037423, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": ". (channels), but I need C08, C09, C10.", "t_ms_in_turn": 1412.3697090148926}
+{"t_ms": 1646.5576470363885, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": " Let me scroll further to find them in the directory:\n\nNEXT_FILES:\n/", "t_ms_in_turn": 1646.5815300941467}
+{"t_ms": 1894.9961201287806, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "data/goes_cmi_composites/raw/2", "t_ms_in_turn": 1895.0217039585114}
+{"t_ms": 2069.5690161082894, "type": "content_block_delta", "block_idx": 0, "delta_type": "text_delta", "chunk": "024/122/00", "t_ms_in_turn": 2069.593544960022}
+{"t_ms": 2069.8456710670143, "type": "content_block_stop", "block_idx": 0, "t_ms_in_turn": 2069.8597309589386}
+{"t_ms": 2071.5858680196106, "type": "content_block_start", "block_idx": 1, "block_type": "tool_use", "tool_name": "list_dir", "t_ms_in_turn": 2071.6094269752502}
+{"t_ms": 2071.8976170755923, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "", "t_ms_in_turn": 2071.92045211792}
+{"t_ms": 2227.659119060263, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "{\"p", "t_ms_in_turn": 2227.68395113945}
+{"t_ms": 2229.3027301784605, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "ath\": \"/data", "t_ms_in_turn": 2229.32598900795}
+{"t_ms": 2234.4029650557786, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "/goes_", "t_ms_in_turn": 2234.426712036133}
+{"t_ms": 2234.6671752166003, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "cmi", "t_ms_in_turn": 2234.686959028244}
+{"t_ms": 2237.5171901658177, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "_composites/", "t_ms_in_turn": 2237.5404789447784}
+{"t_ms": 2239.0795641113073, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "raw/2024/1", "t_ms_in_turn": 2239.1025021076202}
+{"t_ms": 2243.4069442097098, "type": "content_block_delta", "block_idx": 1, "delta_type": "input_json_delta", "chunk": "22/00\"}", "t_ms_in_turn": 2243.4314680099487}
+{"t_ms": 2244.2423501051962, "type": "content_block_stop", "block_idx": 1, "t_ms_in_turn": 2244.256270170212}
+{"t_ms": 2308.402394177392, "type": "message_delta", "t_ms_in_turn": 2308.4163160324097}
+{"t_ms": 2308.6250671185553, "type": "message_stop", "t_ms_in_turn": 2308.6380739212036}
