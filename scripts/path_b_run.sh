@@ -50,6 +50,12 @@ case "$MODE" in
         EXTRA_ARGS=( --prompt-mode sparse --pathful-prompt
                      --pathful-version "${PATHFUL_VERSION:-v4}" )
         ;;
+    e021_sparse_enrich_live)
+        EXP="e021_multiturn_sparse_pathful_enrich_live_${PATHFUL_VERSION:-v4}"
+        EXTRA_ARGS=( --prompt-mode sparse --pathful-prompt
+                     --pathful-version "${PATHFUL_VERSION:-v4}"
+                     --measure-target-after )
+        ;;
     *)
         echo "FATAL: mode must be one of:" >&2
         echo "  hinted | sparse | sparse_live | hinted_pathful | sparse_pathful" >&2

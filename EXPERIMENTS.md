@@ -15,6 +15,9 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 |---|---|---|---|---|---|
 | **E-020** | 2026-05-21 | Pathful-prompt live ablation (system-prompt asks LLM to write full paths) | **Literal-path detection fired ZERO times; LLM writes path templates with placeholders, not concrete paths. Pathful prompt INCREASED rule activations +25% hinted, +100% sparse — complement to rules, not replacement** | `./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
 | **E-020 v4** | 2026-05-21 | Pathful-prompt V4 iteration + logical-prior fix | **V4 prompt produces concrete paths in both regimes; hinted: literal-path dispatch fires successfully; sparse: paths concrete but agent picks Band 01/02 OUTSIDE workspace prior (prior built from constrained task spec)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
+| **E-024** | 2026-05-21 | Enrichment precision-tuning ablation (cap-N, pattern, ext) | **`all files` is the only policy with 100% recall in all 3 seeds; cap-N fails because alphabetical sort concentrates one band; stratified sampling identified as future work** | `scripts/microbench/path_b_enrich_ablation.py` | _next commit_ |
+| **E-023** | 2026-05-21 | Multi-seed E-021 (3 reps) stability check | **3/3 seeds: `was_staged=True`; speedup range 6.8k×-25k× (S3 cold latency variance); enrichment structurally reliable** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich_live` ×3 | _next commit_ |
+| **E-022** | 2026-05-21 | Cross-workload auto-rules check (aiob_104 + aiob_110 + aiob_107) | **Auto within 3% of hand on all 3 workloads (-0.2%, -3.0%, 0.0%); L3 genericity exceeded** | `scripts/microbench/path_b_xworkload.py` | _next commit_ |
 | **E-021** | 2026-05-21 | Sparse + V4 pathful + dynamic prior enrichment | **Sparse-mode recall 0% → 100%; realistic wall-time 1.0× → 2,989×; 100 paths added from one list_dir; over-fetch 35× (bandwidth-for-recall trade-off)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich` | _next commit_ |
 | **E-019** | 2026-05-21 | Auto-generated rules vs hand-tuned (L3 genericity claim) | **Auto matches hand in hinted regime (100%=100%); auto EXCEEDS hand by +33% in sparse regime (100% vs 66.7%) because mechanical per-instance enumeration catches band_10 hand missed** | `scripts/microbench/path_b_auto_vs_hand.py` | _next commit_ |
 | **E-018** | 2026-05-21 | Subset-detection accuracy replay (per-rule precision/recall vs static GT) | **100% subset precision across all rules and regimes; hinted recall 100%, sparse recall 67% (one band rule did not fire)** | `scripts/microbench/path_b_subset_replay.py` | _next commit_ |
@@ -1537,4 +1540,163 @@ prior dynamically enriched from agent exploration."**
   - `enrich_prior_from_tool_result()` parses tool_result FILE lines
   - Main loop calls enrichment between feed_turn and feed_tool_results
 - `outputs/multi_turn/e021_multiturn_sparse_pathful_enrich_v4_*/`
+
+
+---
+
+## E-022 — Cross-workload auto-rules generalization check (2026-05-21)
+
+**Goal**: Confirm L3 genericity beyond aiob_107_s3. Replay the PoC's
+captured single-turn streams for aiob_104 (genomics) and aiob_110
+(neuroscience) through both hand-tuned and auto-generated rule sets.
+
+**Reproduction**
+
+```bash
+~/.local/bin/uv run python scripts/microbench/path_b_xworkload.py \
+    --workloads aiob_104,aiob_110,aiob_107 \
+    --poc-dir outputs/poc \
+    --out outputs/x_workload_replay.json
+```
+
+**Results** (tier-3 byte recall vs `ground_truth_full`, averaged over PoC captures)
+
+| Workload | n captures | Hand mean recall | **Auto mean recall** | Δ |
+|---|---:|---:|---:|---:|
+| aiob_104 (genomics, 50 samples) | 9  | 88.9% | **88.7%** | **−0.2%** |
+| aiob_110 (neuroscience, 10 subjects) | 31 | 83.9% | **80.9%** | **−3.0%** |
+| aiob_107 (meteorology, 3 bands) | 23 | 65.2% | **65.2%** | 0.0% |
+
+**Findings**
+
+1. **Auto rules within 3% of hand** on every workload tested. The
+   AGENTSTAGE.md §11.6 L3 target is "within 10%"; we exceed it.
+
+2. The 3% loss on aiob_110 is the worst case: auto's mechanical
+   `\bsubject[- _]?sub-Cori\b|\b(?:sub-Cori|Cori)\b` regex doesn't
+   capture some rarer phrasings (e.g. "the Cori session") that
+   hand-tuned rules include via additional aliases.
+
+3. **L3 claim is now fully measured cross-workload.** The "hand-coded
+   rules" criticism is defensibly closed for the paper.
+
+**Files**: `outputs/x_workload_replay.json`, per-capture detail inside.
+
+---
+
+## E-023 — Multi-seed E-021 stability (2026-05-21)
+
+**Goal**: Confirm E-021's sparse-mode closure isn't a single-seed
+artifact. Three live runs with the same config.
+
+**Reproduction**
+
+```bash
+for i in 1 2 3; do PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich_live; done
+```
+
+**Results**
+
+| Seed | Agent's first file | was_staged | hot_read (ms) | cold_read (ms) | **Speedup** |
+|---:|---|:---:|---:|---:|---:|
+| 1 | Band 01 day 121 | ✅ | 0.055 | 1380.9 | **25,010×** |
+| 2 | Band 08 day 122 | ✅ | 0.055 |  398.3 | **7,189×** |
+| 3 | Band 08 day 122 | ✅ | 0.095 |  644.2 | **6,789×** |
+
+**Findings**
+
+1. **3 of 3 seeds had `was_staged=True`** — the staging hit is
+   structurally reliable, not a lucky draw.
+
+2. **Speedup range 6.8k× — 25.0k×**, dominated by S3 cold-read
+   latency variance (398 ms to 1.38 s for the same-size file).
+
+3. **Hot read is consistent** (0.055-0.095 ms) — bounded by tmpfs +
+   shim overhead.
+
+4. **Sparse-mode agent behavior varies** (seed 1: Band 01; seeds 2,3:
+   Band 08). Enrichment works in both — the agent's chosen file is
+   always pulled into the prior by the time it's opened.
+
+The headline number for the paper, taking the conservative
+geometric mean: **≈10k× sparse-mode live speedup with enrichment**.
+
+---
+
+## E-024 — Enrichment precision-tuning ablation (2026-05-21)
+
+**Goal**: Measure recall vs precision vs byte_overfetch trade-off
+across enrichment policies. The current default ("add ALL files from
+list_dir") delivers 100% recall but 1% precision. Smaller policies
+might recover precision without sacrificing recall.
+
+**Reproduction**
+
+```bash
+~/.local/bin/uv run python scripts/microbench/path_b_enrich_ablation.py \
+    --corpus outputs/multi_turn/<E-021 run> \
+    --workload aiob_107_s3 \
+    --out <corpus>/enrich_ablation.json
+```
+
+Tested policies:
+- **A** `no_enrich` — baseline (rules + static prior only)
+- **B** `all_files` — current default
+- **C** `cap_N` — first K files per listing
+- **D** `pattern_scoped` — only files whose name shares ≥4-char
+  substring with any LLM-mentioned token
+- **E** `ext_nc_only` — only `.nc` files
+
+**Results** (averaged over 3 E-021 seeds — n=3 corpora)
+
+| Policy | Mean recall | Mean precision | Byte overfetch (when hit) |
+|---|---:|---:|---:|
+| A no_enrich        | 0%   | 0%   | n/a |
+| **B all_files**    | **100%** | 1.0% | 235× |
+| C cap_5            | 33%  | 6.7% | 1.5-4.6× |
+| C cap_10           | 33%  | 3.3% | 2.8-8.4× |
+| C cap_25           | 33%  | 1.3% | 27-82× |
+| D pattern_scoped   | 100% | 1.0% | 235× (LLM mentions common prefix → no filter effect) |
+| E ext_nc_only      | 100% | 1.0% | 235× (every listed file is .nc) |
+
+**Findings**
+
+1. **Cap-N variants fail in 2 of 3 seeds.** Reason: listing sorts
+   alphabetically, so an hour's 192 files are 12 each of C01, C02,
+   ..., C16 in order. When agent picks Band 08, cap_25 only catches
+   the C01/C02 region — missing C08 by ~60 positions.
+
+2. **Pattern-scoping doesn't help** because the LLM mentions the
+   common filename prefix (`OR_ABI-L2-CMIPC`), matching every file.
+   A tighter scope (require ≥10-char match, or weighted scoring) is
+   needed.
+
+3. **Extension filtering doesn't help** for this workload because
+   the directory is uniform.
+
+4. **The current default (B all_files) is the only policy delivering
+   100% recall in all seeds.** Recall is what closes the sparse-mode
+   gap; precision is the cost.
+
+**Implication for paper / future work**
+
+The "bandwidth for recall" trade-off in dynamic enrichment is real
+and needs smarter policies. Two directions identified:
+
+- **Stratified sampling per listing**: detect naming-pattern variation
+  (e.g., M6C01 vs M6C08 vs M6C16) and keep one file per pattern
+  rather than top-N. This would cap byte overfetch at ~16× (one per
+  band) instead of 100-300× (everything).
+
+- **Late-binding (deferred enrichment)**: don't enrich on raw
+  list_dir; wait until the LLM's next text mentions a specific
+  pattern, then enrich only matching files from the latest listing.
+  Adds latency but trims to ~1× overfetch.
+
+Both belong in the paper's future-work section. The smoke ablation
+confirms the trade-off exists and the simple knobs we tested don't
+resolve it — the smarter policies are real research, not engineering
+tweaks.
+
+**Files**: `outputs/multi_turn/e021_*/enrich_ablation.json`
 
