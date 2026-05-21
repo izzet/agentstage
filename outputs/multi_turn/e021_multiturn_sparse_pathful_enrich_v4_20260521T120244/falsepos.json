@@ -1,0 +1,127 @@
+{
+  "corpus": "outputs/multi_turn/e021_multiturn_sparse_pathful_enrich_v4_20260521T120244",
+  "workload": "aiob_107_s3",
+  "counts": {
+    "prefetched_files": 17,
+    "opened_files": 1,
+    "hits": 1,
+    "wasted_prefetches": 16,
+    "misses_no_prefetch": 0
+  },
+  "bytes": {
+    "prefetched": 237441858,
+    "opened": 6696240,
+    "hit": 6696240,
+    "wasted": 230745618,
+    "missed_no_prefetch": 0
+  },
+  "metrics": {
+    "precision_files": 0.058823529411764705,
+    "recall_files": 1.0,
+    "byte_overfetch_ratio": 35.458982652951505,
+    "byte_precision": 0.028201598725697302,
+    "byte_recall": 1.0,
+    "jaccard_files": 0.058823529411764705,
+    "jaccard_bytes": 0.028201598725697302
+  },
+  "detail": {
+    "prefetched": [
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+        "size": 2960235
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210016170_e20241210018543_c20241210019009.nc",
+        "size": 5879462
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210011170_e20241210013543_c20241210014015.nc",
+        "size": 6160310
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210001170_e20241210003543_c20241210004013.nc",
+        "size": 6696240
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210006170_e20241210008543_c20241210009005.nc",
+        "size": 6424208
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210021170_e20241210023543_c20241210024044.nc",
+        "size": 5601196
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210031170_e20241210033543_c20241210034007.nc",
+        "size": 5071586
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210026170_e20241210028543_c20241210029003.nc",
+        "size": 5331563
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210036170_e20241210038543_c20241210039006.nc",
+        "size": 4829788
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210041170_e20241210043543_c20241210044003.nc",
+        "size": 4600020
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210046170_e20241210048543_c20241210049003.nc",
+        "size": 4372619
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210051170_e20241210053543_c20241210054011.nc",
+        "size": 4158861
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210056170_e20241210058543_c20241210059001.nc",
+        "size": 3962241
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210006170_e20241210008543_c20241210009037.nc",
+        "size": 43254501
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210001170_e20241210003543_c20241210004037.nc",
+        "size": 44105891
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210011170_e20241210013543_c20241210014050.nc",
+        "size": 42456809
+      },
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210016170_e20241210018543_c20241210019027.nc",
+        "size": 41576328
+      }
+    ],
+    "opened": [
+      {
+        "path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210001170_e20241210003543_c20241210004013.nc",
+        "size": 6696240
+      }
+    ],
+    "hits": [
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210001170_e20241210003543_c20241210004013.nc"
+    ],
+    "wasted": [
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210006170_e20241210008543_c20241210009005.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210011170_e20241210013543_c20241210014015.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210016170_e20241210018543_c20241210019009.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210021170_e20241210023543_c20241210024044.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210026170_e20241210028543_c20241210029003.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210031170_e20241210033543_c20241210034007.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210036170_e20241210038543_c20241210039006.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210041170_e20241210043543_c20241210044003.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210046170_e20241210048543_c20241210049003.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210051170_e20241210053543_c20241210054011.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210056170_e20241210058543_c20241210059001.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210001170_e20241210003543_c20241210004037.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210006170_e20241210008543_c20241210009037.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210011170_e20241210013543_c20241210014050.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210016170_e20241210018543_c20241210019027.nc",
+      "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc"
+    ],
+    "misses_no_prefetch": []
+  }
+}

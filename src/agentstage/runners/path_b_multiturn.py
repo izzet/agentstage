@@ -292,6 +292,66 @@ def _physical_is_allowed(phys: str) -> bool:
     return any(phys.startswith(p) for p in _ALLOWED_PHYSICAL_PREFIXES)
 
 
+def enrich_prior_from_tool_result(
+    prior: dict[str, tuple[str, ...] | list[str]],
+    tool_result_text: str,
+    *,
+    bucket_name: str = "discovered",
+    file_extensions: tuple[str, ...] = (".nc", ".csv", ".parquet", ".json",
+                                         ".h5", ".hdf5", ".tsv", ".txt",
+                                         ".md", ".bam", ".vcf", ".nwb",
+                                         ".npy", ".npz", ".pkl"),
+) -> int:
+    """Parse a tool_result listing produced by execute_tool's list_dir
+    branch and add discovered concrete file paths to the workspace
+    prior under ``bucket_name``.
+
+    Mutates ``prior`` in place. Returns the number of NEW paths added.
+
+    The expected text format (produced by execute_tool above) is:
+
+        # Listing of <PARENT> (... total entries; showing ...):
+          FILE  <PARENT>/<filename>  (<size> bytes)
+          DIR   <PARENT>/<subdir>/
+          ...
+
+    where ``<PARENT>`` is a logical path the LLM understands. Adding
+    discovered files to the prior lets hot_path_scan match against the
+    paths the LLM writes after discovery — closing the
+    workload-spec-vs-actual-filesystem gap that defeated V4 sparse
+    pathful prompts.
+    """
+    import re as _re
+    new_paths: list[str] = []
+    # Match lines of the form "  FILE  <path>  (<size> bytes)"
+    # The path is everything between two-space-separated tokens; allow it
+    # to contain slashes, dashes, dots, underscores, digits, letters, plus.
+    line_pat = _re.compile(r"^\s*FILE\s+(\S+)\s+\(\d+\s+bytes\)\s*$",
+                            _re.MULTILINE)
+    for match in line_pat.finditer(tool_result_text):
+        candidate = match.group(1)
+        # Only count entries that look like real paths (have a recognized
+        # extension and at least one slash) — avoid metadata noise
+        if "/" not in candidate:
+            continue
+        if not any(candidate.endswith(ext) for ext in file_extensions):
+            continue
+        new_paths.append(candidate)
+    if not new_paths:
+        return 0
+    existing = list(prior.get(bucket_name, ()))
+    existing_set = set(existing)
+    added = 0
+    for p in new_paths:
+        if p not in existing_set:
+            existing.append(p)
+            existing_set.add(p)
+            added += 1
+    if added > 0:
+        prior[bucket_name] = tuple(existing)
+    return added
+
+
 def _synthesize_ancestor_listing(
     logical_path: str,
     prefix_map: tuple[tuple[str, str], ...],
@@ -357,6 +417,11 @@ def execute_tool(
         return (f"ERROR: {name}({path!r}): path outside permitted dataset "
                 f"roots. Use /data/<dataset>/... to access the staged data.")
     p = Path(phys)
+    # Use the LOGICAL path (what the LLM asked for) in the listing header
+    # so the LLM continues to write in logical address space. This keeps
+    # tool_result content matchable against the workspace_prior (which is
+    # also in logical space) via hot_path_scan.
+    display_dir = path.rstrip("/")
     try:
         if name == "list_dir":
             if not p.exists():
@@ -364,11 +429,15 @@ def execute_tool(
             if not p.is_dir():
                 return f"ERROR: list_dir: not a directory: {phys}"
             entries = sorted(p.iterdir())[:max_entries]
-            lines = [f"# Listing of {phys} ({len(list(p.iterdir()))} total entries; showing {len(entries)}):"]
+            lines = [f"# Listing of {display_dir} ({len(list(p.iterdir()))} total entries; showing {len(entries)}):"]
             for e in entries:
                 kind = "DIR " if e.is_dir() else "FILE"
                 size = e.stat().st_size if e.is_file() else 0
-                lines.append(f"  {kind}  {e.name}  ({size} bytes)" if e.is_file() else f"  {kind}  {e.name}/")
+                full_path = f"{display_dir}/{e.name}"
+                if e.is_file():
+                    lines.append(f"  {kind}  {full_path}  ({size} bytes)")
+                else:
+                    lines.append(f"  {kind}  {full_path}/")
             return "\n".join(lines)
         elif name in ("open_file", "read_file"):
             if not p.exists():
@@ -382,10 +451,10 @@ def execute_tool(
                 head = f.read(min(max_bytes, size))
             try:
                 text = head.decode("utf-8")
-                return (f"# Contents of {phys} (first {len(head)}/{size} bytes):\n"
+                return (f"# Contents of {path} (first {len(head)}/{size} bytes):\n"
                         f"{text}")
             except UnicodeDecodeError:
-                return (f"# Binary file {phys} (size {size} bytes). First 64 bytes hex:\n"
+                return (f"# Binary file {path} (size {size} bytes). First 64 bytes hex:\n"
                         f"{head[:64].hex()}")
         else:
             return f"ERROR: unknown tool: {name}"
@@ -844,6 +913,24 @@ def main() -> int:
 
         # Append the tool_result message
         messages.append({"role": "user", "content": tool_results_blocks})
+
+        # Dynamic prior enrichment: parse each tool_result for concrete
+        # file paths and add them to the workspace prior under a
+        # 'discovered' bucket. Closes the workspace-spec-vs-actual-
+        # filesystem gap that defeated V4 sparse pathful prompts:
+        # the agent in sparse mode picks bands outside the AIOB task
+        # spec's 6042-file working set (C08-C10), but the discovered
+        # bucket now contains those Band 01/02 paths from list_dir, so
+        # hot_path_scan can match the LLM's NEXT_FILES emissions.
+        n_enriched_this_turn = 0
+        for tr_block in tr_blocks_for_detector:
+            n_enriched_this_turn += enrich_prior_from_tool_result(
+                workload.workspace_prior, tr_block.text,
+            )
+        if n_enriched_this_turn > 0:
+            print(f"  enriched prior with {n_enriched_this_turn} new "
+                  f"file paths from this turn's list_dir",
+                  file=sys.stderr)
 
         # Feed tool_results to session detector (these stamp turn=current_turn)
         tr_acts = session_pred.feed_tool_results(tr_blocks_for_detector)

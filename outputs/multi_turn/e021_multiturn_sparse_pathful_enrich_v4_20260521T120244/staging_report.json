@@ -1,0 +1,221 @@
+{
+  "events": [
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+      "size_bytes": 2960235,
+      "fetch_ms": 2254.168862,
+      "tier": 1,
+      "rule_id": "turn0:first_inspect",
+      "t_detected_ms": 4932.925708523234,
+      "t_completed_ms": 1520284563.592736,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210016170_e20241210018543_c20241210019009.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210016170_e20241210018543_c20241210019009.nc",
+      "size_bytes": 5879462,
+      "fetch_ms": 2189.365817,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.661905303983,
+      "t_completed_ms": 1520300927.405009,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210011170_e20241210013543_c20241210014015.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210011170_e20241210013543_c20241210014015.nc",
+      "size_bytes": 6160310,
+      "fetch_ms": 3590.432316,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.661890237367,
+      "t_completed_ms": 1520302196.622443,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210001170_e20241210003543_c20241210004013.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210001170_e20241210003543_c20241210004013.nc",
+      "size_bytes": 6696240,
+      "fetch_ms": 3958.492786,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.661860104137,
+      "t_completed_ms": 1520302301.683048,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210006170_e20241210008543_c20241210009005.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210006170_e20241210008543_c20241210009005.nc",
+      "size_bytes": 6424208,
+      "fetch_ms": 4130.044771,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.66187517075,
+      "t_completed_ms": 1520302536.287168,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210021170_e20241210023543_c20241210024044.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210021170_e20241210023543_c20241210024044.nc",
+      "size_bytes": 5601196,
+      "fetch_ms": 1659.574954,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.6619203706,
+      "t_completed_ms": 1520304404.246969,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210031170_e20241210033543_c20241210034007.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210031170_e20241210033543_c20241210034007.nc",
+      "size_bytes": 5071586,
+      "fetch_ms": 1703.731881,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.66195050383,
+      "t_completed_ms": 1520307672.321016,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210026170_e20241210028543_c20241210029003.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210026170_e20241210028543_c20241210029003.nc",
+      "size_bytes": 5331563,
+      "fetch_ms": 3773.734306,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.661935437212,
+      "t_completed_ms": 1520308031.673442,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210036170_e20241210038543_c20241210039006.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210036170_e20241210038543_c20241210039006.nc",
+      "size_bytes": 4829788,
+      "fetch_ms": 1830.385984,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.661965570445,
+      "t_completed_ms": 1520309373.043043,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210041170_e20241210043543_c20241210044003.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210041170_e20241210043543_c20241210044003.nc",
+      "size_bytes": 4600020,
+      "fetch_ms": 1916.173063,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.66198063706,
+      "t_completed_ms": 1520311264.950659,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210046170_e20241210048543_c20241210049003.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210046170_e20241210048543_c20241210049003.nc",
+      "size_bytes": 4372619,
+      "fetch_ms": 1577.353273,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.661995703675,
+      "t_completed_ms": 1520312175.595977,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210051170_e20241210053543_c20241210054011.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210051170_e20241210053543_c20241210054011.nc",
+      "size_bytes": 4158861,
+      "fetch_ms": 1128.770075,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.66201077029,
+      "t_completed_ms": 1520313169.922207,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210056170_e20241210058543_c20241210059001.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241210056170_e20241210058543_c20241210059001.nc",
+      "size_bytes": 3962241,
+      "fetch_ms": 1362.990476,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.662025836908,
+      "t_completed_ms": 1520314501.551608,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210006170_e20241210008543_c20241210009037.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210006170_e20241210008543_c20241210009037.nc",
+      "size_bytes": 43254501,
+      "fetch_ms": 13889.278751,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.662056074765,
+      "t_completed_ms": 1520329706.904881,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210001170_e20241210003543_c20241210004037.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210001170_e20241210003543_c20241210004037.nc",
+      "size_bytes": 44105891,
+      "fetch_ms": 16354.776489,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.66204090352,
+      "t_completed_ms": 1520330982.368715,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210011170_e20241210013543_c20241210014050.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210011170_e20241210013543_c20241210014050.nc",
+      "size_bytes": 42456809,
+      "fetch_ms": 16511.21045,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.66207124601,
+      "t_completed_ms": 1520334006.126817,
+      "outcome": "staged",
+      "error": ""
+    },
+    {
+      "cold_path": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210016170_e20241210018543_c20241210019027.nc",
+      "hot_path": "/dev/shm/agentstage_path_b/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/121/00/OR_ABI-L2-CMIPC-M6C02_G16_s20241210016170_e20241210018543_c20241210019027.nc",
+      "size_bytes": 41576328,
+      "fetch_ms": 16143.83637,
+      "tier": 1,
+      "rule_id": "turn4_tr:hot_path",
+      "t_detected_ms": 22078.662086417255,
+      "t_completed_ms": 1520335163.95688,
+      "outcome": "staged",
+      "error": ""
+    }
+  ],
+  "summary": {
+    "n_events": 17,
+    "n_staged": 17,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 237441858,
+    "fetch_ms": {
+      "p50": 2254.169,
+      "p95": 16354.776,
+      "max": 16511.21,
+      "mean": 5527.901
+    }
+  }
+}
