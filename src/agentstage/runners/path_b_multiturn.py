@@ -39,6 +39,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from agentstage.client.anthropic import AnthropicClient
+from agentstage.client.gemini import GeminiClient
 from agentstage.detector.engine import StreamBlock
 from agentstage.detector.rules import get_ruleset
 from agentstage.detector.session import SessionDetector
@@ -575,25 +576,37 @@ def main() -> int:
 
     args.out.mkdir(parents=True, exist_ok=True)
 
-    # Resolve API endpoint
-    azure_key = os.environ.get("AZURE_FOUNDRY_KEY", "")
-    direct_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if azure_key:
-        api_key = azure_key
-        azure_url = os.environ.get(
-            "AZURE_FOUNDRY_ANTHROPIC_URL",
-            "https://izzet-2249-resource.openai.azure.com/anthropic/v1/messages",
-        )
-        base_url = azure_url.split("/v1/messages")[0]
-        if not base_url.endswith("/anthropic"):
-            base_url = base_url.rstrip("/") + "/anthropic"
-    elif direct_key:
-        api_key = direct_key
+    # Determine provider from model name (claude-* → anthropic; gemini-* → gemini)
+    provider = "gemini" if args.model.lower().startswith("gemini") else "anthropic"
+
+    # Resolve API endpoint by provider
+    if provider == "anthropic":
+        azure_key = os.environ.get("AZURE_FOUNDRY_KEY", "")
+        direct_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if azure_key:
+            api_key = azure_key
+            azure_url = os.environ.get(
+                "AZURE_FOUNDRY_ANTHROPIC_URL",
+                "https://izzet-2249-resource.openai.azure.com/anthropic/v1/messages",
+            )
+            base_url = azure_url.split("/v1/messages")[0]
+            if not base_url.endswith("/anthropic"):
+                base_url = base_url.rstrip("/") + "/anthropic"
+        elif direct_key:
+            api_key = direct_key
+            base_url = None
+        else:
+            print("FATAL: neither AZURE_FOUNDRY_KEY nor ANTHROPIC_API_KEY set",
+                  file=sys.stderr)
+            return 2
+    else:  # gemini
+        gemini_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "")
+        if not gemini_key:
+            print("FATAL: GOOGLE_GEMINI_API_KEY not set for Gemini provider",
+                  file=sys.stderr)
+            return 2
+        api_key = gemini_key
         base_url = None
-    else:
-        print("FATAL: neither AZURE_FOUNDRY_KEY nor ANTHROPIC_API_KEY set",
-              file=sys.stderr)
-        return 2
 
     # Load workload + ruleset
     loaders = {
@@ -634,17 +647,25 @@ def main() -> int:
     session_pred = SessionDetector(prior=workload.workspace_prior,
                                    ruleset=ruleset)
 
-    # Set up live client (we still use AnthropicClient but will manage
-    # the conversation ourselves; the AnthropicClient's per-call streaming
-    # detector only handles single-turn live dispatch — for multi-turn
-    # we tear off the events and run SessionDetector ourselves.)
-    client = AnthropicClient(
-        api_key=api_key,
-        base_url=base_url,
-        stager=None,  # session detector dispatches, not the inline one
-        workspace_prior=physical_prior,
-        ruleset=ruleset,
-    )
+    # Set up live client based on provider. Both expose the same .stream()
+    # interface and yield SDK-shaped events (Gemini events are wrapped to
+    # match Anthropic's event shape, see client/gemini.py:_Event).
+    if provider == "anthropic":
+        client = AnthropicClient(
+            api_key=api_key,
+            base_url=base_url,
+            stager=None,
+            workspace_prior=physical_prior,
+            ruleset=ruleset,
+        )
+    else:  # gemini
+        client = GeminiClient(
+            api_key=api_key,
+            stager=None,
+            workspace_prior=physical_prior,
+            ruleset=ruleset,
+        )
+    print(f"  provider: {provider}, model: {args.model}", file=sys.stderr)
 
     # Build the initial user message
     if args.workload in ("aiob_107", "aiob_107_s3"):

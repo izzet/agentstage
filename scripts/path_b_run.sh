@@ -56,6 +56,13 @@ case "$MODE" in
                      --pathful-version "${PATHFUL_VERSION:-v4}"
                      --measure-target-after )
         ;;
+    e026_gemini_sparse_enrich_live)
+        EXP="e026_multiturn_sparse_pathful_enrich_live_gemini_${PATHFUL_VERSION:-v4}"
+        EXTRA_ARGS=( --prompt-mode sparse --pathful-prompt
+                     --pathful-version "${PATHFUL_VERSION:-v4}"
+                     --measure-target-after
+                     --model "${GEMINI_MODEL:-gemini-2.5-flash}" )
+        ;;
     *)
         echo "FATAL: mode must be one of:" >&2
         echo "  hinted | sparse | sparse_live | hinted_pathful | sparse_pathful" >&2

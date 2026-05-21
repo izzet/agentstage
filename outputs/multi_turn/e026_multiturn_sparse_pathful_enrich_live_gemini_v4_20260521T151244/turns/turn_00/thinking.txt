@@ -1,0 +1,10 @@
+**Exploring Data Structures**
+
+Okay, I'm diving into the `/data/goes_cmi_composites/` directory now. My initial aim is to get a solid grasp of the data layout, the number of files present, and the inherent file structure. I will identify the available channel bands. Afterwards, I will extract brightness temperature for further analysis.
+
+
+**Listing Directory Contents**
+
+I've begun by listing the contents of the target directory to understand its organization. Next, I'll identify the available channel bands within the files. After that, I will begin extracting brightness temperature for specific US city locations. I am very confident I can achieve this, and the steps should be smooth.
+
+

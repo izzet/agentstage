@@ -1,0 +1,10 @@
+**Exploring Data Availability**
+
+I'm currently focused on navigating the file structure within `/data/goes_cmi_composites/`. My goal is to map the data organization and pinpoint available channel bands. Understanding the layout will be crucial for subsequent analysis, and I'll keep you informed as I uncover more details about the data's composition.
+
+
+**Listing Directory Contents**
+
+I've begun listing the contents of the base directory to understand the file organization. Next, I'll identify the available channel bands within the composite data and start assessing how to extract brightness temperatures. My focus now is on defining a clear approach for building time series data for specific US city locations and preparing to compute the diurnal cycle from this satellite data.
+
+

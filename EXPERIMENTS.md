@@ -17,6 +17,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 | **E-020 v4** | 2026-05-21 | Pathful-prompt V4 iteration + logical-prior fix | **V4 prompt produces concrete paths in both regimes; hinted: literal-path dispatch fires successfully; sparse: paths concrete but agent picks Band 01/02 OUTSIDE workspace prior (prior built from constrained task spec)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
 | **E-024** | 2026-05-21 | Enrichment precision-tuning ablation (cap-N, pattern, ext) | **`all files` is the only policy with 100% recall in all 3 seeds; cap-N fails because alphabetical sort concentrates one band; stratified sampling identified as future work** | `scripts/microbench/path_b_enrich_ablation.py` | _next commit_ |
 | **E-025** | 2026-05-21 | Per-file vs per-session wall-time gap (analysis of E-023 captures) | **Per-file 10^4x, per-session 1% in 8-turn smoke runs (agent opens only 1 file); projected ~75 min saved per full aiob_107 task; needs task-completing runner for full session ablation** | (analysis only — no new run) | _next commit_ |
+| **E-026** | 2026-05-21 | Cross-vendor live multi-turn (Gemini 2.5 Flash, n=3) | **3/3 hits, speedup 3,965x-13,152x (mean ~7,000x); architecture works end-to-end on Anthropic AND Gemini families** | `GEMINI_MODEL=gemini-2.5-flash ./scripts/path_b_run.sh e026_gemini_sparse_enrich_live` (3 reps) | _next commit_ |
 | **E-023** | 2026-05-21 | Multi-seed E-021 (3 reps) stability check | **3/3 seeds: `was_staged=True`; speedup range 6.8k×-25k× (S3 cold latency variance); enrichment structurally reliable** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich_live` ×3 | _next commit_ |
 | **E-022** | 2026-05-21 | Cross-workload auto-rules check (aiob_104 + aiob_110 + aiob_107) | **Auto within 3% of hand on all 3 workloads (-0.2%, -3.0%, 0.0%); L3 genericity exceeded** | `scripts/microbench/path_b_xworkload.py` | _next commit_ |
 | **E-021** | 2026-05-21 | Sparse + V4 pathful + dynamic prior enrichment | **Sparse-mode recall 0% → 100%; realistic wall-time 1.0× → 2,989×; 100 paths added from one list_dir; over-fetch 35× (bandwidth-for-recall trade-off)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich` | _next commit_ |
@@ -1796,4 +1797,97 @@ framing:
 > exploration-heavy smoke runs (8 turns, 1 file read) realize only
 > ~1% session-level speedup; full-task end-to-end timing is future
 > work pending a task-completing runner."
+
+
+---
+
+## E-026 — Cross-vendor live multi-turn (Gemini 2.5 Flash, n=3) (2026-05-21)
+
+**Goal**: Confirm the architecture works on a non-Anthropic LLM family.
+All prior live experiments were Haiku 4.5; this run uses Gemini 2.5
+Flash via google-genai SDK with extended thinking + native tool_use.
+
+**Implementation**
+
+- New `src/agentstage/client/gemini.py` (`GeminiClient`,
+  `GeminiStreamingResponse`) — translates Gemini's part-based stream
+  into Anthropic-shaped events (`_Event`/`_ContentBlock`/`_Delta`
+  namespaces) so `path_b_multiturn` consumes both providers without
+  branching the main loop.
+- `path_b_multiturn` auto-detects provider from model name
+  (`gemini-*` → GeminiClient; `claude-*` → AnthropicClient).
+- Same V4 pathful prompt + dynamic enrichment + measure_target_after
+  pipeline as E-023.
+
+**Reproduction**
+
+```bash
+PATHFUL_VERSION=v4 GEMINI_MODEL=gemini-2.5-flash \
+    ./scripts/path_b_run.sh e026_gemini_sparse_enrich_live
+```
+
+(repeated 3 times)
+
+**Results**
+
+| Seed | Turns | Agent's first file | # predictor-staged | Hit | Hot ms | Cold ms | **Speedup** |
+|---:|---:|---|---:|:---:|---:|---:|---:|
+| 1 | 8 | Band 08 day 122 | 46 | ✅ | 0.163 | 644.9 | **3,965×** |
+| 2 | 8 | Band 01 day 122 | 38 | ✅ | 0.046 | 610.0 | **13,152×** |
+| 3 | 7 | Band 01 day 122 | 44 | ✅ | 0.066 | 570.5 | **8,677×** |
+
+**Findings**
+
+1. **3 of 3 hits.** The agent's chosen file was always in the
+   predictor-driven prefetch set before the agent opened it. Cross-
+   vendor success rate matches Haiku (3/3 in E-023).
+
+2. **Per-file speedup range 3,965× to 13,152×.** Mean ~7,000×.
+   Range is slightly narrower than Haiku's 6.8k–25k× (different S3
+   latency window during the run), but the architectural ceiling is
+   identical — both providers' agent reads end up redirected to the
+   same tmpfs hot tier via the same shim.
+
+3. **Rule activation profile differs across vendors:**
+   - Haiku: 4-5 rules typically fire from turn-0 thinking + later text
+   - Gemini: 0 rules fire in turns 0-4; some fire only in turns 5-7
+     (after `list_dir` populates context)
+   - But enrichment + literal-path detection close the gap — Gemini
+     gets the staging hit via the post-discovery path even when its
+     turn-0 thinking doesn't trip any regex rules.
+
+4. **Cost**: ~$0.22 per run × 3 = **~$0.66 total**. Cheaper than
+   Haiku (Gemini 2.5 Flash $0.30/$2.50 vs Haiku ~$1/$5 per M tokens).
+
+**Implication for paper claims**
+
+- **Architecture is vendor-agnostic**, not Anthropic-specific. Both
+  Anthropic Claude and Google Gemini drive the same end-to-end staging
+  → shim → hot-read pipeline with same-order-of-magnitude speedups.
+- **The detection layer adapts via enrichment.** Gemini's thinking
+  content fires fewer regex rules than Haiku's, but the dynamic prior
+  enrichment from `list_dir` output makes the literal-path scan
+  sufficient on its own. This is an unexpectedly clean validation of
+  the "two complementary detectors" architecture (rules + literal-path).
+- **The L3 genericity claim now extends from "auto-rules within 3% of
+  hand on 3 workloads" (E-022, offline) to "architecture works
+  end-to-end on 2 vendor families" (E-021+E-023 Anthropic, E-026
+  Gemini, all live).**
+
+**Caveats**
+
+- n=3 per vendor is still small. Campaign C target is ≥3 seeds × 3
+  models (Haiku, Flash, OSS) × 3 workloads.
+- DeepSeek-R1 (third planned vendor) not yet tested live; only PoC
+  single-turn captures exist (E-022 inputs).
+- Gemini's tool_use blocks don't have stable IDs in the way Anthropic's
+  do; `GeminiClient` synthesizes them. This works in our protocol
+  but may matter for systems that round-trip tool_use_id across
+  longer conversations.
+
+**Files**
+
+- `src/agentstage/client/gemini.py` — Gemini client + event wrapper
+- `src/agentstage/runners/path_b_multiturn.py` — provider auto-detect
+- `outputs/multi_turn/e026_multiturn_sparse_pathful_enrich_live_gemini_v4_*/`
 

@@ -1,0 +1,91 @@
+{
+  "workload": "aiob_107_s3",
+  "prompt_mode": "sparse",
+  "model": "gemini-2.5-flash",
+  "budget": 4096,
+  "max_turns_allowed": 8,
+  "turns_used": 7,
+  "total_tool_uses": 6,
+  "fired_rule_names": [
+    "all_files_signal",
+    "band_08",
+    "band_09",
+    "csv_out",
+    "fig_out",
+    "first_inspect",
+    "report_out"
+  ],
+  "activations": [
+    {
+      "rule_name": "fig_out",
+      "source": "thinking",
+      "turn": 3,
+      "fired_at_ms": 10147.164921997151,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "band_08",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 27641.666874988005,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "band_09",
+      "source": "tool_result",
+      "turn": 5,
+      "fired_at_ms": 27641.666874988005,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "first_inspect",
+      "source": "thinking",
+      "turn": 5,
+      "fired_at_ms": 82163.76836214408,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "all_files_signal",
+      "source": "text",
+      "turn": 6,
+      "fired_at_ms": 136574.73978213966,
+      "n_detected_files": 6042
+    },
+    {
+      "rule_name": "csv_out",
+      "source": "text",
+      "turn": 6,
+      "fired_at_ms": 136574.73978213966,
+      "n_detected_files": 1
+    },
+    {
+      "rule_name": "report_out",
+      "source": "text",
+      "turn": 6,
+      "fired_at_ms": 136574.73978213966,
+      "n_detected_files": 1
+    }
+  ],
+  "first_target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241220001170_e20241220003543_c20241220004002.nc",
+  "measurements": {
+    "target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C01_G16_s20241220001170_e20241220003543_c20241220004002.nc",
+    "size_bytes": 6800372,
+    "was_staged_at_end": true,
+    "hot_read_ms": 0.066,
+    "cold_read_ms": 570.47,
+    "speedup": 8677.3
+  },
+  "staging_report": {
+    "n_events": 44,
+    "n_staged": 44,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 628296942,
+    "fetch_ms": {
+      "p50": 2323.405,
+      "p95": 14801.056,
+      "max": 19339.354,
+      "mean": 4882.75
+    }
+  }
+}

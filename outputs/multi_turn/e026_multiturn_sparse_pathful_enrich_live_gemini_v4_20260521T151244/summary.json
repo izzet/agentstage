@@ -1,0 +1,51 @@
+{
+  "workload": "aiob_107_s3",
+  "prompt_mode": "sparse",
+  "model": "gemini-2.5-flash",
+  "budget": 4096,
+  "max_turns_allowed": 8,
+  "turns_used": 8,
+  "total_tool_uses": 8,
+  "fired_rule_names": [
+    "band_08",
+    "band_09"
+  ],
+  "activations": [
+    {
+      "rule_name": "band_08",
+      "source": "tool_result",
+      "turn": 6,
+      "fired_at_ms": 54785.86836881004,
+      "n_detected_files": 2014
+    },
+    {
+      "rule_name": "band_09",
+      "source": "tool_result",
+      "turn": 6,
+      "fired_at_ms": 54785.86836881004,
+      "n_detected_files": 2014
+    }
+  ],
+  "first_target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+  "measurements": {
+    "target_physical": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00/OR_ABI-L2-CMIPC-M6C08_G16_s20241220001170_e20241220003543_c20241220004042.nc",
+    "size_bytes": 2960235,
+    "was_staged_at_end": true,
+    "hot_read_ms": 0.163,
+    "cold_read_ms": 644.882,
+    "speedup": 3964.7
+  },
+  "staging_report": {
+    "n_events": 46,
+    "n_staged": 46,
+    "n_hits": 0,
+    "n_errors": 0,
+    "total_bytes_staged": 643446542,
+    "fetch_ms": {
+      "p50": 2396.565,
+      "p95": 16841.143,
+      "max": 18444.58,
+      "mean": 4751.381
+    }
+  }
+}

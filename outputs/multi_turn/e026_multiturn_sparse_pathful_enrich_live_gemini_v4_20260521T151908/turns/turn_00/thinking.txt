@@ -1,0 +1,10 @@
+**Exploring Data Structure**
+
+Okay, I'm diving into the `/data/goes_cmi_composites/` directory now. My initial goal is to grasp the data's organization, including identifying available channel bands. I am focused on understanding the directory structure to prepare for the extraction of brightness-temperature time series.
+
+
+**Initiating Directory Exploration**
+
+I've begun examining the `/data/goes_cmi_composites/` directory contents. My current objective is a deep dive into the organizational structure of this data, which will guide the extraction of brightness-temperature time series. I intend to identify and isolate available channel bands within the directory.
+
+
