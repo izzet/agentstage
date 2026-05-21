@@ -21,7 +21,7 @@ if [[ -z "${AZURE_FOUNDRY_KEY:-}${ANTHROPIC_API_KEY:-}" ]]; then
     exit 2
 fi
 
-MODE="${1:-hinted}"   # hinted | sparse | sparse_live
+MODE="${1:-hinted}"   # hinted | sparse | sparse_live | hinted_pathful | sparse_pathful
 case "$MODE" in
     hinted)
         EXP="e011_multiturn_hinted"
@@ -35,8 +35,17 @@ case "$MODE" in
         EXP="e015_multiturn_sparse_live"
         EXTRA_ARGS=( --prompt-mode sparse --measure-target-after )
         ;;
+    hinted_pathful)
+        EXP="e020_multiturn_hinted_pathful"
+        EXTRA_ARGS=( --prompt-mode hinted --pathful-prompt )
+        ;;
+    sparse_pathful)
+        EXP="e020_multiturn_sparse_pathful"
+        EXTRA_ARGS=( --prompt-mode sparse --pathful-prompt )
+        ;;
     *)
-        echo "FATAL: mode must be one of: hinted | sparse | sparse_live" >&2
+        echo "FATAL: mode must be one of:" >&2
+        echo "  hinted | sparse | sparse_live | hinted_pathful | sparse_pathful" >&2
         exit 2
         ;;
 esac

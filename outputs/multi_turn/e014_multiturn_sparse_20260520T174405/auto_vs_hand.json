@@ -1,0 +1,164 @@
+{
+  "corpus": "outputs/multi_turn/e014_multiturn_sparse_20260520T174405",
+  "workload": "aiob_107_s3",
+  "rules_in_hand": 10,
+  "rules_in_auto": 16,
+  "gt_static_size": 6042,
+  "gt_actual_size": 1,
+  "hand": {
+    "label": "hand",
+    "n_rules_in_set": 4,
+    "fired_rules": [
+      {
+        "name": "first_inspect",
+        "source": "thinking",
+        "turn": 0,
+        "subset_size": 1
+      },
+      {
+        "name": "one_hour",
+        "source": "text",
+        "turn": 4,
+        "subset_size": 36
+      },
+      {
+        "name": "band_08",
+        "source": "tool_result",
+        "turn": 5,
+        "subset_size": 2014
+      },
+      {
+        "name": "band_09",
+        "source": "tool_result",
+        "turn": 5,
+        "subset_size": 2014
+      }
+    ],
+    "tier_1_vs_static": {
+      "predicted_size": 1,
+      "gt_size": 6042,
+      "hits": 1,
+      "precision": 1.0,
+      "recall": 0.00016550810989738498,
+      "jaccard": 0.00016550810989738498
+    },
+    "tier_2_vs_static": {
+      "predicted_size": 36,
+      "gt_size": 6042,
+      "hits": 36,
+      "precision": 1.0,
+      "recall": 0.005958291956305859,
+      "jaccard": 0.005958291956305859
+    },
+    "tier_3_vs_static": {
+      "predicted_size": 4040,
+      "gt_size": 6042,
+      "hits": 4040,
+      "precision": 1.0,
+      "recall": 0.6686527639854353,
+      "jaccard": 0.6686527639854353
+    },
+    "tier_1_vs_actual": {
+      "predicted_size": 1,
+      "gt_size": 1,
+      "hits": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "jaccard": 0.0
+    },
+    "tier_3_vs_actual": {
+      "predicted_size": 4040,
+      "gt_size": 1,
+      "hits": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "jaccard": 0.0
+    },
+    "tier_sizes": {
+      "tier_1": 1,
+      "tier_2": 36,
+      "tier_3": 4040
+    }
+  },
+  "auto": {
+    "label": "auto",
+    "n_rules_in_set": 5,
+    "fired_rules": [
+      {
+        "name": "first_inspect",
+        "source": "thinking",
+        "turn": 0,
+        "subset_size": 1
+      },
+      {
+        "name": "band_10",
+        "source": "tool_result",
+        "turn": 2,
+        "subset_size": 2014
+      },
+      {
+        "name": "day_122",
+        "source": "text",
+        "turn": 3,
+        "subset_size": 864
+      },
+      {
+        "name": "band_08",
+        "source": "tool_result",
+        "turn": 4,
+        "subset_size": 2014
+      },
+      {
+        "name": "band_09",
+        "source": "tool_result",
+        "turn": 4,
+        "subset_size": 2014
+      }
+    ],
+    "tier_1_vs_static": {
+      "predicted_size": 1,
+      "gt_size": 6042,
+      "hits": 1,
+      "precision": 1.0,
+      "recall": 0.00016550810989738498,
+      "jaccard": 0.00016550810989738498
+    },
+    "tier_2_vs_static": {
+      "predicted_size": 1,
+      "gt_size": 6042,
+      "hits": 1,
+      "precision": 1.0,
+      "recall": 0.00016550810989738498,
+      "jaccard": 0.00016550810989738498
+    },
+    "tier_3_vs_static": {
+      "predicted_size": 6042,
+      "gt_size": 6042,
+      "hits": 6042,
+      "precision": 1.0,
+      "recall": 1.0,
+      "jaccard": 1.0
+    },
+    "tier_1_vs_actual": {
+      "predicted_size": 1,
+      "gt_size": 1,
+      "hits": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "jaccard": 0.0
+    },
+    "tier_3_vs_actual": {
+      "predicted_size": 6042,
+      "gt_size": 1,
+      "hits": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "jaccard": 0.0
+    },
+    "tier_sizes": {
+      "tier_1": 1,
+      "tier_2": 1,
+      "tier_3": 6042
+    }
+  }
+}

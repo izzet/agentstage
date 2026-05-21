@@ -363,6 +363,12 @@ def main() -> int:
                         default="hinted",
                         help="hinted: original full task prompt; "
                              "sparse: I/O hints stripped (Regime B)")
+    parser.add_argument("--pathful-prompt", action="store_true",
+                        help="Inject a system-prompt clause asking the model "
+                             "to write full file paths in its thinking. Enables "
+                             "the literal-path detection mode (hot_path_scan), "
+                             "potentially replacing all hand-coded regex rules. "
+                             "Set up by E-020 ablation.")
     parser.add_argument("--max-turns", type=int, default=8,
                         help="Maximum assistant turns before giving up (default 8)")
     parser.add_argument("--out", type=Path, required=True)
@@ -452,6 +458,16 @@ def main() -> int:
     initial_user_msg = base_prompt + PLANNING_PROMPT_SUFFIX
     messages: list[dict] = [{"role": "user", "content": initial_user_msg}]
     system = "You are a careful scientific computing agent."
+    if args.pathful_prompt:
+        system += (
+            "\n\nIMPORTANT: When reasoning about which files you intend to "
+            "access, write the FULL absolute path of each file in your "
+            "thinking. Example: 'I will open /data/foo/bar.csv next' rather "
+            "than 'I will open the CSV file'. List every file you plan to "
+            "read so the data-staging system can pre-fetch them. If you do "
+            "not yet know the exact paths, first use list_dir to discover "
+            "them; then in subsequent reasoning name them by full path."
+        )
 
     print(f"workload: {workload.task_id} ({args.prompt_mode} prompt mode)",
           file=sys.stderr)

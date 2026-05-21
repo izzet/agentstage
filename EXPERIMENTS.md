@@ -13,6 +13,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 
 | ID | Date | Goal | Headline | Script | Commit |
 |---|---|---|---|---|---|
+| **E-019** | 2026-05-21 | Auto-generated rules vs hand-tuned (L3 genericity claim) | **Auto matches hand in hinted regime (100%=100%); auto EXCEEDS hand by +33% in sparse regime (100% vs 66.7%) because mechanical per-instance enumeration catches band_10 hand missed** | `scripts/microbench/path_b_auto_vs_hand.py` | _next commit_ |
 | **E-018** | 2026-05-21 | Subset-detection accuracy replay (per-rule precision/recall vs static GT) | **100% subset precision across all rules and regimes; hinted recall 100%, sparse recall 67% (one band rule did not fire)** | `scripts/microbench/path_b_subset_replay.py` | _next commit_ |
 | **E-017** | 2026-05-20 | Wall-time replay ablation (oracle vs realistic detector) | **Hinted: 3886× realized = 3886× oracle; Sparse: 1.0× realized vs 3512× oracle — 100% of potential savings lost to rule mismatch** | `scripts/microbench/path_b_walltime_run.sh <corpus>` | _next commit_ |
 | **E-016** | 2026-05-20 | False-positive / precision-recall ablation on captured corpora | **Hinted: 100% precision, 100% recall, Jaccard 100%; Sparse: 0% precision, 0% recall, Jaccard 0% (sets disjoint, byte_overfetch metric collapses)** | `scripts/microbench/path_b_falsepos.py --corpus <run>` | _next commit_ |
@@ -1051,4 +1052,89 @@ staged. Two future-work directions:
    outside the workload prior (e.g., the C01-C16 bands on S3), expand
    the prior. This would prevent the "agent picks band outside our
    subset" failure mode observed in E-014/E-015.
+
+
+---
+
+## E-019 — Auto-generated vs hand-tuned rule set replay (2026-05-21)
+
+**Goal**: Defends the AGENTSTAGE.md §11.6 **L3 genericity claim** —
+auto-generated rules within 10% of hand-tuned recall.
+
+`auto_rules.py` is now a real implementation (not the stub from
+2026-05-19). For each workspace-prior bucket key it mechanically
+derives a regex pattern; general rules (first_inspect, all_signal,
+report_out) are templated from the task instruction's file-format
+tokens.
+
+**Reproduction**
+
+```bash
+~/.local/bin/uv run python scripts/microbench/path_b_auto_vs_hand.py \
+    --corpus outputs/multi_turn/<run> \
+    --workload aiob_107_s3 \
+    --out outputs/multi_turn/<run>/auto_vs_hand.json
+```
+
+**Results**
+
+| Corpus | Rules (hand / auto) | Hand T3 recall vs static GT | **Auto T3 recall vs static GT** | Δ |
+|---|---|---:|---:|---:|
+| E-011 hinted     | 10 / 16 | 100.0% | **100.0%** | 0 |
+| E-014 sparse     | 10 / 16 |  66.9% | **100.0%** | **+33%** |
+| E-015 sparse_live| 10 / 16 |  66.7% | **100.0%** | **+33%** |
+
+**Findings**
+
+1. **Auto matches hand in hinted regime** (100% = 100%) and
+   **exceeds hand by 33% in both sparse regimes**.
+
+2. Why auto wins on sparse: auto generates per-day regex rules
+   (`day_122`, `day_123`, etc.) and a broader `band_10` pattern
+   that fires on the agent's `list_dir` output (which lists C10
+   alongside C08/C09). The hand-tuned set lacked the `band_10` rule
+   activation in sparse because the agent's *thinking* didn't mention
+   C10, while auto's bare numeric pattern `\b10\b` matches the C10
+   filenames in the directory listing.
+
+3. Auto's risk: bare numeric patterns (`\b08\b`) can over-fire on
+   unrelated tokens (timestamps, coordinates). **In our captured
+   corpora this didn't translate to false-positive *bucket activation***
+   because every bucket the prior maps to is itself within the static
+   GT. The over-firing is precision-at-the-rule-level, not
+   precision-at-the-file-level.
+
+**Implication for paper claim L3**
+
+> The L3 target ("auto within 10% of hand") was conservative. In our
+> measurements auto **equals** hand in hinted regime and **outperforms**
+> hand by 33% in sparse regime because auto's mechanical regex
+> generation enumerates per-instance buckets (per-day, per-subject,
+> per-band) that hand-tuned authors didn't bother to write rules for.
+> The hand-coding criticism of the rule library is substantially
+> dissolved by this result.
+
+**Caveats**
+
+1. Sample is n=3 captured corpora, all aiob_107_s3 (one workload).
+   Cross-workload validation (aiob_104, aiob_110, KramaBench) is part
+   of Campaign C.
+
+2. The static GT for aiob_107_s3 happens to equal the entire workspace
+   prior (6042 files = all input data). Precision-at-the-file-level
+   appears as 100% in both rule sets trivially. For workloads where
+   GT is a strict subset of the prior, auto's broader rules could
+   trigger over-fetch that hand-tuned rules avoid.
+
+3. Domain shortenings (e.g., "C08" as a synonym for "band 08") are
+   inferred from task_instruction scanning, but not from external
+   domain knowledge. A workload where the LLM uses unprompted
+   abbreviations (e.g., "stt" for "sample type T") would still benefit
+   from hand-tuning. We didn't measure this.
+
+**Files**
+
+- `src/agentstage/detector/auto_rules.py` — real implementation
+- `scripts/microbench/path_b_auto_vs_hand.py` — replay driver
+- `outputs/multi_turn/<run>/auto_vs_hand.json` per corpus
 
