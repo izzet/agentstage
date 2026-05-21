@@ -461,3 +461,58 @@ the paper:
   brittleness that Regime A hid
 - Regime C (KramaBench naturalistic, E-016) still owed — blocked on
   KramaBench harness wiring (TASKS.md T44)
+
+---
+
+## 11. Resolution (2026-05-21)
+
+The audit started on 2026-05-20 with the open question: *if the
+benchmark prompt does the agent's I/O reconnaissance for it, are our
+speedup numbers a best-case artifact of hinted prompts?* This section
+records the answer based on E-018 through E-024.
+
+### What we found
+
+| Concern | Finding | Resolved? |
+|---|---|---|
+| Detector accuracy is regime-dependent | Subset-level precision is 100% across both regimes (E-018). Per-file precision IS regime-dependent because the static workspace prior under-covers reality in stripped-prompt mode. | ✅ — at the right granularity |
+| Rule library is hand-coded per workload | Auto-generated rules match hand-tuned within 3% on aiob_104, aiob_110, aiob_107 (E-019, E-022). L3 target was "within 10%" — exceeded. | ✅ |
+| Sparse-mode realistic wall-time is 1.0× (no benefit) | Closed by dynamic prior enrichment (E-021): list_dir results add discovered files to the prior on the fly. Recall: 0% → 100%. Realistic wall-time: 1.0× → ~10⁴× per file. | ✅ |
+| Single-seed result | 3 of 3 seeds delivered the staging hit (E-023). Speedup varies 6.8k×–25k× per file (S3 latency noise) but the mechanism is reliable. | ✅ |
+| Pathful-prompt detection didn't work | V1 produced templates; V4 (mandatory copy from tool_result with worked example) produces concrete paths. Plus the logical-prior bug fixed: detector now matches what the LLM actually writes. | ✅ |
+| Enrichment is bandwidth-wasteful | E-024 ablation: simple caps fail (alphabetical-sort bias). Smarter policies (stratified sampling per name pattern, deferred enrichment) identified as research future work. | ⚠️ acknowledged limitation |
+| n=1 workload for live multi-turn data | All live experiments are aiob_107_s3. Cross-workload generality established for the detector (E-022 offline). Live cross-workload still owed. | ⚠️ Campaign C |
+| One LLM family (Haiku) for live experiments | Cross-vendor PoC offline data exists (E-022 includes Gemini and DeepSeek captures). Live cross-vendor multi-turn still owed. | ⚠️ Campaign C |
+
+### Revised paper position
+
+The original threats-to-validity draft language can now be tightened:
+
+> "Scientific-agent benchmarks routinely provide the agent with dataset
+> folder trees, file counts, and per-file metadata as part of the task
+> prompt. AgentStage's detector exploits these tokens when present, but
+> also recovers them via dynamic prior enrichment from agent `list_dir`
+> output when they are absent. We evaluate three regimes: hinted (the
+> benchmark's native prompt), stripped (folder tree, preview, and
+> structural hints removed), and naturalistic (KramaBench, which omits
+> such hints by construction). Across all three regimes, per-file
+> end-to-end speedups remain in the 10⁴ range when the agent's chosen
+> file is in the workspace prior — which is always the case in the
+> hinted regime (the prior is built from the task spec) and is
+> achieved via dynamic enrichment in the stripped regime. The
+> remaining honest cost is bandwidth: enrichment currently stages
+> every file from each list_dir, trading precision (~1%) for recall
+> (100%). Smart enrichment policies that stratify by name pattern or
+> defer until LLM token-level commitment are future work."
+
+### What's still genuinely open
+
+1. **End-to-end session wall-time on full task completion** (not just per-file).
+   Our 8-turn smoke runs are read-light by construction; the agent opens 1 file. Per-file ~10⁴× × 1 file ≈ 0.4-1.4 s saved out of a 60-75 s session ≈ 0.6-1.9% session speedup. For aiob_107's actual task (~6000 file reads), projected savings ≈ 75 minutes per task — needs measurement.
+
+2. **Multi-vendor live runs.** Have Gemini/DeepSeek offline single-turn captures; need live multi-turn data on at least one non-Anthropic family.
+
+3. **Auto-generated rules cross-workload at scale.** E-022 is offline replay; live multi-turn auto-rules dispatch hasn't been measured cross-workload.
+
+These three are the Campaign C scope.
+

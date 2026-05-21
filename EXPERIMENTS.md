@@ -16,6 +16,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 | **E-020** | 2026-05-21 | Pathful-prompt live ablation (system-prompt asks LLM to write full paths) | **Literal-path detection fired ZERO times; LLM writes path templates with placeholders, not concrete paths. Pathful prompt INCREASED rule activations +25% hinted, +100% sparse — complement to rules, not replacement** | `./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
 | **E-020 v4** | 2026-05-21 | Pathful-prompt V4 iteration + logical-prior fix | **V4 prompt produces concrete paths in both regimes; hinted: literal-path dispatch fires successfully; sparse: paths concrete but agent picks Band 01/02 OUTSIDE workspace prior (prior built from constrained task spec)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh {hinted,sparse}_pathful` | _next commit_ |
 | **E-024** | 2026-05-21 | Enrichment precision-tuning ablation (cap-N, pattern, ext) | **`all files` is the only policy with 100% recall in all 3 seeds; cap-N fails because alphabetical sort concentrates one band; stratified sampling identified as future work** | `scripts/microbench/path_b_enrich_ablation.py` | _next commit_ |
+| **E-025** | 2026-05-21 | Per-file vs per-session wall-time gap (analysis of E-023 captures) | **Per-file 10^4x, per-session 1% in 8-turn smoke runs (agent opens only 1 file); projected ~75 min saved per full aiob_107 task; needs task-completing runner for full session ablation** | (analysis only — no new run) | _next commit_ |
 | **E-023** | 2026-05-21 | Multi-seed E-021 (3 reps) stability check | **3/3 seeds: `was_staged=True`; speedup range 6.8k×-25k× (S3 cold latency variance); enrichment structurally reliable** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich_live` ×3 | _next commit_ |
 | **E-022** | 2026-05-21 | Cross-workload auto-rules check (aiob_104 + aiob_110 + aiob_107) | **Auto within 3% of hand on all 3 workloads (-0.2%, -3.0%, 0.0%); L3 genericity exceeded** | `scripts/microbench/path_b_xworkload.py` | _next commit_ |
 | **E-021** | 2026-05-21 | Sparse + V4 pathful + dynamic prior enrichment | **Sparse-mode recall 0% → 100%; realistic wall-time 1.0× → 2,989×; 100 paths added from one list_dir; over-fetch 35× (bandwidth-for-recall trade-off)** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich` | _next commit_ |
@@ -1699,4 +1700,100 @@ resolve it — the smarter policies are real research, not engineering
 tweaks.
 
 **Files**: `outputs/multi_turn/e021_*/enrich_ablation.json`
+
+
+---
+
+## E-025 — End-to-end agentic-loop wall-time vs per-file speedup (2026-05-21)
+
+**Goal**: Distinguish per-file read speedup (what E-010/E-021/E-023 measure)
+from the FULL agent session wall-time speedup (what an end user cares about).
+
+**Reproduction**
+
+```bash
+# No new live run — analyze existing E-023 captures
+~/.local/bin/uv run python3 -c '
+import json
+from pathlib import Path
+for run in sorted(Path("outputs/multi_turn").glob("e021_*_enrich_live_v4_*")):
+    per_turn = []
+    for tdir in sorted(run.glob("turns/turn_*")):
+        s = tdir / "summary.json"
+        if s.exists():
+            d = json.loads(s.read_text())
+            per_turn.append(d.get("duration_ms", 0))
+    summary = json.loads((run / "summary.json").read_text())
+    m = summary.get("measurements", {})
+    total = sum(per_turn)
+    saved = m.get("cold_read_ms", 0) - m.get("hot_read_ms", 0)
+    print(f"{run.name[:50]}: session {total/1000:.1f}s, saved {saved:.0f}ms")
+'
+```
+
+**Results** (3 seeds from E-023)
+
+| Seed | Session wall-time | Time saved (1 read) | **Session-level speedup** | Per-file speedup |
+|---:|---:|---:|---:|---:|
+| 1 | 74.4 s | 1,381 ms | **1.86%** | 25,010× |
+| 2 | 68.9 s | 398 ms | **0.58%** | 7,189× |
+| 3 | 61.4 s | 644 ms | **1.05%** | 6,789× |
+
+**Finding**
+
+The per-file 10⁴× speedup ≠ session-level 10⁴× speedup. The relationship is:
+
+```
+session_speedup_fraction = sum(cold_open_ms - hot_open_ms) / total_session_ms
+```
+
+Where total_session_ms is dominated by LLM inference (8 × ~5-10 s
+per turn). In our 8-turn smoke runs the agent does ~7 list_dir calls
+and ~1 open_file call → 1 read benefiting from staging.
+
+**Two honest measurements coexist**:
+- Per-file end-to-end speedup ≈ 10⁴× (real, in-process)
+- Per-session end-to-end speedup ≈ 0.6%–1.9% (real, our smoke runs)
+
+The session number scales linearly with `n_file_reads` per session.
+For the smoke runs n=1 so the gap is large.
+
+**Projection for full task completion**
+
+If aiob_107's actual task were run end-to-end (~6,042 file reads to
+compute brightness-temperature time series across the dataset):
+
+| Scenario | Estimated wall-time |
+|---|---:|
+| Cold reads only | 6,042 × ~750 ms ≈ **75.5 min of pure I/O** |
+| Hot reads via shim | 6,042 × ~0.06 ms ≈ **0.36 s of pure I/O** |
+| Saved per task | **~75 min** (assuming the LLM-inference portion adds another N seconds either way) |
+
+This is a *projection*, not a measurement. A real session-wall-time
+ablation requires:
+1. A runner that drives the agent through full task completion
+   (currently path_b_multiturn stops at 8 turns of exploration)
+2. A baseline run with the shim disabled or stager turned off
+3. Side-by-side timing
+
+That's a real future experiment — call it E-026 when we have a
+task-completing runner. For now, the paper has:
+- Per-file speedup: measured live (10⁴×)
+- Per-session speedup: measured in smoke runs (1%) + projected
+  for full task (~75 min/task)
+
+**Implication for paper claims**
+
+The paper should report BOTH numbers explicitly to avoid the "what
+does 10⁴× actually mean for a user?" reviewer question. The honest
+framing:
+
+> "Per-file end-to-end read latency reduction is ~10⁴× under both
+> prompt regimes (measured live with the LD_PRELOAD shim active). The
+> session-level wall-time impact scales with the number of file reads
+> the agent performs: a typical aiob_107 task involves ~6,000 file
+> reads, projecting ~75 minutes of saved I/O time per task. Our
+> exploration-heavy smoke runs (8 turns, 1 file read) realize only
+> ~1% session-level speedup; full-task end-to-end timing is future
+> work pending a task-completing runner."
 
