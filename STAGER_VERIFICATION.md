@@ -18,7 +18,7 @@ conversation. Full suite ran in **17.63 s** on a single Ares node.
 
 The stager + LD_PRELOAD shim contract is now validated end-to-end on a
 synthetic workload without any LLM. If the Day-7 manual smoke (T32:
-aiob_107 + Haiku + real DFTracer) fails, it will be for predictor /
+aiob_107 + Haiku + real DFTracer) fails, it will be for detector /
 harness / DFTracer-chain reasons rather than stager bugs.
 
 | Layer | Code | Tests | Status |
@@ -29,7 +29,7 @@ harness / DFTracer-chain reasons rather than stager bugs.
 | L3 integration | `tests/integration/test_end_to_end_staging.py` | 3 (parametrized) | ✓ all pass (with + without dftracer) |
 | L4 DFTracer chain | `tests/test_dftracer_chain.py` | 5 (4 + 1 dfanalyzer-skip) | ✓ all pass |
 | L5 Path 0 replay | `scripts/microbench/path0_run.sh` | 20 distinct files | ✓ 5628× p50 speedup on aiob_107 first-byte |
-| L6 Path A live | `scripts/path_a_run.sh` | 1 Haiku call + measurement | ✓ 195.6× speedup on file predictor staged |
+| L6 Path A live | `scripts/path_a_run.sh` | 1 Haiku call + measurement | ✓ 195.6× speedup on file detector staged |
 | L7 Full-file throughput | `scripts/microbench/path0_walltime_run.sh` | 5 NWB files (aiob_110) | ✓ **32× throughput, 1.92× projected wall-time on 15-turn run** |
 | L8 Throttled cold-tier sweep | `scripts/microbench/path0_throttle_sweep.sh` | 3 files × 4 throttle rates | ✓ **1.72× → 12.30× measured wall-time speedup** (native → 10 MB/s S3-class) |
 | L9 Real S3 cold tier | `scripts/microbench/path0_s3_run.sh` | 5 files via mountpoint-s3 on NOAA bucket | ✓ **2,144× per-file p50; 1.96× wall on small-file aiob_107; ~100× on large-file aiob_110** |
@@ -115,7 +115,7 @@ No subprocess, no shim, no LLM. Runs in **0.46 s**.
 
 | # | Test | What it pins |
 |---|---|---|
-| 1 | `test_prefetch_dispatches_one_stage_per_file` | Dispatch fan-out: N predicted files → N stage tasks |
+| 1 | `test_prefetch_dispatches_one_stage_per_file` | Dispatch fan-out: N detected files → N stage tasks |
 | 2 | `test_prefetch_skips_paths_outside_managed_cold_roots` | Cold-root filter: prefetch silently skips paths outside configured roots |
 | 3 | **`test_stage_is_atomic_under_concurrent_open`** | The atomicity contract (see below) |
 | 4 | `test_re_prefetch_returns_same_future` | Idempotency: re-prefetch returns the existing Future, no second copy |
@@ -123,7 +123,7 @@ No subprocess, no shim, no LLM. Runs in **0.46 s**.
 | 6 | `test_eviction_frees_lru_when_capacity_exceeded` | atime-based LRU sweep on capacity pressure |
 | 7 | `test_eviction_raises_when_freeing_impossible` | Oversize file records `skip_oversize` event, doesn't crash |
 | 8 | `test_in_flight_files_protected_from_eviction` | Files with futures `not done()` are never evicted |
-| 9 | `test_stager_only_sees_predicted_files_not_writes` | Contract test: Stager API has no write-mode methods |
+| 9 | `test_stager_only_sees_detected_files_not_writes` | Contract test: Stager API has no write-mode methods |
 | 10 | `test_staged_file_is_byte_identical_to_source` | sha256 check: hot copy bytes == cold source bytes |
 
 ### The atomicity test (#3)
@@ -196,7 +196,7 @@ exercised it through real `python3` and `cat` processes. Runs in
 
 ### The retry-spin race test (#5)
 
-This test exercises the prediction-race scenario: predictor fires X ms
+This test exercises the detection-race scenario: detector fires X ms
 before the agent's openat, but the stager hasn't finished the copy
 when openat hits. Without retry-spin, the shim would fall through to
 cold. With retry-spin, it should catch the late rename.
@@ -438,7 +438,7 @@ we run the real chain check on Day 5 (T29).
 ## Layer 4 — DFTracer + agentstage shim LD_PRELOAD chain
 
 Added 2026-05-19 (Day 2) — pulled forward from Day 5 to de-risk T32.
-T32 was previously bundling 5 risk factors (LLM thinking → predictor →
+T32 was previously bundling 5 risk factors (LLM thinking → detector →
 stager → shim → DFTracer chain → io_report.json schema) into one test.
 Splitting the DFTracer-specific risk out cleanly was the user's call.
 
@@ -543,7 +543,7 @@ previous milestone). The chain integration adds:
 
 Added 2026-05-19 (Day 2). Cheapest path to a real-data speedup
 number. Replays a recorded PoC stream.jsonl through the frozen v1
-rule library, dispatches the tier-1 prediction to a real Stager
+rule library, dispatches the tier-1 detection to a real Stager
 pointed at the actual `/mnt/common/datasets-staging/.../goes_cmi_composites/`,
 and measures first-read latency on the staged files vs cold.
 
@@ -580,7 +580,7 @@ that don't reflect cold-tier behavior.
 ## Layer 6 — Path A live Haiku smoke
 
 Added 2026-05-20 (Day 2 continued). First measurement against a live
-LLM call on real workload. Validates that streaming → predictor →
+LLM call on real workload. Validates that streaming → detector →
 stager works end-to-end at production rates.
 
 Code: `scripts/path_a_run.sh` invokes
@@ -591,7 +591,7 @@ Code: `scripts/path_a_run.sh` invokes
 | Metric | Value |
 |---|---:|
 | Slack window (live LLM) | **9,131 ms** — matches AGENTSTAGE.md §6.1's 6-14s spec |
-| Predictor rules fired during thinking | 6 (1 tier-1 dispatched + 5 broader filtered out) |
+| Detector rules fired during thinking | 6 (1 tier-1 dispatched + 5 broader filtered out) |
 | Tier-1 file staged | 1 (the file `first_inspect` rule pointed at) |
 | Stage fetch time | 195 ms (well within slack) |
 | Was file ready by tool_use? | ✓ yes (staged 9 s before agent's first tool call) |
@@ -622,7 +622,7 @@ Live cost: ~$0.04 per probe.
 
 5. **First tool_use was `list_dir` exploration**, not direct file open.
    Runner now falls back to first-staged file as measurement target;
-   stager already prefetched the file the predictor's tier-1 rule
+   stager already prefetched the file the detector's tier-1 rule
    pointed at, so the comparison stays valid.
 
 ## Wall-time analysis — per-syscall speedup vs. paper-headline impact
@@ -783,7 +783,7 @@ this layer are the source of truth for the S3-cold-tier case.
    `io.max`, or in-shim mock latency. Confirms the slow-tier
    projection from measured single-file numbers. Half-day of setup.
 3. **PoC Sonnet data re-scored against the live pipeline** — verifies
-   the predictor's rule-firing on PoC streams matches what live Haiku
+   the detector's rule-firing on PoC streams matches what live Haiku
    does today.
 
 ## What remains unverified

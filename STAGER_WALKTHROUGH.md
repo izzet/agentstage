@@ -22,7 +22,7 @@ work?" go to the verification doc. Code lives in
 - [Component-by-component detail](#component-by-component-detail)
   - [1. The LD_PRELOAD shim](#1-the-ld_preload-shim-the-redirect-layer)
   - [2. The stager](#2-the-stager-the-copy-layer)
-  - [3. The client library](#3-the-client-library-where-predictions-come-from)
+  - [3. The client library](#3-the-client-library-where-detections-come-from)
   - [4. Filesystem-as-IPC](#4-filesystem-as-ipc)
 - [What happens in failure cases](#what-happens-in-failure-cases)
 - [Why this design](#why-this-design)
@@ -66,10 +66,10 @@ first read hits local NVMe (~10 µs) instead of cold storage (~100 ms)
   │  ┌──────────────────────────┐                                       │
   │  │  AgentStageClient        │   intercepts SSE stream from LLM      │
   │  │  (wraps anthropic /      │   feeds each thinking_delta chunk     │
-  │  │   openai / google-genai) │   to the predictor                    │
+  │  │   openai / google-genai) │   to the detector                    │
   │  │                          │                                       │
   │  │   ┌─────────────────┐    │                                       │
-  │  │   │   Predictor     │    │                                       │
+  │  │   │   Detector     │    │                                       │
   │  │   │   (rule engine) │    │  fires rules on streaming text,       │
   │  │   │                 │    │  emits DataHint(files, tier, ms)      │
   │  │   └────────┬────────┘    │                                       │
@@ -110,7 +110,7 @@ first read hits local NVMe (~10 µs) instead of cold storage (~100 ms)
 ```
 
 The agent never knows the stager exists. The LLM never knows the
-predictor exists. Both layers are completely transparent.
+detector exists. Both layers are completely transparent.
 
 ## Walkthrough — concrete timeline on aiob_107
 
@@ -126,20 +126,20 @@ T=0      ms   Benchmark harness sends task prompt to LLM via
 T=12     ms   SSE chunk arrives:   {"type":"content_block_start",
                                     "content_block":{"type":"thinking"}}
               AgentStageClient routes the chunk to the caller AND
-              forks a copy to the Predictor.
+              forks a copy to the Detector.
 
 T=20     ms   SSE chunk:   {"type":"thinking_delta","delta":"Let me look "}
 T=24     ms   SSE chunk:   {"type":"thinking_delta","delta":"at the data..."}
 T=180    ms   SSE chunk:   {"type":"thinking_delta","delta":"...6042 NetCDFs"}
-              Predictor's broad_all_files rule fires — emits tier-3 hint
+              Detector's broad_all_files rule fires — emits tier-3 hint
               covering all 6042 paths. Stager starts copying low-priority.
 
 T=1200   ms   SSE chunk:   {"type":"thinking_delta",
                             "delta":"...I'll start by inspecting "
                                     "scene_2024-001-001.nc"}
-              Predictor's first_inspect_goes rule fires.
-              Predictor emits DataHint(
-                  predicted_files=["/cold/.../scene_2024-001-001.nc"],
+              Detector's first_inspect_goes rule fires.
+              Detector emits DataHint(
+                  detected_files=["/cold/.../scene_2024-001-001.nc"],
                   tier=1,
                   fired_at_ms=1200,
                   rule_id="first_inspect_goes",
@@ -161,7 +161,7 @@ T=1262   ms   tmp is fully written. os.rename(tmp, hot_path) — atomic.
               hot_path now exists with full content. Stager records:
                 StageResult(cold_path="...", hot_path="...",
                             size_bytes=3145728, fetch_ms=60.3,
-                            tier=1, t_predicted=1200, t_completed=1261.3)
+                            tier=1, t_detected=1200, t_completed=1261.3)
 
 T=1262   ms onwards   The hot file is ready. AgentStage is now waiting
               for the agent to open it.
@@ -315,8 +315,8 @@ class Stager:
         self._lock = threading.Lock()
 
     def prefetch(self, hint: DataHint):
-        """Non-blocking. Called by the client lib on each predictor firing."""
-        for cold_path in hint.predicted_files:
+        """Non-blocking. Called by the client lib on each detector firing."""
+        for cold_path in hint.detected_files:
             with self._lock:
                 if cold_path in self.in_flight:
                     continue  # already staging or staged
@@ -344,7 +344,7 @@ class Stager:
         return StageResult(
             cold_path=cold_path, hot_path=hot_path, size_bytes=size,
             fetch_ms=elapsed, tier=hint.tier, rule_id=hint.rule_id,
-            t_predicted_ms=hint.fired_at_ms, t_completed_ms=...,
+            t_detected_ms=hint.fired_at_ms, t_completed_ms=...,
         )
 ```
 
@@ -358,10 +358,10 @@ ready?" IPC mechanism.
 
 **Idempotency.** Calling `prefetch(hint)` repeatedly with the same
 `cold_path` is a no-op after the first call — the `in_flight` dict
-tracks pending and completed stages. The predictor can fire the same
+tracks pending and completed stages. The detector can fire the same
 rule on multiple thinking chunks without us double-fetching.
 
-### 3. The client library (where predictions come from)
+### 3. The client library (where detections come from)
 
 The client wraps the LLM SDK (Anthropic / OpenAI / Google / raw HTTP)
 and tees the stream. Pseudocode:
@@ -370,7 +370,7 @@ and tees the stream. Pseudocode:
 class AnthropicClient:
     def __init__(self, api_key, workspace, stager, rule_library_version):
         self._real_client = anthropic.Anthropic(api_key=api_key)
-        self._predictor = Predictor(workspace, rule_library_version)
+        self._detector = Detector(workspace, rule_library_version)
         self._stager = stager
         self._data_hints = []
 
@@ -380,9 +380,9 @@ class AnthropicClient:
             # 1. Tee to the caller — they see the original stream unchanged
             yield event
 
-            # 2. Tee to the predictor
+            # 2. Tee to the detector
             if event.type == "content_block_delta" and event.delta.type == "thinking_delta":
-                hints = self._predictor.feed(event.delta.thinking, event.t_ms)
+                hints = self._detector.feed(event.delta.thinking, event.t_ms)
                 for hint in hints:
                     self._data_hints.append(hint)
                     if self._stager is not None:
@@ -391,7 +391,7 @@ class AnthropicClient:
 
 The key invariant: **the caller's stream is byte-identical to what the
 underlying SDK would have returned.** AgentStage adds zero observable
-behavior to the LLM call from the caller's perspective. Predictor +
+behavior to the LLM call from the caller's perspective. Detector +
 stager work is purely a side effect.
 
 ### 4. Filesystem-as-IPC
@@ -418,9 +418,9 @@ page cache, dominated by the actual openat. Negligible.
 
 ## What happens in failure cases
 
-### Scenario A: Prediction wrong (agent reads different file)
+### Scenario A: Detection wrong (agent reads different file)
 
-Predictor emitted `["scene_001.nc"]`, agent actually opens
+Detector emitted `["scene_001.nc"]`, agent actually opens
 `"scene_002.nc"`.
 
 ```
@@ -434,12 +434,12 @@ T=8580ms   Read completes from cold (60 ms NFS first-byte for 3 MB)
 
 Cost of being wrong: **20 ms retry-spin penalty**. Tier-1 byte
 overfetch increased (we wasted 3 MB on `scene_001.nc`) but didn't break
-correctness. The wrong predicted file sits in the hot tier until LRU
+correctness. The wrong detected file sits in the hot tier until LRU
 eviction.
 
 ### Scenario B: Race (file in flight when openat fires)
 
-Predictor fires 9.99 seconds before tool call. Stager mid-copy when
+Detector fires 9.99 seconds before tool call. Stager mid-copy when
 openat happens.
 
 ```
@@ -534,24 +534,24 @@ stager + 32 GB of scratch space = single-digit-millisecond first-read
 latency on files that would otherwise take 60-500 ms cold.
 
 The cleverness isn't in any one component — it's in keeping the
-components decoupled. The shim doesn't know the predictor exists. The
-predictor doesn't know the shim exists. They synchronize through the
+components decoupled. The shim doesn't know the detector exists. The
+detector doesn't know the shim exists. They synchronize through the
 most boring possible primitive: **a file exists or it doesn't.**
 
 This decoupling buys us:
 
 - **Testability.** Each layer can be tested in isolation: shim with
   hand-placed hot files (no stager); stager with mock cold paths (no
-  shim); predictor with recorded SSE streams (no LLM).
+  shim); detector with recorded SSE streams (no LLM).
 - **Failure isolation.** If the stager crashes, the shim's ENOENT
   fallthrough means the agent still gets correct (slow) reads. If the
-  predictor produces nonsense, the stager just copies useless files —
+  detector produces nonsense, the stager just copies useless files —
   no correctness violation. If the shim has a bug, the agent reads
   cold paths directly. There's no scenario where a component failure
   produces a wrong answer.
 - **Composability.** The HTTP proxy (for SWE-bench-Docker-style
   isolated harnesses) is a thin wrapper around the client library's
-  predictor + stager. Same components, different transport.
+  detector + stager. Same components, different transport.
 - **Reviewer-defensibility.** "Why isn't there a daemon?" — because we
   don't need one. "Why isn't there a custom protocol?" — because we
   don't need one. "What if the stager is slow?" — bounded by the 20 ms
@@ -559,7 +559,7 @@ This decoupling buys us:
   a one-sentence justification.
 
 The bet AgentStage makes is that LLM thinking time is the right slot
-to do this work — that the slack is reliable, that the predictor's
+to do this work — that the slack is reliable, that the detector's
 hit rate is high enough to be useful, and that prestaging from cold to
 local NVMe is the right transformation. The PoC numbers
 (`AGENTSTAGE.md` §6) say yes on all three. The stager is the

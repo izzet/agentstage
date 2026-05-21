@@ -6,7 +6,7 @@ Extends Path A (single-turn smoke) into a real agent loop:
   - feeds tool_results back to the assistant on the next turn
   - records per-turn stream.jsonl, tool_use.jsonl, tool_result.jsonl,
     wall_clock.jsonl in outputs/multi_turn/<run>/turns/turn_NN/
-  - drives the predictor through SessionPredictor (multi-turn stateful)
+  - drives the detector through SessionDetector (multi-turn stateful)
   - the stager + shim engage live as in Path A
 
 Used for:
@@ -39,9 +39,9 @@ from dataclasses import asdict
 from pathlib import Path
 
 from agentstage.client.anthropic import AnthropicClient
-from agentstage.predictor.engine import StreamBlock
-from agentstage.predictor.rules import get_ruleset
-from agentstage.predictor.session import SessionPredictor
+from agentstage.detector.engine import StreamBlock
+from agentstage.detector.rules import get_ruleset
+from agentstage.detector.session import SessionDetector
 from agentstage.stager import DataHint, Stager, StagingReport
 from agentstage.workloads.aiob import (
     load_aiob_107,
@@ -424,17 +424,17 @@ def main() -> int:
         report=report,
     )
 
-    # Set up session predictor (multi-turn, tool_result-aware)
-    session_pred = SessionPredictor(prior=physical_prior, ruleset=ruleset)
+    # Set up session detector (multi-turn, tool_result-aware)
+    session_pred = SessionDetector(prior=physical_prior, ruleset=ruleset)
 
     # Set up live client (we still use AnthropicClient but will manage
     # the conversation ourselves; the AnthropicClient's per-call streaming
-    # predictor only handles single-turn live dispatch — for multi-turn
-    # we tear off the events and run SessionPredictor ourselves.)
+    # detector only handles single-turn live dispatch — for multi-turn
+    # we tear off the events and run SessionDetector ourselves.)
     client = AnthropicClient(
         api_key=api_key,
         base_url=base_url,
-        stager=None,  # session predictor dispatches, not the inline one
+        stager=None,  # session detector dispatches, not the inline one
         workspace_prior=physical_prior,
         ruleset=ruleset,
     )
@@ -574,7 +574,7 @@ def main() -> int:
 
         thinking_text = "".join(thinking_text_parts)
 
-        # Feed this turn's blocks to the session predictor.
+        # Feed this turn's blocks to the session detector.
         # We feed BOTH thinking AND text so multi-turn continuation
         # responses (which often skip thinking and emit visible text)
         # still produce activations.
@@ -601,12 +601,12 @@ def main() -> int:
         # Auto-dispatch tier-1 hints from THIS turn's new activations
         dispatched_this_turn: list[str] = []
         for act in new_acts:
-            n_files = len(set(act.predicted_files))
+            n_files = len(set(act.detected_files))
             tier = 1 if n_files <= 10 else (2 if n_files <= 200 else 3)
             if tier > 1:
                 continue
             hint = DataHint(
-                predicted_files=tuple(act.predicted_files),
+                detected_files=tuple(act.detected_files),
                 tier=tier,
                 fired_at_ms=act.fired_at_ms or 0.0,
                 rule_id=f"turn{turn}:{act.rule_name}",
@@ -642,7 +642,7 @@ def main() -> int:
 
         # Execute tools, collect tool_results
         tool_results_blocks: list[dict] = []
-        tr_blocks_for_predictor: list[StreamBlock] = []
+        tr_blocks_for_detector: list[StreamBlock] = []
         for tu in tool_uses_this_turn:
             result_text = execute_tool(
                 tu["name"], tu["parsed_input"], prefix_map=prefix_map,
@@ -653,7 +653,7 @@ def main() -> int:
                 "tool_use_id": tu["id"],
                 "content": result_text,
             })
-            tr_blocks_for_predictor.append(StreamBlock(
+            tr_blocks_for_detector.append(StreamBlock(
                 type="tool_result",
                 t_first=(time.monotonic() - t0) * 1000,
                 t_stop=(time.monotonic() - t0) * 1000,
@@ -670,16 +670,16 @@ def main() -> int:
         # Append the tool_result message
         messages.append({"role": "user", "content": tool_results_blocks})
 
-        # Feed tool_results to session predictor (these stamp turn=current_turn)
-        tr_acts = session_pred.feed_tool_results(tr_blocks_for_predictor)
+        # Feed tool_results to session detector (these stamp turn=current_turn)
+        tr_acts = session_pred.feed_tool_results(tr_blocks_for_detector)
         # Dispatch new tier-1 hints from tool_result activations as well
         for act in tr_acts:
-            n_files = len(set(act.predicted_files))
+            n_files = len(set(act.detected_files))
             tier = 1 if n_files <= 10 else (2 if n_files <= 200 else 3)
             if tier > 1:
                 continue
             hint = DataHint(
-                predicted_files=tuple(act.predicted_files),
+                detected_files=tuple(act.detected_files),
                 tier=tier,
                 fired_at_ms=act.fired_at_ms or 0.0,
                 rule_id=f"turn{turn}_tr:{act.rule_name}",
@@ -714,7 +714,7 @@ def main() -> int:
         print(f"  target was_staged at end of run: {was_staged}", file=sys.stderr)
         if not was_staged:
             futures = stager.prefetch(DataHint(
-                predicted_files=(first_target_physical,),
+                detected_files=(first_target_physical,),
                 tier=1,
                 fired_at_ms=0.0,
                 rule_id="force",
@@ -781,7 +781,7 @@ def main() -> int:
                 "source": a.source,
                 "turn": a.turn,
                 "fired_at_ms": a.fired_at_ms,
-                "n_predicted_files": len(a.predicted_files),
+                "n_detected_files": len(a.detected_files),
             }
             for a in session_pred.activations
         ],

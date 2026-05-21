@@ -39,7 +39,7 @@ uv run pytest paper_evals/ \
 |---|---|---|---|
 | `test_h1_slack.py` | Reasoning slack windows are large and reliable | C1, C6 | §3, §6.1 |
 | `test_h2_intent.py` | Streaming thinking reveals file-access intent | C2, C5 | §3, §6.5 |
-| `test_h3_predictability.py` | Tiered predictor achieves ≥0.85 byte recall, ≤1.5× overfetch | C2, C3 (headline) | §3, §6.2 |
+| `test_h3_predictability.py` | Tiered detector achieves ≥0.85 byte recall, ≤1.5× overfetch | C2, C3 (headline) | §3, §6.2 |
 | `test_h4_tiering.py` | Tiering survives the worst-case workload (6042 files) | C2/C3 case | §6.3 |
 | `test_h5_planning_prompts.py` | Planning prompts give 2–10× slack multiplier | C6 | §6, §7.1 |
 | `test_h6_frozen_rules_crosscorpus.py` | Frozen rules transfer to SAB + SWE-bench Lite | L2 genericity (E9, E10) | §11.6 |
@@ -86,7 +86,7 @@ Trace-only run directory layout (one per seed, under `--trace-root`):
 <timestamp>_<task>_<model>_<turn>_<budget>_<prompt-variant>_s<seed>/
 ├── stream.jsonl          # raw SSE events, t_ms relative to urlopen start
 ├── summary.json          # block-level timing (first-thinking, first-tool, ...)
-├── prediction.json       # per-rule activations + tier outputs
+├── detection.json       # per-rule activations + tier outputs
 └── byte_metrics.json     # per-tier byte recall + overfetch
 ```
 

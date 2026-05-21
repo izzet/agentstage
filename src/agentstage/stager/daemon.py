@@ -75,10 +75,10 @@ class Stager:
     # -----------------------------------------------------------------
 
     def prefetch(self, hint: DataHint) -> list[Future]:
-        """Submit copy jobs for each predicted file. Returns Futures so
+        """Submit copy jobs for each detected file. Returns Futures so
         callers can wait() in tests; production callers fire-and-forget."""
         futures: list[Future] = []
-        for cold_path in hint.predicted_files:
+        for cold_path in hint.detected_files:
             f = self._submit_one(cold_path, hint)
             if f is not None:
                 futures.append(f)
@@ -148,7 +148,7 @@ class Stager:
                 fetch_ms=0.0,
                 tier=hint.tier,
                 rule_id=hint.rule_id,
-                t_predicted_ms=hint.fired_at_ms,
+                t_detected_ms=hint.fired_at_ms,
                 t_completed_ms=t_completed(),
                 outcome="hit",
             )
@@ -168,7 +168,7 @@ class Stager:
                 fetch_ms=0.0,
                 tier=hint.tier,
                 rule_id=hint.rule_id,
-                t_predicted_ms=hint.fired_at_ms,
+                t_detected_ms=hint.fired_at_ms,
                 t_completed_ms=t_completed(),
                 outcome="skip_oversize",
                 error=f"file size {size} > capacity {self.capacity_bytes}",
@@ -205,7 +205,7 @@ class Stager:
             fetch_ms=fetch_ms,
             tier=hint.tier,
             rule_id=hint.rule_id,
-            t_predicted_ms=hint.fired_at_ms,
+            t_detected_ms=hint.fired_at_ms,
             t_completed_ms=t_completed(),
             outcome="staged",
         )
@@ -226,7 +226,7 @@ class Stager:
             fetch_ms=0.0,
             tier=hint.tier,
             rule_id=hint.rule_id,
-            t_predicted_ms=hint.fired_at_ms,
+            t_detected_ms=hint.fired_at_ms,
             t_completed_ms=now_ms(),
             outcome="error",
             error=f"{type(exc).__name__}: {exc}",

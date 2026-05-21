@@ -1,15 +1,15 @@
-"""Path B replay — run different predictor configurations against a
+"""Path B replay — run different detector configurations against a
 captured multi-turn corpus.
 
 For each captured run under outputs/multi_turn/<exp>/turns/turn_NN/, we
 have stream.jsonl (events), tool_use.jsonl, tool_result.jsonl, and
 thinking.txt. We reconstruct the StreamBlock list and run it through
-four predictor variants:
+four detector variants:
 
   A. thinking_only          — old behavior (text/tool_result ignored)
   B. thinking+tool_result   — engine.py extension, no session state
   C. thinking+text+tool_result    — full extension, single-shot
-  D. session                — full extension via SessionPredictor (multi-turn deltas)
+  D. session                — full extension via SessionDetector (multi-turn deltas)
 
 Outputs a comparison table per run. Used for E-012 and E-013.
 """
@@ -20,13 +20,13 @@ import argparse
 import json
 from pathlib import Path
 
-from agentstage.predictor.engine import (
+from agentstage.detector.engine import (
     RuleActivation,
     StreamBlock,
-    run_predictor,
+    run_detector,
 )
-from agentstage.predictor.rules import get_ruleset
-from agentstage.predictor.session import SessionPredictor
+from agentstage.detector.rules import get_ruleset
+from agentstage.detector.session import SessionDetector
 from agentstage.workloads.aiob import (
     load_aiob_107,
     load_aiob_107_s3,
@@ -176,19 +176,19 @@ def main() -> int:
 
     # Variant A: thinking only (legacy behavior)
     A_blocks = filter_blocks(blocks, include_text=False, include_tool_result=False)
-    A_pred = run_predictor(A_blocks, prior, ruleset)
+    A_pred = run_detector(A_blocks, prior, ruleset)
 
     # Variant B: thinking + tool_result (no text)
     B_blocks = filter_blocks(blocks, include_text=False, include_tool_result=True)
-    B_pred = run_predictor(B_blocks, prior, ruleset)
+    B_pred = run_detector(B_blocks, prior, ruleset)
 
     # Variant C: thinking + text + tool_result (full)
     C_blocks = filter_blocks(blocks, include_text=True, include_tool_result=True)
-    C_pred = run_predictor(C_blocks, prior, ruleset)
+    C_pred = run_detector(C_blocks, prior, ruleset)
 
-    # Variant D: SessionPredictor — feed each turn separately to confirm
+    # Variant D: SessionDetector — feed each turn separately to confirm
     # delta tracking works and produces the same total activation set.
-    sp = SessionPredictor(prior=prior, ruleset=ruleset)
+    sp = SessionDetector(prior=prior, ruleset=ruleset)
     # Bucket the blocks by turn for streaming-style feed
     blocks_by_turn: dict[int, list[StreamBlock]] = {}
     for b in blocks:
@@ -202,7 +202,7 @@ def main() -> int:
             sp.feed_turn(assistant)
         if tool_results:
             sp.feed_tool_results(tool_results)
-    D_pred = sp.cumulative_prediction()
+    D_pred = sp.cumulative_detection()
 
     result = {
         "corpus": str(args.corpus),
@@ -216,7 +216,7 @@ def main() -> int:
             "A_thinking_only": summarize(list(A_pred.activations)),
             "B_thinking_plus_tool_result": summarize(list(B_pred.activations)),
             "C_full": summarize(list(C_pred.activations)),
-            "D_session_predictor": summarize(list(D_pred.activations)),
+            "D_session_detector": summarize(list(D_pred.activations)),
         },
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)

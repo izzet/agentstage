@@ -1,4 +1,4 @@
-# Diagrams — I/O leakage audit, multi-turn predictor, Regime A vs B
+# Diagrams — I/O leakage audit, multi-turn detector, Regime A vs B
 
 Visual companion to [`IO_LEAKAGE_AUDIT.md`](IO_LEAKAGE_AUDIT.md) and the
 E-011 — E-015 entries in [`EXPERIMENTS.md`](EXPERIMENTS.md). Each
@@ -9,7 +9,7 @@ inherit the same conceptual layout.
 
 ## 1. The two-regime comparison (central finding)
 
-Shows why the predictor "wins" in hinted mode and "misses" in sparse
+Shows why the detector "wins" in hinted mode and "misses" in sparse
 mode — the rule library is static, but the agent's file choice depends
 on what the prompt told it.
 
@@ -71,7 +71,7 @@ on what the prompt told it.
                               └────── MISS! prefetch wasted ─┘
 ```
 
-**Reading**: the architecture (predictor → stager → shim) is identical in
+**Reading**: the architecture (detector → stager → shim) is identical in
 both regimes. What differs is whether the agent's file choice aligns with
 the rule library's hard-coded targets. The audit's finding is **not that
 the architecture fails** — it's that the *rule library* is brittle to
@@ -79,9 +79,9 @@ prompt sparsity.
 
 ---
 
-## 2. Multi-turn loop with prediction firing points
+## 2. Multi-turn loop with detection firing points
 
-Shows where in a real agent session the predictor catches I/O signal.
+Shows where in a real agent session the detector catches I/O signal.
 Built from the E-011 / E-014 / E-015 captures.
 
 ```
@@ -129,15 +129,15 @@ Built from the E-011 / E-014 / E-015 captures.
 **Reading**: an agent's I/O-relevant tokens don't all live in turn-0
 thinking. In hinted mode they happen to; in sparse mode the agent
 discovers them via `list_dir` and surfaces them via `tool_result`
-content and visible `text`. Without scanning those, the predictor is
+content and visible `text`. Without scanning those, the detector is
 deaf to most of the session.
 
 ---
 
-## 3. The four predictor variants (E-012 / E-013)
+## 3. The four detector variants (E-012 / E-013)
 
 The replay study isolates the contribution of each architectural change
-by running the same captured corpus through 4 predictor configurations.
+by running the same captured corpus through 4 detector configurations.
 
 ```
                           INPUT: same captured multi-turn corpus
@@ -207,7 +207,7 @@ Reference diagram for the paper's system section.
    ┌────────────────────────────────────────────────────────────────────┐
    │            AnthropicClient.stream() / StreamingResponse             │
    │   (src/agentstage/client/anthropic.py)                              │
-   │   - tees thinking_delta chunks to predictor                         │
+   │   - tees thinking_delta chunks to detector                         │
    │   - records tool_use args                                           │
    └──────────────────────────────┬─────────────────────────────────────┘
                                   │
@@ -215,7 +215,7 @@ Reference diagram for the paper's system section.
               │                   │                   │
               ▼                   ▼                   ▼
    ┌─────────────────┐ ┌────────────────────┐ ┌─────────────────┐
-   │ SessionPredictor│ │  Tool execution    │ │ Per-turn        │
+   │ SessionDetector│ │  Tool execution    │ │ Per-turn        │
    │ (multi-turn)    │ │  (list_dir,        │ │ recorder        │
    │                 │ │   open_file)       │ │ → stream.jsonl  │
    │ scans:          │ │                    │ │ → tool_use.jsonl│
@@ -265,7 +265,7 @@ Reference diagram for the paper's system section.
 **Reading**: the data plane (right side) operates by filesystem-as-IPC.
 The stager places a file at `hot_root/<canonical_path>`; the shim
 intercepts the agent's `open()` and rewrites it to the hot copy if
-present. The control plane (left side) is the predictor extracting
+present. The control plane (left side) is the detector extracting
 intent from the LLM stream and emitting `DataHint`s to the stager.
 
 ---
@@ -303,7 +303,7 @@ forward-work that fixes it.
             │                 │
    First-turn dispatch:       │
             ▼                 ▼
-        Band 08 ✓         Band 08 ✓     ◄── predictor predicts SAME file
+        Band 08 ✓         Band 08 ✓     ◄── detector detects SAME file
             │                 │              in both regimes (static rules)
             │                 │
    ════════════════════ DIVERGENCE ════════════════════
@@ -325,7 +325,7 @@ forward-work that fixes it.
    │  Root cause: rule library was hand-tuned on hinted prompts. │
    │              Static targets don't adapt to agent behavior.  │
    │                                                              │
-   │  Fix path:   learned predictor (AGENTSTAGE.md §12 future    │
+   │  Fix path:   learned detector (AGENTSTAGE.md §12 future    │
    │              work) trained on (thinking, tool_result,       │
    │              accessed-file) tuples from multi-turn corpora. │
    └─────────────────────────────────────────────────────────────┘
@@ -333,6 +333,6 @@ forward-work that fixes it.
 
 **Reading**: this is the threats-to-validity diagram. The architecture
 isn't broken; the static rule library is. Future work — learned
-predictor — fixes this by adapting targets from observed
+detector — fixes this by adapting targets from observed
 (thinking, tool_result, accessed-file) tuples. Our multi-turn
 capture corpus (E-011 / E-014 / E-015) is the training set.

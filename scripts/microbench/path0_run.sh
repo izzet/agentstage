@@ -67,8 +67,8 @@ import json
 b = json.load(open("$OUTDIR/baseline.json"))
 w = json.load(open("$OUTDIR/with_stager.json"))
 
-print(f"  Tier-1 predicted:      {b['n_tier1_files_predicted']}")
-print(f"  Tier-3 predicted:      {b['n_tier3_files_predicted']}")
+print(f"  Tier-1 detected:      {b['n_tier1_files_detected']}")
+print(f"  Tier-3 detected:      {b['n_tier3_files_detected']}")
 print(f"  Distinct files sampled:{b['n_samples_measured']}")
 print(f"  Total samples:         {b['aggregate']['n_samples']}")
 print()

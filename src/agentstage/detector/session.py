@@ -1,7 +1,7 @@
-"""SessionPredictor — multi-turn stateful predictor wrapper.
+"""SessionDetector — multi-turn stateful detector wrapper.
 
-Single-turn `run_predictor` (engine.py) scans a flat list of blocks and
-returns a Prediction snapshot. For multi-turn agent sessions we need:
+Single-turn `run_detector` (engine.py) scans a flat list of blocks and
+returns a Detection snapshot. For multi-turn agent sessions we need:
 
   - Activations accumulated across turns (turn-2 thinking may complete
     a pattern that turn-1 partially matched, etc.)
@@ -11,12 +11,12 @@ returns a Prediction snapshot. For multi-turn agent sessions we need:
     each activation, for the threats-to-validity analysis in the paper.
 
 Usage:
-    session = SessionPredictor(prior=workload.workspace_prior, ruleset=ruleset)
+    session = SessionDetector(prior=workload.workspace_prior, ruleset=ruleset)
 
     # Turn 1
     new_acts_1 = session.feed_turn(blocks_turn1)  # thinking + (maybe) tool_use
     for act in new_acts_1:
-        if _tier_for_size(len(act.predicted_files)) == 1:
+        if _tier_for_size(len(act.detected_files)) == 1:
             stager.prefetch(DataHint(...))
 
     # Between turns: tool execution happens, results captured
@@ -25,32 +25,32 @@ Usage:
     # Turn 2
     new_acts_2 = session.feed_turn(blocks_turn2)
 
-    # At any time, the cumulative prediction is available via:
-    session.cumulative_prediction()
+    # At any time, the cumulative detection is available via:
+    session.cumulative_detection()
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from agentstage.predictor.engine import (
-    Prediction,
+from agentstage.detector.engine import (
+    Detection,
     RuleActivation,
     StreamBlock,
     _tier_for_size,
-    run_predictor,
+    run_detector,
 )
-from agentstage.predictor.rules import RuleSet
+from agentstage.detector.rules import RuleSet
 
 
 @dataclass
-class SessionPredictor:
-    """Stateful multi-turn predictor.
+class SessionDetector:
+    """Stateful multi-turn detector.
 
     Maintains:
       - `all_blocks`: chronological list of all StreamBlocks fed so far
         (thinking + tool_result; we ignore "text" and "tool_use" because
-        run_predictor never scanned them)
+        run_detector never scanned them)
       - `activations`: cumulative list of RuleActivation across turns
       - `fired_rule_names`: set of already-fired rule names (so feed_*
         returns only deltas)
@@ -71,7 +71,7 @@ class SessionPredictor:
         stamp it with `self.current_turn`.
 
         Returns the list of activations that fired due to this call,
-        with `turn` and `source` already populated by run_predictor.
+        with `turn` and `source` already populated by run_detector.
         """
         stamped: list[StreamBlock] = []
         for b in new_blocks:
@@ -86,10 +86,10 @@ class SessionPredictor:
                 stamped.append(b)
         self.all_blocks.extend(stamped)
 
-        # Re-run the predictor on the full accumulated block list. This
+        # Re-run the detector on the full accumulated block list. This
         # is O(N · M) per call where N = total text so far, M = rules.
         # For ≤ 50 KB total text and ~100 rules this is sub-millisecond.
-        pred = run_predictor(self.all_blocks, self.prior, self.ruleset)
+        pred = run_detector(self.all_blocks, self.prior, self.ruleset)
 
         # Diff against already-fired rules to find what's new
         new_acts: list[RuleActivation] = []
@@ -134,19 +134,19 @@ class SessionPredictor:
         ]
         return self.feed_blocks(marked)
 
-    def cumulative_prediction(self) -> Prediction:
-        """Return a Prediction snapshot for all blocks seen so far."""
-        return run_predictor(self.all_blocks, self.prior, self.ruleset)
+    def cumulative_detection(self) -> Detection:
+        """Return a Detection snapshot for all blocks seen so far."""
+        return run_detector(self.all_blocks, self.prior, self.ruleset)
 
     def tier1_activations(self) -> list[RuleActivation]:
         """Convenience: filter activations to those producing a tier-1
-        prediction (≤ 10 files). These are the ones we'd auto-dispatch
+        detection (≤ 10 files). These are the ones we'd auto-dispatch
         to the stager."""
         return [
             a for a in self.activations
-            if _tier_for_size(len(set(a.predicted_files))) == 1
+            if _tier_for_size(len(set(a.detected_files))) == 1
         ]
 
 
 # Re-export for type-checking convenience
-__all__ = ["SessionPredictor"]
+__all__ = ["SessionDetector"]

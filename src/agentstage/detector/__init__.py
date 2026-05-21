@@ -1,7 +1,7 @@
-"""AgentStage's intent predictor: turns streaming thinking text into a
-tiered file working-set prediction.
+"""AgentStage's intent detector: turns streaming thinking text into a
+tiered file working-set detection.
 
-The predictor is composed of three layers (per AGENTSTAGE.md §4.2):
+The detector is composed of three layers (per AGENTSTAGE.md §4.2):
 
 1. Workspace prior — files known to exist at the agent's current point
    in the task (loaded per-workload from `agentstage.workloads`).
@@ -16,7 +16,7 @@ The rule library is FROZEN — see `RULE_LIBRARY_VERSION` and
 `tests/test_rules_freeze.py`.
 """
 
-from agentstage.predictor.rules import (
+from agentstage.detector.rules import (
     AIOB_104_SAMPLES,
     AIOB_110_SUBJECTS,
     ALL_RULESETS,

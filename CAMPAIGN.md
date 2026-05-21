@@ -14,7 +14,7 @@ under what protocol, and at what cost.
   decisions below; the rest is re-run buffer.
 - **Client-library-primary architecture.** `src/agentstage/client/`
   provides drop-in `AnthropicClient`, `OpenAIClient`, `GeminiClient` that
-  wrap the underlying SDKs, intercept streaming events, run the predictor,
+  wrap the underlying SDKs, intercept streaming events, run the detector,
   dispatch prefetch to the stager, and optionally return `DataHint`
   objects to the caller. The HTTP proxy becomes a thin wrapper around the
   client lib for non-Python harnesses (e.g. SWE-bench in Docker).
@@ -58,7 +58,7 @@ sample). The OSS slot replaces OpenRouter-DeepSeek at zero marginal cost.
 
 The PoC corpus, now at `outputs/poc/`, is **not discarded.** Three uses:
 
-1. **Re-score against the frozen rule library** (E2): re-run the predictor
+1. **Re-score against the frozen rule library** (E2): re-run the detector
    over the existing 88 `stream.jsonl` files using the frozen rules. No
    LLM calls; cheap. PoC traces are just another set of output dirs under
    `--outputs-root outputs/`; the Campaign indexer treats them like any
@@ -82,7 +82,7 @@ outputs/
 ├── <task>_<model>_<config>_s<seed>/
 │   ├── stream.jsonl           # raw SSE events (trace + end-to-end)
 │   ├── summary.json           # block-level timing
-│   ├── prediction.json        # per-rule activations + tier outputs
+│   ├── detection.json        # per-rule activations + tier outputs
 │   ├── byte_metrics.json      # per-tier byte recall + overfetch
 │   ├── cost.json              # input/thinking/output tokens + USD spend
 │   ├── verdict.json           # end-to-end only: trajectory, cache temperature, validator outcome
@@ -96,7 +96,7 @@ for an end-to-end run with stager at 50 MB/s cold-tier bandwidth.
 
 ## Campaign A — Trace-only single-turn probes (Days 1-4)
 
-Single-turn LLM calls to characterize slack + predictor accuracy. Runs via
+Single-turn LLM calls to characterize slack + detector accuracy. Runs via
 `agentstage.client.AnthropicClient` etc. in `--trace-only` mode (no stager,
 no real workspace I/O). Cold cache not required (no agent file reads).
 
@@ -119,7 +119,7 @@ no real workspace I/O). Cold cache not required (no agent file reads).
 ## Campaign B — End-to-end multi-turn runs (Days 5-10)
 
 Full agent runs through `AgentStageClient` + stager + path-rewriting shim.
-Each run executes the workload's task; predictor and stager run live.
+Each run executes the workload's task; detector and stager run live.
 
 ### Per-run protocol
 
@@ -180,7 +180,7 @@ An end-to-end cell (Campaign B) is **done** when:
 ### Sample-thinness gate
 
 Drop any end-to-end run from analysis where `len(trajectory) < 3`. Too
-thin a sample to score the working-set predictor against.
+thin a sample to score the working-set detector against.
 
 ## Cold cache + temperature logging
 
@@ -248,8 +248,8 @@ expected to be small (e.g. one-line answers).
 The empirical-GT join (E2 re-score) is implemented in
 `src/agentstage/metrics/empirical_gt.py`: reads `io_report.json`, extracts
 files with `posix_count_sum > 0` and `posix_read_size_sum > 0` from
-`file_name_view[*]`, intersects with the predictor's tiered predicted set
-from `prediction.json`.
+`file_name_view[*]`, intersects with the detector's tiered detected set
+from `detection.json`.
 
 ## OSS model setup (Day 2) — via NCSA Delta, not Ares
 
@@ -314,7 +314,7 @@ Important client-side implication: vLLM's `--reasoning-parser` extends the
 OpenAI-compatible API with a `delta.reasoning_content` field separate from
 `delta.content` in streaming chunks. `src/agentstage/client/openai.py` (and
 `client/http.py` for the urllib path) must read both fields and feed
-`reasoning_content` to the predictor as the thinking stream. Documented in
+`reasoning_content` to the detector as the thinking stream. Documented in
 T19 and T22.
 
 ## Client library architecture
@@ -335,13 +335,13 @@ client = AnthropicClient(
 response = client.messages.create(model="claude-haiku-4-5", ..., stream=True)
 for chunk in response:
     # caller sees stream identical to direct SDK; AgentStage tees
-    # internally to the predictor + stager
+    # internally to the detector + stager
     ...
 
 # Optional: pull hints back
 for hint in client.last_data_hints():
-    # hint = DataHint(predicted_files, tier, fired_at_ms, rule_id, byte_estimate)
-    log.info(f"Prestaged tier-{hint.tier}: {len(hint.predicted_files)} files")
+    # hint = DataHint(detected_files, tier, fired_at_ms, rule_id, byte_estimate)
+    log.info(f"Prestaged tier-{hint.tier}: {len(hint.detected_files)} files")
 ```
 
 Three client implementations (Day 3-4):
@@ -352,7 +352,7 @@ Three client implementations (Day 3-4):
   bypasses the SDK for benchmark environments where it isn't installed
 
 The proxy (`src/agentstage/proxy/server.py`) becomes a thin HTTP wrapper
-around the client library. Same predictor + stager; just exposed over
+around the client library. Same detector + stager; just exposed over
 HTTP for non-Python harnesses (e.g. SWE-bench in Docker, future external
 research agents). **Lower priority than the client lib.**
 
@@ -428,12 +428,12 @@ through E-017. This section sizes the **paper-grade** ablation suite.
 For every (model, workload, regime) triple, we record four numbers:
 
 1. **Activation count by source** — how many rules fire, attributed to
-   `thinking` / `text` / `tool_result` (predictor-extension contribution)
+   `thinking` / `text` / `tool_result` (detector-extension contribution)
 2. **Precision / recall / Jaccard** — false-positive rate on prefetched
    files (E-016 methodology)
 3. **Oracle vs. realistic wall-time** — what the architecture *could*
    save vs. what this run *did* save (E-017 methodology)
-4. **Slack-window utilization** — did the predictor's first-turn hint
+4. **Slack-window utilization** — did the detector's first-turn hint
    land inside the agent's thinking-to-first-tool slack? (yes/no)
 
 ### Per-cell protocol
@@ -482,7 +482,7 @@ safe given each cell only burns ~$0.30.
 
 **Established by smoke** (and need only confirmation, not novelty):
 - The architecture works end-to-end (E-010, E-015 confirm shim + stager + multi-turn agent all compose)
-- The multi-turn predictor extensions (`tool_result`-aware + `text`-aware) lift activation count by +100% to +300% over thinking-only
+- The multi-turn detector extensions (`tool_result`-aware + `text`-aware) lift activation count by +100% to +300% over thinking-only
 - Hinted-vs-sparse regime separation produces a measurable behavior delta (E-016: 100% vs 0% Jaccard; E-017: 3886× vs 1.0× realized wall-time)
 
 **NOT established by smoke** (needs full Campaign C):
@@ -505,7 +505,7 @@ A Campaign C cell is **done** when:
 - All planned seeds produced a captured corpus under `outputs/multi_turn/`
 - `falsepos.json` written per corpus (precision, recall, Jaccard)
 - `walltime_replay.json` written per corpus (oracle, realistic speedup)
-- `replay_variants.json` written per corpus (predictor-extension lift)
+- `replay_variants.json` written per corpus (detector-extension lift)
 - The per-model, per-workload, per-regime aggregate is written to
   `outputs/campaign_c/<model>_<workload>_<regime>_aggregate.json`
 

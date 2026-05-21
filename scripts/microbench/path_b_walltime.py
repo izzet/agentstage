@@ -16,11 +16,11 @@ Computes:
   - Per-file breakdown
 
 Distinguishes two "hot" scenarios:
-  - ORACLE: every file the agent opened is treated as if the predictor
+  - ORACLE: every file the agent opened is treated as if the detector
     had pre-staged it. Upper bound on the speedup that perfect
-    prediction would yield.
-  - REALISTIC: only files the predictor ACTUALLY pre-staged in this
-    run get hot reads; predictor-misses still pay cold cost. Honest
+    detection would yield.
+  - REALISTIC: only files the detector ACTUALLY pre-staged in this
+    run get hot reads; detector-misses still pay cold cost. Honest
     speedup for this particular run.
 
 Reads each file's first 4 KB (sufficient to expose page-cache vs.
@@ -88,8 +88,8 @@ def collect_opened_paths(
     return ordered
 
 
-def collect_predictor_staged(staging_report_path: Path) -> set[str]:
-    """Files the predictor ACTUALLY staged (rule_id != 'force' / 'path_a_force')."""
+def collect_detector_staged(staging_report_path: Path) -> set[str]:
+    """Files the detector ACTUALLY staged (rule_id != 'force' / 'path_a_force')."""
     if not staging_report_path.exists():
         return set()
     data = json.loads(staging_report_path.read_text())
@@ -157,7 +157,7 @@ def main() -> int:
     prefix_map = workload.prefix_map
 
     opened = collect_opened_paths(args.corpus, prefix_map, args.cold_root)
-    predictor_staged = collect_predictor_staged(
+    detector_staged = collect_detector_staged(
         args.corpus / "staging_report.json")
 
     if not opened:
@@ -166,7 +166,7 @@ def main() -> int:
 
     print(f"Corpus: {args.corpus}")
     print(f"  Agent opened {len(opened)} distinct file(s)")
-    print(f"  Predictor staged {len(predictor_staged)} distinct file(s) (excl. force)")
+    print(f"  Detector staged {len(detector_staged)} distinct file(s) (excl. force)")
 
     # Set up a stager for the ORACLE scenario (pre-stage every opened file)
     hot_root = Path(os.environ.get("AGENTSTAGE_HOT_ROOT",
@@ -180,10 +180,10 @@ def main() -> int:
         capacity_bytes=64 * 1024**3,
     )
 
-    # Pre-stage every opened file (for ORACLE) — predictor_staged ⊆ this set
+    # Pre-stage every opened file (for ORACLE) — detector_staged ⊆ this set
     print(f"  Pre-staging {len(opened)} file(s) for ORACLE scenario...")
     futures = stager.prefetch(DataHint(
-        predicted_files=tuple(opened),
+        detected_files=tuple(opened),
         tier=1, fired_at_ms=0.0, rule_id="walltime_oracle",
     ))
     for f in futures:
@@ -191,13 +191,13 @@ def main() -> int:
 
     per_file: list[dict] = []
     cold_total_ms = 0.0
-    realistic_total_ms = 0.0  # cold for files predictor missed, hot for files staged
+    realistic_total_ms = 0.0  # cold for files detector missed, hot for files staged
     oracle_total_ms = 0.0     # hot for everything
 
     for phys in opened:
         size = Path(phys).stat().st_size
         cold_ms = measure_cold_via_subprocess(phys)
-        # Hot read (file is staged for ORACLE, and may or may not be for predictor)
+        # Hot read (file is staged for ORACLE, and may or may not be for detector)
         hot_ms = measure_hot_via_shim(phys)
         per_file.append({
             "path": phys,
@@ -205,11 +205,11 @@ def main() -> int:
             "cold_ms": round(cold_ms, 3),
             "hot_ms": round(hot_ms, 3),
             "speedup_per_file": round(cold_ms / hot_ms, 1) if hot_ms > 0 else None,
-            "was_predictor_staged": phys in predictor_staged,
+            "was_detector_staged": phys in detector_staged,
         })
         cold_total_ms += cold_ms
         oracle_total_ms += hot_ms
-        if phys in predictor_staged:
+        if phys in detector_staged:
             realistic_total_ms += hot_ms
         else:
             realistic_total_ms += cold_ms
@@ -221,7 +221,7 @@ def main() -> int:
         "corpus": str(args.corpus),
         "workload": args.workload,
         "n_files_opened": len(opened),
-        "n_files_predictor_staged": len(predictor_staged & set(opened)),
+        "n_files_detector_staged": len(detector_staged & set(opened)),
         "cold_total_ms": round(cold_total_ms, 3),
         "oracle_total_ms": round(oracle_total_ms, 3),
         "realistic_total_ms": round(realistic_total_ms, 3),
@@ -237,9 +237,9 @@ def main() -> int:
     print()
     print(f"  COLD total:       {cold_total_ms:.1f} ms  ({len(opened)} reads)")
     print(f"  HOT/ORACLE total: {oracle_total_ms:.3f} ms  "
-          f"({speedup_oracle:.0f}× speedup if predictor were perfect)")
+          f"({speedup_oracle:.0f}× speedup if detector were perfect)")
     print(f"  HOT/REALISTIC:    {realistic_total_ms:.3f} ms  "
-          f"({speedup_realistic:.1f}× speedup with actual predictor staging)")
+          f"({speedup_realistic:.1f}× speedup with actual detector staging)")
     print(f"  Oracle savings:   {cold_total_ms - oracle_total_ms:.1f} ms")
     print(f"  Realistic save:   {cold_total_ms - realistic_total_ms:.1f} ms")
     print(f"\nWrote {args.out}")

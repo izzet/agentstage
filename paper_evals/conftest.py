@@ -6,7 +6,7 @@ the evaluations from §11.5 (E1-E11) against captured data.
 
 Two campaign types feed this suite:
   - trace-only campaigns: 88+ streaming probes living under --trace-root,
-    each with stream.jsonl + summary.json + prediction.json + byte_metrics.json
+    each with stream.jsonl + summary.json + detection.json + byte_metrics.json
   - end-to-end staging campaigns: future Ares-testbed runs living under
     --staging-root, each with staging_report.json + io_report.json
 

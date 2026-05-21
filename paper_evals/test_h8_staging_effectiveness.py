@@ -1,6 +1,6 @@
 """H8: End-to-end staging materially reduces per-tool first-read latency.
 
-With the full proxy + predictor + stager running, per-tool-call first-read
+With the full proxy + detector + stager running, per-tool-call first-read
 P95 latency on file-I/O-bound scientific agent workloads is reduced by ≥ 2×
 versus the no-prestaging baseline at S3-class cold-tier bandwidth.
 

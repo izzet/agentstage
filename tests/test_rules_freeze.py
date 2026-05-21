@@ -13,7 +13,7 @@ paper_evals test `test_h6_frozen_rules_crosscorpus.py` consumes
 the bytes underneath that version string.
 
 To bump deliberately:
-  1. Edit `src/agentstage/predictor/rules.py`.
+  1. Edit `src/agentstage/detector/rules.py`.
   2. Bump `RULE_LIBRARY_VERSION` (e.g. v1 → v2).
   3. Run this test, copy the new hash from the failure message.
   4. Update `EXPECTED_HASH` and `EXPECTED_VERSION` below.
@@ -23,7 +23,7 @@ To bump deliberately:
 
 from __future__ import annotations
 
-from agentstage.predictor import (
+from agentstage.detector import (
     ALL_RULESETS,
     RULE_LIBRARY_HASH,
     RULE_LIBRARY_VERSION,
@@ -78,7 +78,7 @@ def test_rule_library_hash_pinned():
         f"  expected: {EXPECTED_HASH}\n"
         f"  actual:   {RULE_LIBRARY_HASH}\n"
         f"\nThe rule library changed. If this was intentional:\n"
-        f"  1. Bump RULE_LIBRARY_VERSION in src/agentstage/predictor/rules.py\n"
+        f"  1. Bump RULE_LIBRARY_VERSION in src/agentstage/detector/rules.py\n"
         f"  2. Update EXPECTED_HASH above to: {RULE_LIBRARY_HASH}\n"
         f"  3. Document the change and its cross-corpus-genericity impact "
         f"in the commit message.\n"
@@ -113,7 +113,7 @@ def test_origin_distribution_pinned():
 
 
 def test_rule_names_unique_within_workload():
-    """A rule's `name` is the activation key in `prediction.json`.
+    """A rule's `name` is the activation key in `detection.json`.
     Duplicates within a workload would silently drop activations."""
     for workload, rs in ALL_RULESETS.items():
         names = [r.name for r in rs.rules]

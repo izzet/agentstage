@@ -2,7 +2,7 @@
 + workspace prior without human curation.
 
 Serves the L3 genericity defense in AGENTSTAGE.md §11.6: if auto-generated
-rules hit within 10% of hand-tuned recall, the predictor architecture is
+rules hit within 10% of hand-tuned recall, the detector architecture is
 task-agnostic and the hand-curation is purely an engineering optimization.
 
 **Scaffold only — Day 1 deliverable.** Real implementation lands on Day 1
@@ -26,7 +26,7 @@ of hand-tuned → L3 PASS.
 
 from __future__ import annotations
 
-from agentstage.predictor.rules import RuleSet
+from agentstage.detector.rules import RuleSet
 
 
 class AutoRuleGenerator:

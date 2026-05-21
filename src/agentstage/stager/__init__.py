@@ -12,7 +12,7 @@ Quick start:
         capacity_bytes=32 * 1024**3,
     )
     hint = DataHint(
-        predicted_files=("/mnt/common/datasets-staging/foo.nc",),
+        detected_files=("/mnt/common/datasets-staging/foo.nc",),
         tier=1,
         fired_at_ms=1200.0,
         rule_id="first_inspect_goes",

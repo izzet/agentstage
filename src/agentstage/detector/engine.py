@@ -1,16 +1,16 @@
-"""Predictor engine — parses a stream.jsonl into blocks, replays thinking
-text through the frozen rule library, and emits a tiered `Prediction`.
+"""Detector engine — parses a stream.jsonl into blocks, replays thinking
+text through the frozen rule library, and emits a tiered `Detection`.
 
 This is the load-bearing port from `poc/probe_reasoning_slack.py`:
 - `parse_anthropic_stream` ⇐ `block_timing_anthropic`
 - `parse_gemini_stream` ⇐ `block_timing_gemini`
 - `hot_path_scan` ⇐ `hot_path_scan`
-- `run_predictor` ⇐ `run_predictor`
+- `run_detector` ⇐ `run_detector`
 
 The engine is provider-aware (Anthropic vs Gemini SSE shapes differ) but
 otherwise rule-library-agnostic — pass any `RuleSet` and it will fire
 the regex matches against the thinking text in time order, then assemble
-the tiered predicted set.
+the tiered detected set.
 
 Tiering rule (matches PoC §6.2):
   - target_keys resolve to ≤ 10 files → tier 1 (specific, immediate need)
@@ -30,7 +30,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agentstage.predictor.rules import (
+from agentstage.detector.rules import (
     RULE_LIBRARY_HASH,
     RULE_LIBRARY_VERSION,
     Rule,
@@ -390,36 +390,36 @@ def hot_path_scan(
 
 
 # ---------------------------------------------------------------------------
-# Run predictor — replay thinking text through the rule library
+# Run detector — replay thinking text through the rule library
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class RuleActivation:
-    """One rule firing during predictor replay."""
+    """One rule firing during detector replay."""
     rule_name: str
     fired_at_ms: float | None
     char_offset: int
     prior_keys: tuple[str, ...]
-    predicted_files: tuple[str, ...]
+    detected_files: tuple[str, ...]
     source: str = "thinking"  # "thinking" | "tool_result" | "text"
     turn: int = 0  # Turn at which the rule fired (0-indexed)
 
 
 @dataclass(frozen=True)
 class TierResult:
-    """The cumulative predicted set at one tier."""
+    """The cumulative detected set at one tier."""
     tier: int
-    predicted_files: tuple[str, ...]
+    detected_files: tuple[str, ...]
     activation_t_ms: float | None  # earliest activation contributing to this tier
 
     @property
     def size(self) -> int:
-        return len(self.predicted_files)
+        return len(self.detected_files)
 
 
 @dataclass(frozen=True)
-class Prediction:
-    """Full predictor output for one (stream, workload) pair."""
+class Detection:
+    """Full detector output for one (stream, workload) pair."""
     activations: tuple[RuleActivation, ...]
     hot: dict[str, float]
     tier_1: TierResult
@@ -447,9 +447,9 @@ class Prediction:
             "tier_1_t_ms": self.tier_1.activation_t_ms,
             "tier_2_t_ms": self.tier_2.activation_t_ms,
             "tier_3_t_ms": self.tier_3.activation_t_ms,
-            "tier_1_paths": list(self.tier_1.predicted_files),
-            "tier_2_paths": list(self.tier_2.predicted_files),
-            "tier_3_paths": list(self.tier_3.predicted_files),
+            "tier_1_paths": list(self.tier_1.detected_files),
+            "tier_2_paths": list(self.tier_2.detected_files),
+            "tier_3_paths": list(self.tier_3.detected_files),
         }
 
 
@@ -473,13 +473,13 @@ _SCANNABLE_BLOCK_TYPES = ("thinking", "text", "tool_result")
 # so scanning thinking + text together does NOT double-count.
 
 
-def run_predictor(
+def run_detector(
     blocks: list[StreamBlock],
     prior: dict[str, tuple[str, ...] | list[str]],
     ruleset: RuleSet,
-) -> Prediction:
+) -> Detection:
     """Replay thinking text + tool_result content through the ruleset;
-    emit tiered prediction.
+    emit tiered detection.
 
     For each rule, the FIRST match wins (across all scanned blocks in
     stream order). Activation time:
@@ -520,7 +520,7 @@ def run_predictor(
                             t_est = tf + (ts - tf) * (end / len(text))
                         else:
                             t_est = tf if tf is not None else ts
-                        predicted = tuple(
+                        detected = tuple(
                             p for k in rule.target_keys for p in prior.get(k, ())
                         )
                         activations.append(
@@ -529,7 +529,7 @@ def run_predictor(
                                 fired_at_ms=t_est,
                                 char_offset=len(accumulated) + end,
                                 prior_keys=rule.target_keys,
-                                predicted_files=predicted,
+                                detected_files=detected,
                                 source="thinking",
                                 turn=b.turn,
                             )
@@ -552,7 +552,7 @@ def run_predictor(
                 m = regex.search(full)
                 if m is not None and m.start() >= len(accumulated):
                     # Rule matches inside the new tool_result text
-                    predicted = tuple(
+                    detected = tuple(
                         p for k in rule.target_keys for p in prior.get(k, ())
                     )
                     activations.append(
@@ -561,7 +561,7 @@ def run_predictor(
                             fired_at_ms=t_est_block,
                             char_offset=m.start(),
                             prior_keys=rule.target_keys,
-                            predicted_files=predicted,
+                            detected_files=detected,
                             source=block_source,
                             turn=b.turn,
                         )
@@ -573,9 +573,9 @@ def run_predictor(
     tier_files: dict[int, set[str]] = {1: set(), 2: set(), 3: set()}
     tier_t: dict[int, float | None] = {1: None, 2: None, 3: None}
     for act in activations:
-        n = len(set(act.predicted_files))
+        n = len(set(act.detected_files))
         t = _tier_for_size(n)
-        tier_files[t].update(act.predicted_files)
+        tier_files[t].update(act.detected_files)
         tact = act.fired_at_ms
         if tact is not None and (tier_t[t] is None or tact < tier_t[t]):
             tier_t[t] = tact
@@ -584,7 +584,7 @@ def run_predictor(
     cum_2 = cum_1 | tier_files[2]
     cum_3 = cum_2 | tier_files[3]
 
-    return Prediction(
+    return Detection(
         activations=tuple(activations),
         hot=hot_path_scan(blocks, prior),
         tier_1=TierResult(1, tuple(sorted(cum_1)), tier_t[1]),

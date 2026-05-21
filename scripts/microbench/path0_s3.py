@@ -92,7 +92,7 @@ def main() -> int:
     if args.mode == "with-stager":
         t_prefetch = time.monotonic_ns()
         hint = DataHint(
-            predicted_files=tuple(sample),
+            detected_files=tuple(sample),
             tier=1,
             fired_at_ms=0.0,
             rule_id="path0_s3",

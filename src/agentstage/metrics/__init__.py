@@ -1,4 +1,4 @@
-"""Scoring primitives for AgentStage's predictor + stager.
+"""Scoring primitives for AgentStage's detector + stager.
 
 `byte_metrics` is the load-bearing scorer: byte recall and overfetch
 against static or empirical ground truth.

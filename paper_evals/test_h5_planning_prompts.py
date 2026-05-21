@@ -49,7 +49,7 @@ class TestPlanningPromptSlackMultiplier:
 
 
 class TestPlanningPromptIntentPrecision:
-    """Planning prompts also tighten the predicted set (lower overfetch),
+    """Planning prompts also tighten the detected set (lower overfetch),
     not just lengthen slack. This is the part of C6 the paper claims but
     has not separately measured."""
 

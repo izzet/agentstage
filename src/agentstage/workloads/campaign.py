@@ -2,7 +2,7 @@
 files, and exposes a queryable view of all runs.
 
 A `Campaign` is the queryable index. A `RunResult` wraps one run's
-output directory (summary.json, stream.jsonl, prediction.json,
+output directory (summary.json, stream.jsonl, detection.json,
 byte_metrics_v1.json) with lazy property accessors.
 
 Used by paper_evals tests to iterate cells: filter by task, model,
@@ -37,8 +37,8 @@ class RunResult:
         return json.loads(p.read_text()) if p.is_file() else None
 
     @cached_property
-    def prediction_v1(self) -> dict | None:
-        p = self.run_dir / "prediction_v1.json"
+    def detection_v1(self) -> dict | None:
+        p = self.run_dir / "detection_v1.json"
         return json.loads(p.read_text()) if p.is_file() else None
 
     # ----- Summary fields -----

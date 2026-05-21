@@ -64,7 +64,7 @@ cp .env.example .env
 - **Never add `Co-Authored-By: Claude ...` to commits or PRs.** No AI
   attribution trailers, no `🤖 Generated with ...` markers.
 - **Frozen rules cannot be quietly updated.** Bumping
-  `RULE_LIBRARY_VERSION` in `src/agentstage/predictor/__init__.py` is a
+  `RULE_LIBRARY_VERSION` in `src/agentstage/detector/__init__.py` is a
   deliberate, commit-message-documented event. The version hash is pinned
   in `tests/test_rules_freeze.py` and consumed by the genericity defense
   (H6, H7).

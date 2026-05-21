@@ -1,11 +1,11 @@
-"""Drop-in Anthropic client wrapper with live streaming → predictor → stager.
+"""Drop-in Anthropic client wrapper with live streaming → detector → stager.
 
 Sits on top of the `anthropic` SDK (`anthropic.Anthropic.messages.create`)
 and tees the streaming SSE events. The caller's code path is unchanged
 — `AnthropicClient.stream(...)` yields the same events the SDK would,
-in the same order. Predictor + stager run as side effects.
+in the same order. Detector + stager run as side effects.
 
-Live predictor:
+Live detector:
   Per chunk, accumulate thinking text. After each chunk, re-run the
   ruleset against the accumulated text and detect newly-fired rules.
   Newly-fired rules → DataHint → stager.prefetch(...).
@@ -32,8 +32,8 @@ from typing import Any, Iterator
 
 import anthropic
 
-from agentstage.predictor.engine import StreamBlock, run_predictor
-from agentstage.predictor.rules import RuleSet
+from agentstage.detector.engine import StreamBlock, run_detector
+from agentstage.detector.rules import RuleSet
 from agentstage.stager import DataHint, Stager, now_ms
 
 
@@ -153,7 +153,7 @@ class StreamingResponse:
 
     Yields the underlying SDK events unchanged. Side effect on each event:
     update the session's accumulators and dispatch DataHints to the stager
-    when new predictor rules fire.
+    when new detector rules fire.
     """
 
     def __init__(self, *, sdk_stream: Any, session: StreamSession) -> None:
@@ -203,7 +203,7 @@ class StreamingResponse:
                 text_piece = getattr(delta, "thinking", "")
                 if text_piece:
                     self._thinking_text_by_idx.setdefault(idx, []).append(text_piece)
-                    # Run predictor on the updated accumulated text for this block
+                    # Run detector on the updated accumulated text for this block
                     self._maybe_fire_rules(idx, t_ms)
             elif dtype == "input_json_delta":
                 tc = self._tool_calls_by_idx.get(idx)
@@ -215,7 +215,7 @@ class StreamingResponse:
                 pass
 
     def _maybe_fire_rules(self, block_idx: int, t_ms: float) -> None:
-        """Re-run the predictor on the accumulated text for `block_idx`
+        """Re-run the detector on the accumulated text for `block_idx`
         and dispatch any newly-fired rules to the stager."""
         if self.session.ruleset is None or self.session.stager is None:
             return
@@ -230,7 +230,7 @@ class StreamingResponse:
             text=accumulated,
             chunks=1,
         )
-        pred = run_predictor(
+        pred = run_detector(
             blocks=[block],
             prior=self.session.workspace_prior,
             ruleset=self.session.ruleset,
@@ -239,7 +239,7 @@ class StreamingResponse:
             if act.rule_name in self.session.fired_rule_names:
                 continue
             self.session.fired_rule_names.add(act.rule_name)
-            n_files = len(act.predicted_files)
+            n_files = len(act.detected_files)
             tier = _tier_for_size(n_files)
             # Only auto-dispatch tier-1 (≤10 files). Tier-2/3 record the
             # activation but skip prefetch — broad rules can dispatch
@@ -249,7 +249,7 @@ class StreamingResponse:
             if tier > 1:
                 continue
             hint = DataHint(
-                predicted_files=tuple(act.predicted_files),
+                detected_files=tuple(act.detected_files),
                 tier=tier,
                 fired_at_ms=act.fired_at_ms or t_ms,
                 rule_id=act.rule_name,

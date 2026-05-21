@@ -13,7 +13,7 @@ Adjacent project: AgentIOBench (unpublished; provides workloads + I/O tracing in
 Trace-only PoC across 88 probes total (79 single-turn measurement + 9 multi-turn passthrough experiments), 5 workloads (4 scientific HPC + 1 coding-agent), **3 LLM provider families** (Anthropic Claude Sonnet 4.5 + Haiku 4.5; Google Gemini 2.5 Pro; DeepSeek-R1 via OpenRouter), 19 configurations. The headline numbers are from the 53 turn-1 thinking-content seeds, which is the primary measurement window (turn-2 slack is opportunistic; see Section 6.8). Excluding the structurally-ambiguous aiob_101 workload (where the agent has 36 equal-priority NetCDFs and no "first file" exists by design), 47 well-defined seeds remain:
 
 - **Lead time:** median 6.9 s, max 14.0 s. 98% of seeds ≥ 2 s, 67% ≥ 5 s. DeepSeek-R1 outlier: 4 minutes of thinking (different model class).
-- **Tier-1 byte recall ≥ 0.85:** 44/47 = **94%** (3 misses reflect Gemini-vs-Sonnet first-inspect strategy variance, not predictor failure; see Section 6.4.1).
+- **Tier-1 byte recall ≥ 0.85:** 44/47 = **94%** (3 misses reflect Gemini-vs-Sonnet first-inspect strategy variance, not detector failure; see Section 6.4.1).
 - **Tier-1 byte overfetch ≤ 1.5×:** 46/47 = **98%** (1 DeepSeek-R1 outlier at 2.12× because the model committed to two subjects in thinking instead of one).
 - **Tier-3 byte recall ≥ 0.85:** 47/47 = **100%** across all 47 seeds and all 4 well-defined workloads (aiob_104, aiob_107, aiob_110, code_repo).
 - **Tier-3 byte overfetch ≤ 2.0×:** 46/47 = **98%** (1 code_repo seed where mention-rules fired for many modules).
@@ -48,21 +48,21 @@ Per-task / per-model tier-1 (immediate-need staging), turn-1 thinking seeds only
 
 *aiob_101 0% recall is the honest edge case explained below; ignore in the headline.
 
-The Gemini misses on aiob_104 (1/3 firing the right tier-1 rule) and aiob_110 (2/3) are a rule-activation reliability issue, not a slack or thinking-content issue. The model produces semantic-class signals ("BAM files", "NWB sessions"), but does not always trigger our `first_inspect` regex variant on this particular task. The bytes-overfetch metric is unaffected (100% across all 12 Gemini seeds) because when the specific rule does not fire, tier-1 just predicts a smaller set, not an overfetched one. Adding model-vocabulary-tailored regex variants would close this gap.
+The Gemini misses on aiob_104 (1/3 firing the right tier-1 rule) and aiob_110 (2/3) are a rule-activation reliability issue, not a slack or thinking-content issue. The model produces semantic-class signals ("BAM files", "NWB sessions"), but does not always trigger our `first_inspect` regex variant on this particular task. The bytes-overfetch metric is unaffected (100% across all 12 Gemini seeds) because when the specific rule does not fire, tier-1 just detects a smaller set, not an overfetched one. Adding model-vocabulary-tailored regex variants would close this gap.
 
-The aiob_101 0% recall row is the honest edge case: the workload has 36 monthly NetCDFs that all need staging equally, with no obvious "first file." Tier-1 (rules with target-set size ≤ 10) cannot fire on the input-NetCDF bucket because that bucket has 36 files; it activates only the smaller buckets (shapefile, output files). The recall is correct in pointing out that no single file is the "immediate need" here. Sonnet and Gemini both behave consistently on aiob_101 (slack 9-15 s, predictor activates broad-tier rules), so the workload reaches the wider working set via tier-3 instead.
-
-The haiku-4-5 rows demonstrate cross-model consistency within Anthropic: the smaller, cheaper haiku model produces identical tier-1 behavior on aiob_110 and code_repo (100% byte recall, 100% overfetch ≤ 1.5×) at smaller thinking budgets (8 192 tokens vs sonnet's 16 384). Median slack on haiku: 4.6 s (aiob_110) and 3.4 s (code_repo), shorter than sonnet but still above the 2 s reviewer threshold.
-
-The deepseek/deepseek-r1 row demonstrates cross-vendor generality: a third LLM family (OpenRouter-hosted) achieves identical tier-1 recall. Its overfetch is 2.12× because the model mentions multiple subjects (sub-Cori and sub-Forssmann) in thinking, activating per-subject rules for both, doubling the predicted set. The behavior is honest — when the model commits to two subjects, tier-1 stages both. DeepSeek-R1 is also an outlier in thinking duration: 248 s of thinking content before any tool dispatch on a single probe, far above Anthropic/Gemini's 5-15 s range. This is a model-class property (DeepSeek-R1 reasons exhaustively). OpenRouter credits exhausted before we could extend the sample beyond aiob_110.
-
-The aiob_101 0% recall row is the honest edge case: the workload has 36 monthly NetCDFs that all need staging equally, with no obvious "first file." Tier-1 (rules with target-set size ≤ 10) cannot fire on the input-NetCDF bucket because that bucket has 36 files; it activates only the smaller buckets (shapefile, output files). The recall is correct in pointing out that no single file is the "immediate need" here. Sonnet and Gemini both behave consistently on aiob_101 (slack 9-15 s, predictor activates broad-tier rules), so the workload reaches the wider working set via tier-3 instead.
+The aiob_101 0% recall row is the honest edge case: the workload has 36 monthly NetCDFs that all need staging equally, with no obvious "first file." Tier-1 (rules with target-set size ≤ 10) cannot fire on the input-NetCDF bucket because that bucket has 36 files; it activates only the smaller buckets (shapefile, output files). The recall is correct in pointing out that no single file is the "immediate need" here. Sonnet and Gemini both behave consistently on aiob_101 (slack 9-15 s, detector activates broad-tier rules), so the workload reaches the wider working set via tier-3 instead.
 
 The haiku-4-5 rows demonstrate cross-model consistency within Anthropic: the smaller, cheaper haiku model produces identical tier-1 behavior on aiob_110 and code_repo (100% byte recall, 100% overfetch ≤ 1.5×) at smaller thinking budgets (8 192 tokens vs sonnet's 16 384). Median slack on haiku: 4.6 s (aiob_110) and 3.4 s (code_repo), shorter than sonnet but still above the 2 s reviewer threshold.
 
-The deepseek/deepseek-r1 row demonstrates cross-vendor generality: a third LLM family (OpenRouter-hosted) achieves identical tier-1 recall. Its overfetch is 2.12× because the model mentions multiple subjects (sub-Cori and sub-Forssmann) in thinking, activating per-subject rules for both, doubling the predicted set. The behavior is honest — when the model commits to two subjects, tier-1 stages both. DeepSeek-R1 is also an outlier in thinking duration: 248 s of thinking content before any tool dispatch on a single probe, far above Anthropic/Gemini's 5-15 s range. This is a model-class property (DeepSeek-R1 reasons exhaustively).
+The deepseek/deepseek-r1 row demonstrates cross-vendor generality: a third LLM family (OpenRouter-hosted) achieves identical tier-1 recall. Its overfetch is 2.12× because the model mentions multiple subjects (sub-Cori and sub-Forssmann) in thinking, activating per-subject rules for both, doubling the detected set. The behavior is honest — when the model commits to two subjects, tier-1 stages both. DeepSeek-R1 is also an outlier in thinking duration: 248 s of thinking content before any tool dispatch on a single probe, far above Anthropic/Gemini's 5-15 s range. This is a model-class property (DeepSeek-R1 reasons exhaustively). OpenRouter credits exhausted before we could extend the sample beyond aiob_110.
 
-These numbers clear both reviewer-stated benchmark sets cited in the project notes (≥ 70–85% byte recall, ≤ 1.5–2× overfetch, ≥ 2 s lead time) on tier-1 across all 5 workloads, and on tier-3 across the 4 scientific workloads. The tier-3 miss on code_repo is a predictor-rule-quality issue (coding agents do not use "all files" / "entire codebase" wording reliably), not a fundamental limit.
+The aiob_101 0% recall row is the honest edge case: the workload has 36 monthly NetCDFs that all need staging equally, with no obvious "first file." Tier-1 (rules with target-set size ≤ 10) cannot fire on the input-NetCDF bucket because that bucket has 36 files; it activates only the smaller buckets (shapefile, output files). The recall is correct in pointing out that no single file is the "immediate need" here. Sonnet and Gemini both behave consistently on aiob_101 (slack 9-15 s, detector activates broad-tier rules), so the workload reaches the wider working set via tier-3 instead.
+
+The haiku-4-5 rows demonstrate cross-model consistency within Anthropic: the smaller, cheaper haiku model produces identical tier-1 behavior on aiob_110 and code_repo (100% byte recall, 100% overfetch ≤ 1.5×) at smaller thinking budgets (8 192 tokens vs sonnet's 16 384). Median slack on haiku: 4.6 s (aiob_110) and 3.4 s (code_repo), shorter than sonnet but still above the 2 s reviewer threshold.
+
+The deepseek/deepseek-r1 row demonstrates cross-vendor generality: a third LLM family (OpenRouter-hosted) achieves identical tier-1 recall. Its overfetch is 2.12× because the model mentions multiple subjects (sub-Cori and sub-Forssmann) in thinking, activating per-subject rules for both, doubling the detected set. The behavior is honest — when the model commits to two subjects, tier-1 stages both. DeepSeek-R1 is also an outlier in thinking duration: 248 s of thinking content before any tool dispatch on a single probe, far above Anthropic/Gemini's 5-15 s range. This is a model-class property (DeepSeek-R1 reasons exhaustively).
+
+These numbers clear both reviewer-stated benchmark sets cited in the project notes (≥ 70–85% byte recall, ≤ 1.5–2× overfetch, ≥ 2 s lead time) on tier-1 across all 5 workloads, and on tier-3 across the 4 scientific workloads. The tier-3 miss on code_repo is a detector-rule-quality issue (coding agents do not use "all files" / "entire codebase" wording reliably), not a fundamental limit.
 
 End-to-end speedup, multi-agent contention behavior, and beating PASTE-style speculative tool execution remain unverified (no system built yet).
 
@@ -72,7 +72,7 @@ End-to-end speedup, multi-agent contention behavior, and beating PASTE-style spe
 
 Scientific LLM agents executing code on HPC infrastructure pay a large per-tool-call cost for cold file reads from parallel storage. Each tool call typically reads application data files from PFS (Lustre / OrangeFS / GPFS / object store) into a local working set. The agent's reasoning between tool calls is wall-clock idle from the storage side.
 
-AgentStage proposes to use the agent's streaming thinking content (visible via Anthropic Messages API thinking blocks, Gemini `include_thoughts`, OpenAI Responses API reasoning summaries) as an early signal of which files the agent will read next. A predictor maps streaming thinking content into a tiered file working-set prediction. A staging daemon stages those files from cold tier (PFS, object store) into hot tier (local NVMe, tmpfs, shared memory) before the agent's tool call dispatches.
+AgentStage proposes to use the agent's streaming thinking content (visible via Anthropic Messages API thinking blocks, Gemini `include_thoughts`, OpenAI Responses API reasoning summaries) as an early signal of which files the agent will read next. A detector maps streaming thinking content into a tiered file working-set detection. A staging daemon stages those files from cold tier (PFS, object store) into hot tier (local NVMe, tmpfs, shared memory) before the agent's tool call dispatches.
 
 The decoupling of data fetch from tool execution is the technical contribution. Speculative tool execution (PASTE family) executes the whole tool ahead; we move only the data, which works for any tool including side-effecting ones.
 
@@ -84,9 +84,9 @@ The decoupling of data fetch from tool execution is the technical contribution. 
 
 **H2 (intent-from-thinking):** Streaming thinking content reveals which files the agent will read next. Some agents commit to literal file paths in thinking; the rest commit at the semantic-class level (file format, dataset region, processing stage).
 
-**H3 (working-set predictability):** A rule-based predictor that combines the workspace prior (files known to exist) with semantic-class signals extracted from thinking achieves high byte-recall and low overfetch against the agent's actual file accesses.
+**H3 (working-set predictability):** A rule-based detector that combines the workspace prior (files known to exist) with semantic-class signals extracted from thinking achieves high byte-recall and low overfetch against the agent's actual file accesses.
 
-**H4 (tiered staging is the right architecture):** Because thinking content fires both specific signals (tiny target sets, often correct for the immediate need) and broad signals (large target sets, correct for the eventual working set), the staging system should consume the predictor's output as tiered priorities rather than a single union.
+**H4 (tiered staging is the right architecture):** Because thinking content fires both specific signals (tiny target sets, often correct for the immediate need) and broad signals (large target sets, correct for the eventual working set), the staging system should consume the detector's output as tiered priorities rather than a single union.
 
 **H5 (planning prompts as a free lever):** Inserting explicit thinking instructions into the user message multiplies slack and increases the precision of intent extraction without changing the model or budget.
 
@@ -97,8 +97,8 @@ The decoupling of data fetch from tool execution is the technical contribution. 
 | # | claim | evidence | status |
 |---|---|---|---|
 | C1 | Slack windows of 5–14 s are reliably observable on sonnet-4-5 with planning prompts | 21-seed matrix, median 9.6 s | verified |
-| C2 | A tier-1 predictor achieves ≥ 0.85 byte recall and ≤ 1.5× overfetch against the agent's immediate-need file set | 20/21 thinking seeds | verified |
-| C3 | A tier-3 predictor achieves ≥ 0.85 byte recall and ≤ 2.0× overfetch against the eventual working set | 21/21 thinking seeds | verified |
+| C2 | A tier-1 detector achieves ≥ 0.85 byte recall and ≤ 1.5× overfetch against the agent's immediate-need file set | 20/21 thinking seeds | verified |
+| C3 | A tier-3 detector achieves ≥ 0.85 byte recall and ≤ 2.0× overfetch against the eventual working set | 21/21 thinking seeds | verified |
 | C4 | The tier-1 set is available within the slack window | tier-1 activation 5–12 s before first tool dispatch | verified |
 | C5 | Literal-path commitment in thinking is unreliable, model- and workload-dependent | 7% of HOT hits target input files (10 / ~150 hits) | verified (negative) |
 | C6 | Planning prompts multiply slack by 2–10× | direct comparison: sonnet aiob_101 t=1 no-PP 3.9 s vs +PP 9.6 s; gemini-pro aiob_110 t=2 +PP 7.9 s vs no-PP 0.8 s | verified |
@@ -121,17 +121,17 @@ Four components, three of which are in-scope for the systems paper.
 
 Overhead requirement: sub-1% on the LLM critical path. The proxy must not buffer; it forwards each event as it arrives.
 
-**4.2 Predictor.** Three layers:
+**4.2 Detector.** Three layers:
 
 - *Workspace prior*: the set of files visible at the agent's current point in the conversation. Derived from the task spec, prior list_dir results, and (in production) MCP resource declarations.
 - *Hot scan*: substring search across thinking text for literal file paths from the workspace prior. Each hit is one entry in the HOT tier with the timestamp of first mention.
-- *Semantic rules*: regex-defined activations mapping thinking text content to subsets of the workspace prior. Rules carry a target-set size; the predictor tiers them by size into specific (≤ 10 files, tier-1), medium (≤ 200 files, tier-2), and broad (> 200 files, tier-3).
+- *Semantic rules*: regex-defined activations mapping thinking text content to subsets of the workspace prior. Rules carry a target-set size; the detector tiers them by size into specific (≤ 10 files, tier-1), medium (≤ 200 files, tier-2), and broad (> 200 files, tier-3).
 
 The tiered output is consumed by the stager as a priority queue: tier-1 stages first, tier-2 stages opportunistically, tier-3 background-stages while the agent works.
 
-**4.3 Staging daemon.** Out of scope for this trace-only PoC. Production design: a userspace daemon that fetches predicted files from cold tier (PFS, object store, remote NVMe) into a local NVMe or tmpfs working set, exposes them through a path-rewriting shim (bind mount, FUSE, or LD_PRELOAD). Working-set replacement policy: size-aware LRU with admission control parameterized on agent-class access patterns.
+**4.3 Staging daemon.** Out of scope for this trace-only PoC. Production design: a userspace daemon that fetches detected files from cold tier (PFS, object store, remote NVMe) into a local NVMe or tmpfs working set, exposes them through a path-rewriting shim (bind mount, FUSE, or LD_PRELOAD). Working-set replacement policy: size-aware LRU with admission control parameterized on agent-class access patterns.
 
-**4.4 Verification instrumentation.** DFTracer for offline trace correlation between predicted-set and actually-accessed set. eBPF (AgentSight) for kernel-level effect tracing as a resilience layer when agents bypass the proxy.
+**4.4 Verification instrumentation.** DFTracer for offline trace correlation between detected-set and actually-accessed set. eBPF (AgentSight) for kernel-level effect tracing as a resilience layer when agents bypass the proxy.
 
 ---
 
@@ -225,9 +225,9 @@ Across 44 thinking seeds (5 workloads): median **6 268 ms**, max 13 962 ms.
 
 Slack varies by model and prompt. Sonnet-4-5 + planning prompt produces slack windows of 6–14 s reliably (3/3 to 5/5 seeds per config). Gemini-2.5-pro slack is more variable (0.7–9.6 s); the higher numbers come with planning prompts on richer turn-2 histories. The code_repo workload produces shorter slack than scientific tasks (median 988 ms on gemini-pro turn-2, 5.7 s on sonnet turn-1) because the task prompt is shorter and the structure is more familiar to the model.
 
-### 6.2 Predictor accuracy (tier-by-tier)
+### 6.2 Detector accuracy (tier-by-tier)
 
-The predictor's output is split into three cumulative tiers by target-set size. Each tier is scored against two ground-truth definitions:
+The detector's output is split into three cumulative tiers by target-set size. Each tier is scored against two ground-truth definitions:
 
 - **Immediate need:** the file(s) the agent reads in its first tool call.
 - **Eventual working set:** all files the agent reads during the task (derived from a completed io_report when available, otherwise the static enumeration from the task spec).
@@ -236,7 +236,7 @@ For 44 thinking seeds (across 5 workloads):
 
 | metric | tier-1 (specific) | tier-2 (medium) | tier-3 (broad) |
 |---|---:|---:|---:|
-| typical predicted-set size | 1–10 files | 10–200 files | up to full workspace |
+| typical detected-set size | 1–10 files | 10–200 files | up to full workspace |
 | byte recall vs immediate-need ≥ 0.70 | **98%** | (variable) | 100% |
 | byte recall vs immediate-need ≥ 0.85 | **98%** | (variable) | 100% |
 | byte overfetch vs immediate-need ≤ 1.5× | **100%** | (variable) | not applicable |
@@ -247,15 +247,15 @@ For 44 thinking seeds (across 5 workloads):
 
 Interpretation:
 
-- **Tier-1 stages a small, precisely correct set for immediate execution.** Median predicted size 1–4 files; predicts the agent's first file read with sub-1.5× byte overfetch in 100% of measured seeds, sub-2.0× in 100%.
-- **Tier-3 stages the eventual working set.** Median predicted size: equal to the working set on scientific tasks (4 of 5). On code_repo (the 5th), tier-3 recall drops to 0.75 median because the predictor's "all files" rule doesn't fire on coding-agent thinking text (models say "explore relevant modules" rather than "search the whole codebase"). Adding code-aware rules would close the gap.
+- **Tier-1 stages a small, precisely correct set for immediate execution.** Median detected size 1–4 files; detects the agent's first file read with sub-1.5× byte overfetch in 100% of measured seeds, sub-2.0× in 100%.
+- **Tier-3 stages the eventual working set.** Median detected size: equal to the working set on scientific tasks (4 of 5). On code_repo (the 5th), tier-3 recall drops to 0.75 median because the detector's "all files" rule doesn't fire on coding-agent thinking text (models say "explore relevant modules" rather than "search the whole codebase"). Adding code-aware rules would close the gap.
 - **Tier-2 is the operational middle ground.** Larger than tier-1, smaller than tier-3. The current rule library doesn't size tier-2 well for most workloads (rules either fire as specific tier-1 entries or broad tier-3 entries). Needs more rule engineering before it earns its keep, but it is not required for the headline result; tier-1 + tier-3 cover the two staging priorities the system actually needs.
 
 ### 6.3 The aiob_107 collapse: from 6 078× to 1.00× overfetch
 
-The clearest demonstration of why tiering matters. aiob_107 has 6 042 GOES NetCDF files in the workspace (18 GB) but the agent's first tool call only needs one (3 MB). Predictor behavior on sonnet+PP, seed 0:
+The clearest demonstration of why tiering matters. aiob_107 has 6 042 GOES NetCDF files in the workspace (18 GB) but the agent's first tool call only needs one (3 MB). Detector behavior on sonnet+PP, seed 0:
 
-| predictor | predicted files | byte overfetch vs immediate need |
+| detector | detected files | byte overfetch vs immediate need |
 |---|---:|---:|
 | naive stage-all baseline | 6 045 | 6 078× |
 | WARM (old, union of all fired rules) | 6 042 | 6 078× |
@@ -286,7 +286,7 @@ Nine of thirteen configs hit the bullseye on tier-1 (1.00 recall, 1.00× overfet
 - aiob_104 gemini-pro t=2 +PP: tier-1 byte recall 0.02. The model fires `all_samples_signal` (broad rule) but not `first_inspect` (specific rule), so tier-1 stays small and misses the immediate-need sample. Fixable with better rules tied to "first" / "sample" wording variants gemini-pro uses.
 - aiob_107 sonnet t=2 +PP: 0.00 across all tiers. Anthropic turn-2 emits no thinking content without signed-block passthrough. Architectural fix needed (out of scope for trace PoC).
 - aiob_107 gemini-pro t=2 +PP: median 0.00, but one of three seeds did fire normally. Inconsistency rooted in temperature 1.0 producing variable commit-to-thinking behavior on this model.
-- code_repo (all three configs): tier-1 perfect, tier-3 only 0.75 byte recall against the eventual working set because the predictor lacks "all-files" rules for code-agent vocabulary. Tier-1 is what staging needs; tier-3 weakness is a rule-engineering gap, not a fundamental failure.
+- code_repo (all three configs): tier-1 perfect, tier-3 only 0.75 byte recall against the eventual working set because the detector lacks "all-files" rules for code-agent vocabulary. Tier-1 is what staging needs; tier-3 weakness is a rule-engineering gap, not a fundamental failure.
 
 ### 6.4.1 Model-strategy variance: different agents read different files first
 
@@ -300,11 +300,11 @@ Gemini on the same task says:
 
 Both are valid first-action strategies. Sonnet inspects a representative BAM sample; Gemini inspects the reference metadata (BED, FAI). Our static `first_inspect` ground truth for aiob_104 unions both ({HG00096 BAM/BAI/BAS} ∪ {BED, FAI, FASTA-README}). Tier-1 captures exactly one of the two on each probe, depending on which strategy the model takes, leading to lower byte recall on the metric while both behaviors are operationally correct.
 
-This is **model-strategy variance**, not a predictor failure. The implication for a deployed staging system is that the predictor should emit BOTH probable strategies as parallel tier-1 candidates, and the stager should keep both warm until the agent's first read disambiguates. This is a system-design refinement, not a research gap.
+This is **model-strategy variance**, not a detector failure. The implication for a deployed staging system is that the detector should emit BOTH probable strategies as parallel tier-1 candidates, and the stager should keep both warm until the agent's first read disambiguates. This is a system-design refinement, not a research gap.
 
-On aiob_110, both models prefer the "inspect first subject" strategy when planning-prompted (Sonnet 3/3 commits to sub-Cori, Gemini 2/3) but Gemini sometimes skips committing to a specific subject and just describes "exploring the dataset structure." When that happens, tier-1 fires fewer rules but the tier-3 prediction still covers the eventual working set at 100%.
+On aiob_110, both models prefer the "inspect first subject" strategy when planning-prompted (Sonnet 3/3 commits to sub-Cori, Gemini 2/3) but Gemini sometimes skips committing to a specific subject and just describes "exploring the dataset structure." When that happens, tier-1 fires fewer rules but the tier-3 detection still covers the eventual working set at 100%.
 
-Bottom line: when the metric is overfetch (a non-negative-impact-of-mispredictions measurement), Anthropic and Gemini both pass at 100% (12/12 Gemini, 34/34 Anthropic). When the metric is recall against a fixed strategy-canonical target, the Gemini-Sonnet difference manifests as 3/12 misses for Gemini and 0 for Anthropic. Neither model is "wrong"; they just inspect different files first.
+Bottom line: when the metric is overfetch (a non-negative-impact-of-misdetections measurement), Anthropic and Gemini both pass at 100% (12/12 Gemini, 34/34 Anthropic). When the metric is recall against a fixed strategy-canonical target, the Gemini-Sonnet difference manifests as 3/12 misses for Gemini and 0 for Anthropic. Neither model is "wrong"; they just inspect different files first.
 
 ### 6.5 Hot scan (literal-path matching)
 
@@ -336,14 +336,14 @@ Per-task HOT firing pattern:
 | aiob_110 (Steinmetz NWB) | 2 / 9 | `sub-Cori_ses-20161214T120000.nwb` (when gemini-pro + planning prompt) |
 | code_repo (Python repo) | 11 / 9 | `runner.py`, `tools.py`, `llm.py` (the actual modules to inspect) |
 
-**Implication:** the HOT tier is now a useful, well-behaved high-precision signal layer. It is most informative on workloads where the file inventory has memorable, unique basenames (code, reference files). It is least informative on workloads where filenames are templated and indistinguishable to the model (timestamped scientific data). The tier-1 semantic-class predictor remains the load-bearing component; HOT augments tier-1 when it fires.
+**Implication:** the HOT tier is now a useful, well-behaved high-precision signal layer. It is most informative on workloads where the file inventory has memorable, unique basenames (code, reference files). It is least informative on workloads where filenames are templated and indistinguishable to the model (timestamped scientific data). The tier-1 semantic-class detector remains the load-bearing component; HOT augments tier-1 when it fires.
 
 ### 6.6 How the numbers were computed
 
 - *Slack*: `t_ms_of_first_tool_use_block_start - t_ms_of_first_thinking_chunk` from the streamed SSE event timestamps, measured against `time.monotonic()` at the start of the urlopen call.
-- *Byte recall*: `sum(filesize(p) for p in predicted ∩ ground_truth) / sum(filesize(p) for p in ground_truth)`. File sizes resolved via `os.path.getsize` on the host-side path, cached per probe.
-- *Byte overfetch*: `sum(filesize(p) for p in predicted) / sum(filesize(p) for p in ground_truth)`. A value of 1.00× means we predicted exactly the ground truth set.
-- *Tier-1 / tier-2 / tier-3*: built post-hoc by partitioning fired-rule activations by target-set size. Cumulative: tier-2 = tier-1 ∪ medium-rules; tier-3 = tier-2 ∪ broad-rules. The previous unioned predictor is equivalent to tier-3.
+- *Byte recall*: `sum(filesize(p) for p in detected ∩ ground_truth) / sum(filesize(p) for p in ground_truth)`. File sizes resolved via `os.path.getsize` on the host-side path, cached per probe.
+- *Byte overfetch*: `sum(filesize(p) for p in detected) / sum(filesize(p) for p in ground_truth)`. A value of 1.00× means we detected exactly the ground truth set.
+- *Tier-1 / tier-2 / tier-3*: built post-hoc by partitioning fired-rule activations by target-set size. Cumulative: tier-2 = tier-1 ∪ medium-rules; tier-3 = tier-2 ∪ broad-rules. The previous unioned detector is equivalent to tier-3.
 - *Ground truth*: two definitions per task. (a) Static, derived from the task spec's enumerated working set. (b) Empirical, derived from a completed run's `io_report.json` (`file_name_view[*]` entries with `posix_count_sum > 0` and `/data/` in the path). The scorecard numbers use (a) by default; (b) is consulted for sanity-checking but did not materially shift the tier-1 / tier-3 numbers because the static and empirical ground truths agree to within 5–10 files on aiob_104 and aiob_110.
 
 ### 6.8 Anthropic multi-turn: passthrough works, model chooses not to think
@@ -363,7 +363,7 @@ Gemini-2.5-pro on turn-2 with the existing synthetic-history path does think occ
 
 ### 6.7 What the data does NOT show
 
-- No end-to-end latency comparison. The PoC measures whether prediction is possible in the slack window; it does not move bytes.
+- No end-to-end latency comparison. The PoC measures whether detection is possible in the slack window; it does not move bytes.
 - No comparison to PASTE-style speculative tool execution. PASTE pre-executes the tool; AgentStage pre-stages the data. Architecturally complementary; empirically untested.
 - No tail-latency behavior under concurrent agents. All probes are single-agent.
 - Only Anthropic and Gemini providers. OpenAI Responses API reasoning summaries not yet captured.
@@ -376,9 +376,9 @@ Gemini-2.5-pro on turn-2 with the existing synthetic-history path does think occ
 ### 7.1 What we can claim now
 
 1. **Reasoning slack is a real, exploitable resource.** Sonnet-4-5 with planning prompts produces 9–14 s of wall-clock slack between first thinking chunk and first tool dispatch, consistent across seeds.
-2. **A tiered semantic-class predictor over the workspace prior achieves the reviewer-stated byte-level benchmarks.** Tier-1 covers immediate need with 1.00× overfetch; tier-3 covers eventual working set with 1.00× overfetch. Both within slack.
+2. **A tiered semantic-class detector over the workspace prior achieves the reviewer-stated byte-level benchmarks.** Tier-1 covers immediate need with 1.00× overfetch; tier-3 covers eventual working set with 1.00× overfetch. Both within slack.
 3. **Planning prompts are a free 2–10× slack multiplier.** Same model, same budget, just an appended instruction.
-4. **The predictor architecture survives the worst-case workload.** On aiob_107 (6 042-file workspace, 3 MB immediate need), tier-1 stages exactly 3 MB with 1.00× overfetch and 2.8 s of lead time.
+4. **The detector architecture survives the worst-case workload.** On aiob_107 (6 042-file workspace, 3 MB immediate need), tier-1 stages exactly 3 MB with 1.00× overfetch and 2.8 s of lead time.
 
 ### 7.2 What we cannot claim yet
 
@@ -397,7 +397,7 @@ In order of effort-to-value ratio for the paper:
 
 1. ~~Add a coding-agent workload (Workspace-Bench style).~~ **Done 2026-05-18.** Section 10.
 2. ~~Add a third model: OpenAI gpt-5-mini via Responses API.~~ **Attempted 2026-05-18, blocked by infrastructure.** Direct OpenAI API key returned `insufficient_quota`; Azure OpenAI deployment at `hermes-oai.openai.azure.com` does not have a `/responses` endpoint exposed. Code path is implemented and committed in `probe_reasoning_slack.py` (`run_openai_responses`); ready to use once an OpenAI quota or a different Azure deployment becomes available.
-3. **Build the proxy.** A transparent SSE terminator for Anthropic and Gemini that parses streaming events, runs the predictor, emits a tier-prioritized prefetch queue. ~1–2 weeks. Required for any end-to-end claim. The proxy alone gets us a credible workshop submission.
+3. **Build the proxy.** A transparent SSE terminator for Anthropic and Gemini that parses streaming events, runs the detector, emits a tier-prioritized prefetch queue. ~1–2 weeks. Required for any end-to-end claim. The proxy alone gets us a credible workshop submission.
 4. **Build the stager.** Userspace daemon that consumes the prefetch queue, pulls bytes from cold tier into local NVMe / tmpfs, exposes them via path-rewriting shim. ~1 month. ProxyStore is a defensible starting substrate.
 5. **Working-set replacement policy.** ARC, LRU-K, size-aware LRU, and a learned policy parameterized on agent-class access patterns. Baseline comparison table for the systems paper.
 6. **Multi-agent contention experiment.** Two or more agents on the same node sharing the local NVMe working set. Tail-latency and eviction-thrash measurement.
@@ -406,7 +406,7 @@ In order of effort-to-value ratio for the paper:
 9. ~~Anthropic turn-2 signed-thinking-block passthrough.~~ **Implemented and tested 2026-05-18.** The passthrough itself is correct (API accepts the signed blocks; no 400 errors). However, across 9 multi-turn probes (3 tasks × 3 seeds), Sonnet-4.5 on turn-2 with proper passthrough still chose not to think on any of the 9 seeds. The model produces visible text + tool_use directly. The reason appears to be model-level: once turn-1 thinking establishes a plan, turn-2 simply executes when the tool_result makes the next step obvious. The infrastructure fix is real and goes into the proxy implementation; the empirical implication is that turn-1 is the primary slack-measurement point, and turn-2+ slack should be considered opportunistic, not guaranteed.
 10. **Tier-2 rule engineering and code-aware rules.** Tier-2 (medium granularity) currently passes overfetch ≤ 2× on a minority of seeds. Better rules at "per-day" / "per-band" / "per-chromosome" granularity on scientific tasks would close the gap. For code_repo, add rules tied to coding-agent vocabulary ("explore relevant modules", "trace the call graph") to fire tier-3 reliably.
 11. ~~HOT scan output-path exclusion + unique-basename gate.~~ **Done 2026-05-18.** Output paths excluded from HOT entirely; basenames appearing more than once in the prior are no longer accepted as HOT matches. code_repo HOT overfetch went from median 2.22× (4/9 ≤ 2×) to median 1.00× (9/9 ≤ 1.5×). HOT INPUT hits cleanly reach 100% precision across all 30 thinking seeds.
-12. **Online learning for the predictor.** Current rules are hand-coded. The original AgentStage notes call for a learned predictor; the trace PoC provides the training signal (thinking-text + actually-accessed-file pairs).
+12. **Online learning for the detector.** Current rules are hand-coded. The original AgentStage notes call for a learned detector; the trace PoC provides the training signal (thinking-text + actually-accessed-file pairs).
 
 ---
 
@@ -420,27 +420,27 @@ Scientific computing agents built on large language models increasingly drive en
 
 Existing systems-side optimizations for agentic workloads either accelerate the language-model side of the loop (speculative tool execution, workflow-aware KV cache management, tool retrieval, agent serving schedulers), record what agents intended and did (eBPF-based observability, W3C PROV provenance extensions), or tune storage parameters using LLM agents as the optimization driver. None of these systems exploits the unique latency window between an agent's emerging tool-call intent, made visible through streaming thinking content, and the actual tool invocation, to stage the application data that the tool is about to read.\looseness=-1
 
-This paper introduces AgentStage, a system that decouples data fetch from tool execution for scientific LLM agents. AgentStage parses the streaming SSE output of any thinking-capable LLM provider, extracts file-access intent from the thinking content using a tiered semantic-class predictor over the agent's workspace prior, and stages predicted files from cold tier to local NVMe within the slack window before the agent's tool call dispatches. Crucially, AgentStage stages data only; it does not pre-execute tools, leaving the tool itself to fire normally. This makes AgentStage architecturally complementary to speculative tool execution (PASTE family): PASTE hides whole-tool latency for idempotent tools; AgentStage hides input-data latency for any tool, including those with side effects.\looseness=-1
+This paper introduces AgentStage, a system that decouples data fetch from tool execution for scientific LLM agents. AgentStage parses the streaming SSE output of any thinking-capable LLM provider, extracts file-access intent from the thinking content using a tiered semantic-class detector over the agent's workspace prior, and stages detected files from cold tier to local NVMe within the slack window before the agent's tool call dispatches. Crucially, AgentStage stages data only; it does not pre-execute tools, leaving the tool itself to fire normally. This makes AgentStage architecturally complementary to speculative tool execution (PASTE family): PASTE hides whole-tool latency for idempotent tools; AgentStage hides input-data latency for any tool, including those with side effects.\looseness=-1
 
-We characterize the achievability of AgentStage's central premise through a trace-only proof of concept across 88 streaming probes on 5 file-intensive agent workloads (4 scientific HPC plus 1 coding-agent on a 544-file Python repository) and 3 thinking-capable LLM provider families (Anthropic Claude Sonnet 4.5 + Haiku 4.5; Google Gemini 2.5 Pro; DeepSeek-R1 via OpenRouter). Focusing on the 47 turn-1 probes outside the structurally ambiguous aiob_101 workload (where all 36 monthly NetCDFs are equal-priority and no "first file" exists by design), we find: (i) inter-block slack between first thinking chunk and first tool dispatch has median 6.9 s and maximum 14 s, with 98% of seeds exceeding 2 s and 67% exceeding 5 s, plus one DeepSeek-R1 outlier with 248 s of thinking; (ii) a tiered semantic-class predictor over the workspace prior achieves 94% of seeds with byte recall ≥ 0.85 and 98% with byte overfetch ≤ 1.5× against the agent's immediate-need file set, with the recall misses reflecting genuine cross-model strategy variance rather than predictor failure; (iii) the same predictor's broad tier achieves 100% of seeds with byte recall ≥ 0.85 and 98% with byte overfetch ≤ 2.0× against the eventual working set across all 4 well-defined workloads. The 6 042-file GOES meteorology workload, where the immediate need is 3 MB and the workspace is 18 GB, collapses from 6 078× overfetch under naive stage-all to 1.00× overfetch under the tier-1 predictor. Cross-model verification (Claude Haiku 4.5 against Sonnet 4.5) and cross-vendor verification (DeepSeek-R1 against Anthropic and Google) preserve the tier-1 byte recall result.\looseness=-1
+We characterize the achievability of AgentStage's central premise through a trace-only proof of concept across 88 streaming probes on 5 file-intensive agent workloads (4 scientific HPC plus 1 coding-agent on a 544-file Python repository) and 3 thinking-capable LLM provider families (Anthropic Claude Sonnet 4.5 + Haiku 4.5; Google Gemini 2.5 Pro; DeepSeek-R1 via OpenRouter). Focusing on the 47 turn-1 probes outside the structurally ambiguous aiob_101 workload (where all 36 monthly NetCDFs are equal-priority and no "first file" exists by design), we find: (i) inter-block slack between first thinking chunk and first tool dispatch has median 6.9 s and maximum 14 s, with 98% of seeds exceeding 2 s and 67% exceeding 5 s, plus one DeepSeek-R1 outlier with 248 s of thinking; (ii) a tiered semantic-class detector over the workspace prior achieves 94% of seeds with byte recall ≥ 0.85 and 98% with byte overfetch ≤ 1.5× against the agent's immediate-need file set, with the recall misses reflecting genuine cross-model strategy variance rather than detector failure; (iii) the same detector's broad tier achieves 100% of seeds with byte recall ≥ 0.85 and 98% with byte overfetch ≤ 2.0× against the eventual working set across all 4 well-defined workloads. The 6 042-file GOES meteorology workload, where the immediate need is 3 MB and the workspace is 18 GB, collapses from 6 078× overfetch under naive stage-all to 1.00× overfetch under the tier-1 detector. Cross-model verification (Claude Haiku 4.5 against Sonnet 4.5) and cross-vendor verification (DeepSeek-R1 against Anthropic and Google) preserve the tier-1 byte recall result.\looseness=-1
 
 The trace results indicate that the central mechanism, prestaging from intent revealed in streaming thinking content, is technically achievable on commodity LLM APIs today. The systems contribution of this paper is the architectural design, the per-provider intent capture layer, the tier-aware staging daemon, the working-set replacement policy under multi-agent contention, and the open-source reference implementation. We position AgentStage explicitly as a data-side complement to compute-side speculation rather than a competitor: a system that turns the latency budget of LLM thinking into I/O slack.\looseness=-1
 
 ### 9.2 Gap statement (related work paragraph)
 
-Speculative tool execution for agentic LLMs is a crowded space: PASTE reports 48.5% task-completion-time reduction and 1.8× tool-throughput improvement on idempotent tools; B-PASTE, Speculative Interaction Agents, SpecEyes, and follow-up work refine the predictor and the speculation policy. All of these systems predict from historical patterns mined across prior requests and pre-execute the entire tool, conflating data fetch with computation. KV-cache management for agents (KVFlow, KVCOMM, LMCache, Cortex, PRESERVE) optimizes language-model state, not application data. Agent observability and provenance (AgentSight via eBPF, PROV-AGENT, MCP tool annotations) records what agents intended and did, with overhead under 3%, but does not act on the recorded signal. Storage tuning systems (STELLAR, StorageXTuner) use LLM agents to optimize file-system parameters after observing workload behavior, the inverse direction from AgentStage. The closest conceptual prior is the Agent-Centric Data Fabric vision paper (Giurgiu & Nidd, IBM Research Zurich, 2025), which proposes intent-driven predictive prefetching as one of four mechanisms in a future data system but does not implement it; their predictor is described as learning from historical agent interactions rather than the streaming intent of the in-flight request. AgentStage is, to our knowledge, the first system that uses streaming tool-call intent from the in-flight LLM request to perform file-level data staging into local NVMe before the tool executes.\looseness=-1
+Speculative tool execution for agentic LLMs is a crowded space: PASTE reports 48.5% task-completion-time reduction and 1.8× tool-throughput improvement on idempotent tools; B-PASTE, Speculative Interaction Agents, SpecEyes, and follow-up work refine the detector and the speculation policy. All of these systems predict from historical patterns mined across prior requests and pre-execute the entire tool, conflating data fetch with computation. KV-cache management for agents (KVFlow, KVCOMM, LMCache, Cortex, PRESERVE) optimizes language-model state, not application data. Agent observability and provenance (AgentSight via eBPF, PROV-AGENT, MCP tool annotations) records what agents intended and did, with overhead under 3%, but does not act on the recorded signal. Storage tuning systems (STELLAR, StorageXTuner) use LLM agents to optimize file-system parameters after observing workload behavior, the inverse direction from AgentStage. The closest conceptual prior is the Agent-Centric Data Fabric vision paper (Giurgiu & Nidd, IBM Research Zurich, 2025), which proposes intent-driven predictive prefetching as one of four mechanisms in a future data system but does not implement it; their detector is described as learning from historical agent interactions rather than the streaming intent of the in-flight request. AgentStage is, to our knowledge, the first system that uses streaming tool-call intent from the in-flight LLM request to perform file-level data staging into local NVMe before the tool executes.\looseness=-1
 
 ### 9.3 Headline experimental claims block (for the abstract / contributions list)
 
 C1. On 5 agent workloads spanning climate, genomics, meteorology, neuroscience, and Python code repository search, with 3 thinking-capable LLM provider families (Anthropic Claude Sonnet 4.5 + Haiku 4.5; Google Gemini 2.5 Pro; DeepSeek-R1 via OpenRouter), median inter-block slack between first thinking chunk and first tool dispatch is 6.9 s, max 14 s on Anthropic/Gemini and 248 s on DeepSeek-R1 (an outlier model class). Slack ≥ 2 s passes on 98% of turn-1 seeds; ≥ 5 s passes on 67%, across 47 turn-1 thinking-content seeds excluding the structurally-ambiguous aiob_101 workload.
 
-C2. A tiered semantic-class predictor over the workspace prior achieves 94% of seeds with byte recall ≥ 0.85 and 98% with byte overfetch ≤ 1.5× against the immediate-need file set (n = 47 turn-1 thinking seeds). The 3 recall misses are Gemini-2.5-pro seeds where the model emits correct semantic-class signals but does not activate our `first_inspect` regex pattern (predictor-vocabulary gap, not a model-capability or slack-window failure). The 1 overfetch miss is a DeepSeek-R1 seed at 2.12× where the model committed to two subjects in thinking instead of one, an honest interpretation of the task. The Anthropic family (Sonnet + Haiku, n=34) reaches 100% on both byte-recall and byte-overfetch benchmarks.
+C2. A tiered semantic-class detector over the workspace prior achieves 94% of seeds with byte recall ≥ 0.85 and 98% with byte overfetch ≤ 1.5× against the immediate-need file set (n = 47 turn-1 thinking seeds). The 3 recall misses are Gemini-2.5-pro seeds where the model emits correct semantic-class signals but does not activate our `first_inspect` regex pattern (detector-vocabulary gap, not a model-capability or slack-window failure). The 1 overfetch miss is a DeepSeek-R1 seed at 2.12× where the model committed to two subjects in thinking instead of one, an honest interpretation of the task. The Anthropic family (Sonnet + Haiku, n=34) reaches 100% on both byte-recall and byte-overfetch benchmarks.
 
-C3. The same predictor's broad tier achieves 100% of seeds with byte recall ≥ 0.85 against the eventual working set across all 47 well-defined seeds spanning 4 workloads (aiob_104, aiob_107, aiob_110, code_repo) and 3 provider families. Byte overfetch ≤ 2.0× passes 98% of seeds (46/47), with the 1 miss on code_repo where the rule library expanded the predicted set to multiple modules.
+C3. The same detector's broad tier achieves 100% of seeds with byte recall ≥ 0.85 against the eventual working set across all 47 well-defined seeds spanning 4 workloads (aiob_104, aiob_107, aiob_110, code_repo) and 3 provider families. Byte overfetch ≤ 2.0× passes 98% of seeds (46/47), with the 1 miss on code_repo where the rule library expanded the detected set to multiple modules.
 
 C6 (additional). Cross-model consistency within Anthropic: Claude Haiku 4.5 at thinking budget 8 192 produces identical tier-1 results to Claude Sonnet 4.5 at budget 16 384 (100% byte recall ≥ 0.85, 100% overfetch ≤ 1.5× on aiob_110 and code_repo, n = 3 each). Cross-vendor consistency: Gemini 2.5 Pro reproduces tier-1 byte recall on 75% of seeds with 100% byte overfetch (overfetch never violated); DeepSeek-R1 via OpenRouter produces matching tier-1 byte recall on aiob_110 (1.00) with the same 2 s slack budget pattern.
 
-C4. The worst-case workload (aiob_107: 6 042 files, 18 GB workspace, 3 MB immediate need) collapses from 6 078× naive overfetch to 1.00× tier-1 overfetch under the proposed predictor.
+C4. The worst-case workload (aiob_107: 6 042 files, 18 GB workspace, 3 MB immediate need) collapses from 6 078× naive overfetch to 1.00× tier-1 overfetch under the proposed detector.
 
 C5. End-to-end agent latency reduction, multi-agent contention behavior, and head-to-head comparison with speculative tool execution remain to be characterized in the systems build of this paper.
 
@@ -457,13 +457,13 @@ Workspace-Bench-style fifth workload now in the registry. Result above (Section 
 
 ### 10.2 What didn't work and why
 
-- **Tier-3 byte recall 0.75 on 9/9 seeds.** The predictor's `all_files_signal` rule (regex on "all files" or "entire codebase" or "search the whole codebase") never fires because the model says "explore relevant modules" or "look at the dispatch code" instead. The 0.75 comes from the predictor catching `runner.py` and `tools.py` (the immediate need is a substring of the eventual ground truth here) but missing `llm.py`.
+- **Tier-3 byte recall 0.75 on 9/9 seeds.** The detector's `all_files_signal` rule (regex on "all files" or "entire codebase" or "search the whole codebase") never fires because the model says "explore relevant modules" or "look at the dispatch code" instead. The 0.75 comes from the detector catching `runner.py` and `tools.py` (the immediate need is a substring of the eventual ground truth here) but missing `llm.py`.
 - **HOT byte overfetch 1.6–2.7 times.** Above the strict 1.5x reviewer threshold, marginally above 2.0x for some seeds. Cause: HOT scan picks up output paths (`fix.md`, `report.md`) along with input paths; these tiny output files add 5–10 KB and inflate the ratio. Fix: HOT scan should skip paths classified as outputs (write-only targets), which is a one-line predicate.
 - **Gemini-pro turn-2 slack 988 ms median.** Below the 2 s threshold for the immediate slack benchmark. Cause: turn-2 history is more compact for the coding task, so gemini-pro pivots to action fast.
 
 ### 10.3 What this adds to the headline
 
-The coding-agent result is a genuine cross-domain generalization signal. It clears tier-1 byte recall and overfetch (the harder benchmark) at 100%. Its tier-3 weakness is a rule-library gap, not an architectural failure. A follow-on rule-engineering pass (or, more durably, a learned-predictor variant trained on the captured (thinking-text, accessed-file) pairs) closes this gap straightforwardly.
+The coding-agent result is a genuine cross-domain generalization signal. It clears tier-1 byte recall and overfetch (the harder benchmark) at 100%. Its tier-3 weakness is a rule-library gap, not an architectural failure. A follow-on rule-engineering pass (or, more durably, a learned-detector variant trained on the captured (thinking-text, accessed-file) pairs) closes this gap straightforwardly.
 
 The cross-domain story also strengthens the framing claim: AgentStage is not a scientific-HPC-only system; it works wherever the agent uses thinking-capable LLM APIs and the workspace prior is enumerable. Coding agents on large repositories are an obvious early-adopter audience.
 
@@ -482,9 +482,9 @@ Testbed: Ares (this cluster) for everything in the primary critical path; NCSA D
 | 1 | Intro | scientific LLM agents as a first-class HPC workload; AgentIOBench 1.4× per-agent / 572× peak amplification as the motivating hook in paragraph 1; reasoning slack as the new opportunity; 5 contributions |
 | 2 | Background + SOTA | 4 buckets (speculative tool / KV cache / observability / data fabric vision) + IBM 2512.09548 as closest conceptual prior; gap statement |
 | 3 | Opportunity characterization | reasoning-to-action lead time, workspace prior, file working set; Figure 1 (tier latency vs. slack) + Figure 2 (stageable bytes per backend) |
-| 4 | AgentStage design | capture proxy, predictor (literal-path + semantic-class, tiered by target-set size), staging daemon, verification instrumentation; architecture figure |
+| 4 | AgentStage design | capture proxy, detector (literal-path + semantic-class, tiered by target-set size), staging daemon, verification instrumentation; architecture figure |
 | 5 | Methodology | workloads table, providers, prompt modes, ground truth (static + empirical via DFTracer io_report), metrics, reproducibility setup |
-| 6 | Prediction results | usable-intent coverage + conditional lead time; baseline ladder (stage-nothing / stage-all / literal / union / Tier-1 / oracle); GOES tiering case study (6 078× → 1.00×); cross-provider + cross-model |
+| 6 | Detection results | usable-intent coverage + conditional lead time; baseline ladder (stage-nothing / stage-all / literal / union / Tier-1 / oracle); GOES tiering case study (6 078× → 1.00×); cross-provider + cross-model |
 | 7 | Staging effectiveness + robustness | end-to-end speedup (Ares NVMe + NFS); bandwidth sensitivity sweep (tc/cgroup); leave-one-workload-out generalization; external workload validation; synthetic-rule baseline |
 | 8 | Discussion + limitations + conclusion | what this enables; what is not claimed (PASTE composition, multi-agent, fleet scale); MCP `data_hints` future; artifact availability |
 
@@ -515,7 +515,7 @@ Both figures live at the top of Section 3 (Opportunity). They sell the whole pap
 
 **Published-benchmark generality probes (2 workloads, mandatory):** AgentIOBench is unpublished, so the generalizability story requires applying the same methodology to externally-published, citable benchmarks. Two are committed for this paper:
 
-1. **ScienceAgentBench** (Chen et al., ICLR 2025; SAB) — already present locally at `benchmarks/scienceagentbench/`. Tasks involve reading scientific datasets (NetCDF, CSV, HDF5, NWB) and producing analysis notebooks. Closest analog to AgentIOBench in domain and I/O shape; published, peer-reviewed, citable. Pick a representative subset (3-5 tasks) and apply AgentStage's predictor + stager unchanged.
+1. **ScienceAgentBench** (Chen et al., ICLR 2025; SAB) — already present locally at `benchmarks/scienceagentbench/`. Tasks involve reading scientific datasets (NetCDF, CSV, HDF5, NWB) and producing analysis notebooks. Closest analog to AgentIOBench in domain and I/O shape; published, peer-reviewed, citable. Pick a representative subset (3-5 tasks) and apply AgentStage's detector + stager unchanged.
 
 2. **SWE-bench Lite** (Jimenez et al., ICLR 2024; one task instance, ideally one representative bug-fix per repo). Tests cross-domain generality: from scientific data to general code-repository navigation. Defeats the "scientific-HPC only" reviewer concern.
 
@@ -527,7 +527,7 @@ Both external benchmarks evaluated with the FROZEN rule library — no per-task 
 
 C1. **Empirical characterization** of reasoning-to-action lead time across 3 thinking-capable LLM provider families, 4 models, and 5+2 file-intensive agent workloads (5 from AgentIOBench, plus ScienceAgentBench and SWE-bench Lite as published-benchmark generality probes), establishing that usable intent appears in ~80% of probes with median 6.9 s of lead time before tool dispatch.
 
-C2. **Tiered file-working-set predictor** (literal-path layer + semantic-class rules tiered by target-set size) achieving byte-level recall ≥ 0.85 with fetch amplification ≤ 1.5× on the immediate working-set tier across AgentIOBench workloads, and ≥ 0.70 with the same frozen rule library on the two published external benchmarks.
+C2. **Tiered file-working-set detector** (literal-path layer + semantic-class rules tiered by target-set size) achieving byte-level recall ≥ 0.85 with fetch amplification ≤ 1.5× on the immediate working-set tier across AgentIOBench workloads, and ≥ 0.70 with the same frozen rule library on the two published external benchmarks.
 
 C3. **AgentStage architectural framework** comprising a per-provider intent capture proxy, a tier-aware staging daemon, and a path-rewriting shim, that operationalizes the slack window for application-data prefetch.
 
@@ -540,30 +540,30 @@ C5. **Reproducibility kit** comprising the proxy, stager, simulator, frozen rule
 | # | name | metric | data path | risk |
 |---:|---|---|---|---|
 | E1 | Lead-time characterization | usable-intent coverage + conditional lead time CDF; per-provider, per-workload | extend current matrix | low |
-| E2 | Predictor accuracy with **empirical ground truth** | byte recall, fetch amplification, per-tier; 6-way baseline (none / all / literal / union / tier-1 / oracle) | re-score against `io_report.json` from real runs | low |
+| E2 | Detector accuracy with **empirical ground truth** | byte recall, fetch amplification, per-tier; 6-way baseline (none / all / literal / union / tier-1 / oracle) | re-score against `io_report.json` from real runs | low |
 | E3 | Leave-one-workload-out generalization | tier-1 / tier-3 recall on held-out workload with frozen rules | run on existing traces | medium |
 | E4 | Proxy overhead | mean/median/p99 LLM-side latency with vs. without proxy | requires proxy build | medium |
-| E5 | End-to-end staging effectiveness | wall-clock, per-tool-call first-read P50/P95/P99, mispredicted bytes; aiob_107 + aiob_110 | requires stager build | high — must succeed |
+| E5 | End-to-end staging effectiveness | wall-clock, per-tool-call first-read P50/P95/P99, misdetected bytes; aiob_107 + aiob_110 | requires stager build | high — must succeed |
 | E6 | Cold-tier bandwidth sensitivity | speedup vs. cold-tier BW at 50 / 200 / 1000 / 3000 MB/s | tc/cgroup rate-limit on NFS source + simulator cross-check | medium |
 | E7 | Graceful degradation | latency identical to baseline when no thinking emitted | requires stager build | low |
 | E8 | Thinking budget sweep | slack and recall vs. budget tokens (1k–32k) | run on existing infrastructure | low |
-| E9 | **ScienceAgentBench end-to-end** (mandatory genericity) | full pipeline (proxy + predictor + stager) on 3-5 SAB tasks with frozen rules; same metrics as E2 + E5 | requires stager + SAB integration | medium-high |
+| E9 | **ScienceAgentBench end-to-end** (mandatory genericity) | full pipeline (proxy + detector + stager) on 3-5 SAB tasks with frozen rules; same metrics as E2 + E5 | requires stager + SAB integration | medium-high |
 | E10 | **SWE-bench Lite end-to-end** (mandatory cross-domain genericity) | same as E9 on one SWE-bench Lite instance per representative repo | requires stager + SWE-bench integration | medium |
 | E11 | Synthetic-rule baseline | auto-derived rules vs. hand-tuned; tier-1 recall delta | offline | low |
 
 E1–E3, E8, E11 use existing trace data. E4–E7 require the proxy + stager build. E9–E10 require the proxy + stager + per-benchmark harness adaptation. The simulator (Section 11.7) is a complementary tool for E6 sensitivity sweeps (where running the real stager under N different bandwidth caps is expensive) and for reproducibility replay (Section 11.10 Layer 2); it does not substitute for E5/E9/E10 measured numbers.
 
-### 11.6 Predictor genericity verification (three levels, all mandatory)
+### 11.6 Detector genericity verification (three levels, all mandatory)
 
 Genericity is the highest-risk reviewer attack surface. Without all three levels below, the paper reads as "regexes overfit to one benchmark."
 
 **Level 1 — Within-corpus (E3):** tune rules on 3 AgentIOBench workloads, evaluate on the 4th held-out. Tests within-corpus generalization.
 
-**Level 2 — Cross-corpus, published benchmarks (E9 + E10):** ScienceAgentBench and SWE-bench Lite with the FROZEN rule library. End-to-end pipeline (proxy + predictor + stager) on both. Pass criteria: tier-1 byte recall ≥ 0.70 on each external benchmark (modest degradation from the AgentIOBench 0.85+ is acceptable; below 0.70 is a genericity failure).
+**Level 2 — Cross-corpus, published benchmarks (E9 + E10):** ScienceAgentBench and SWE-bench Lite with the FROZEN rule library. End-to-end pipeline (proxy + detector + stager) on both. Pass criteria: tier-1 byte recall ≥ 0.70 on each external benchmark (modest degradation from the AgentIOBench 0.85+ is acceptable; below 0.70 is a genericity failure).
 
-**Level 3 — Automatic rule generation (E11):** auto-derive rules from task spec (noun-phrase extraction → per-class regex variants) with zero human tuning. Compare against hand-tuned rules. If auto-generated rules hit within 10% of hand-tuned recall, the predictor architecture is task-agnostic and the hand-curation is purely an engineering optimization, not a research crutch.
+**Level 3 — Automatic rule generation (E11):** auto-derive rules from task spec (noun-phrase extraction → per-class regex variants) with zero human tuning. Compare against hand-tuned rules. If auto-generated rules hit within 10% of hand-tuned recall, the detector architecture is task-agnostic and the hand-curation is purely an engineering optimization, not a research crutch.
 
-All three are required for the genericity claim. The combination of L2 (published benchmarks) and L3 (zero-tuning rules) is what makes "the predictor architecture is generic" defensible.
+All three are required for the genericity claim. The combination of L2 (published benchmarks) and L3 (zero-tuning rules) is what makes "the detector architecture is generic" defensible.
 
 ### 11.7 The single path: real stager + complementary simulator
 
@@ -617,14 +617,14 @@ If the stager smoke test on Day 5 fails, Days 6-7 become full-time stager debugg
 
 ### 11.10 Reproducibility kit (5 artifacts, Docker compose)
 
-- **Artifact A — Trace corpus.** All captured SSE JSONL events (88+ probes including external benchmarks), timing summaries, prediction activations, byte metrics. ~50 MB compressed.
+- **Artifact A — Trace corpus.** All captured SSE JSONL events (88+ probes including external benchmarks), timing summaries, detection activations, byte metrics. ~50 MB compressed.
 - **Artifact B — Workload registry.** Task specs (5 AgentIOBench + ScienceAgentBench subset + SWE-bench Lite instances), file inventories, ground truth (static + empirical via DFTracer), scripts to regenerate inventories from raw public datasets.
-- **Artifact C — Predictor + scoring scripts.** Frozen rule library (the one used for all reported numbers), auto-rule generator (E11), all baselines (stage-nothing, stage-all, literal, union, tier-1, oracle), metric calculators, simulator.
-- **Artifact D — Capture proxy.** Anthropic + Gemini SSE termination with forwarding, predictor invocation, prefetch-queue emission. CLI runner. Docker image.
+- **Artifact C — Detector + scoring scripts.** Frozen rule library (the one used for all reported numbers), auto-rule generator (E11), all baselines (stage-nothing, stage-all, literal, union, tier-1, oracle), metric calculators, simulator.
+- **Artifact D — Capture proxy.** Anthropic + Gemini SSE termination with forwarding, detector invocation, prefetch-queue emission. CLI runner. Docker image.
 - **Artifact E — Staging daemon + path-rewriting shim.** Userspace stager that consumes the prefetch queue, fetches from cold tier to local NVMe, exposes through LD_PRELOAD shim. Single-node, NFS-source + local-NVMe-dest reference configuration.
 
 Reproducibility layers:
-- **L1 — Trace replay (no testbed):** regenerate prediction-accuracy figures (E2, E3, E11) from JSONL with no LLM API and no stager.
+- **L1 — Trace replay (no testbed):** regenerate detection-accuracy figures (E2, E3, E11) from JSONL with no LLM API and no stager.
 - **L2 — Synthetic-LLM replay (no API keys):** mock LLM endpoint streams captured thinking back through the real proxy + real stager; reproduces E4 overhead and (with the simulator for bandwidth sweep) the E6 sensitivity curve.
 - **L3 — Live reproduction (full):** with API keys + Ares-equivalent testbed (Linux + NVMe + NFS source), regenerates E1, E5, E7, E8, E9, E10 against current models and real I/O.
 
@@ -632,7 +632,7 @@ Reproducibility layers:
 
 ## Appendix: file inventory
 
-- `poc/probe_reasoning_slack.py`: probe script (650 LoC). Implements provider-specific streaming, tiered predictor, byte metrics, multi-seed loop, planning-prompt variants.
-- `poc/runs/<timestamp>_<config>/`: one directory per seed. Contains `stream.jsonl` (raw SSE events), `summary.json` (block-level timing), `prediction.json` (per-rule activations and tier outputs), `byte_metrics.json` (per-tier byte recall/overfetch).
+- `poc/probe_reasoning_slack.py`: probe script (650 LoC). Implements provider-specific streaming, tiered detector, byte metrics, multi-seed loop, planning-prompt variants.
+- `poc/runs/<timestamp>_<config>/`: one directory per seed. Contains `stream.jsonl` (raw SSE events), `summary.json` (block-level timing), `detection.json` (per-rule activations and tier outputs), `byte_metrics.json` (per-tier byte recall/overfetch).
 - `poc/runs/<timestamp>_<task>_<model>_aggregate.json`: per-config 3-seed rollup.
 - `AGENTSTAGE.md`: this document.

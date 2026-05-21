@@ -6,7 +6,7 @@ aiob_110), this module produces a `Workload` value carrying:
 - The AIOB `TaskConfig` (loaded from the submodule's YAML) — gives us
   `dataset_subdir`, `output_fname`, `task_inst`, validator, etc.
 - A bucketed **workspace prior** (`dict[str, tuple[str, ...]]`) whose keys
-  match the `target_keys` referenced by `agentstage.predictor.rules`.
+  match the `target_keys` referenced by `agentstage.detector.rules`.
 - A **static ground truth** in two flavors: `ground_truth_full` (eventual
   working set) and `ground_truth_first_inspect` (immediate need).
 - A **prefix map** translating logical paths (`/data/<task>/raw/...`) used
@@ -35,7 +35,7 @@ from pathlib import Path
 
 import yaml
 
-from agentstage.predictor.rules import AIOB_104_SAMPLES, AIOB_110_SUBJECTS
+from agentstage.detector.rules import AIOB_104_SAMPLES, AIOB_110_SUBJECTS
 
 # ---------------------------------------------------------------------------
 # Paths and env
@@ -213,7 +213,7 @@ def load_aiob_107_s3(
     """S3 variant of aiob_107. Sources GOES data directly from NOAA's
     public Open Data bucket (`s3://noaa-goes16/`) via a mountpoint-s3
     mount. Workspace_prior reuses the logical paths from the local
-    aiob_107 — the predictor sees identical `/data/goes_cmi_composites/raw/...`
+    aiob_107 — the detector sees identical `/data/goes_cmi_composites/raw/...`
     paths in thinking text — but the prefix_map maps them onto the
     bucket's native `ABI-L2-CMIPC/YYYY/DDD/HH/...` layout.
 
@@ -228,7 +228,7 @@ def load_aiob_107_s3(
     if local AIOB data is absent.
     """
     # Reuse local aiob_107's workspace_prior structure (logical paths).
-    # The predictor matches against text mentions of files; what changes
+    # The detector matches against text mentions of files; what changes
     # for the S3 variant is purely the physical-path mapping.
     local = load_aiob_107()
     s3_mount = Path(s3_mount)
@@ -345,7 +345,7 @@ def load_aiob_110() -> Workload:
         "output_report_md": ("/output/result/report.md",),
     }
 
-    # Verify subject set matches the predictor rule library.
+    # Verify subject set matches the detector rule library.
     assert set(_AIOB_110_SESSIONS) == set(AIOB_110_SUBJECTS), (
         "aiob_110 subject list drifted between rules.py and workloads/aiob.py"
     )

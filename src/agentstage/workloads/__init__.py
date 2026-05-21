@@ -4,9 +4,9 @@ AIOB TaskConfig + prefix map.
 Public surface:
     from agentstage.workloads import get_workload, Workload, TaskConfig
 
-A `Workload` carries everything the predictor + scorer + runner need to
+A `Workload` carries everything the detector + scorer + runner need to
 process one (task, model, seed) cell. The rule library
-(`agentstage.predictor.rules`) references workspace-prior bucket keys
+(`agentstage.detector.rules`) references workspace-prior bucket keys
 by name; this module defines what files those keys resolve to.
 """
 

@@ -25,13 +25,13 @@ Decisions locked 2026-05-20 (T14).
 
 - **G1.** Decouple application-data fetch from tool execution. When the
   client library emits a `DataHint` from streaming-thinking intent, copy
-  the predicted files from cold tier (NFS / PFS / object store) to a
+  the detected files from cold tier (NFS / PFS / object store) to a
   local-NVMe hot tier *before* the agent's tool call dispatches its
   `openat`.
 - **G2.** Transparent to the agent code. No modifications to agent
   scripts, benchmark harnesses, or tool implementations. The shim does
   the redirection at the libc boundary.
-- **G3.** Honest fallback when prediction is wrong. If a file isn't
+- **G3.** Honest fallback when detection is wrong. If a file isn't
   staged when the agent opens it, fall through to the cold path with
   bounded extra latency.
 - **G4.** Compatible with DFTracer. The agent's "intent" (cold-path
@@ -75,7 +75,7 @@ Decisions locked 2026-05-20 (T14).
                         │   │  (anthropic / openai / gemini)   │   │
                         │   │                                  │   │
                         │   │  ◄── SSE chunks ── upstream LLM  │   │
-                        │   │  ── thinking_delta ──► predictor │   │
+                        │   │  ── thinking_delta ──► detector │   │
                         │   │  ── DataHint(files,tier) ──► ↓   │   │
                         │   │                              ↓   │   │
                         │   │  ┌────────────────────────────┐  │   │
@@ -345,8 +345,8 @@ class Stager:
         self._report = StagingReport(path=report_path)
 
     def prefetch(self, hint: DataHint) -> None:
-        """Called by AgentStageClient on each predictor rule firing."""
-        for cold_path in hint.predicted_files:
+        """Called by AgentStageClient on each detector rule firing."""
+        for cold_path in hint.detected_files:
             with self._lock:
                 if cold_path in self.in_flight:
                     continue
@@ -391,7 +391,7 @@ run end with per-stage records:
       "fetch_ms": 62.3,
       "tier": 1,
       "rule_id": "first_inspect_goes",
-      "t_predicted_ms": 8537,
+      "t_detected_ms": 8537,
       "t_completed_ms": 8599.3,
       "outcome": "staged"
     },
@@ -523,7 +523,7 @@ A miniature end-to-end smoke run on a synthetic 5-file workload:
 1. Set `AGENTSTAGE_COLD_ROOTS=/tmp/synthetic_cold`, `AGENTSTAGE_HOT_ROOT=/tmp/synthetic_hot`
 2. Place 5 known files under `/tmp/synthetic_cold/`
 3. Spawn a Python subprocess with `LD_PRELOAD=libagentstage_shim.so`
-4. Predictor (mock) emits a `DataHint` for 3 of the 5 files
+4. Detector (mock) emits a `DataHint` for 3 of the 5 files
 5. After 100 ms, the subprocess opens all 5 files
 6. Assert: 3 files were served from hot (per `staging_report.json`),
    2 fell through to cold
@@ -581,7 +581,7 @@ dependencies beyond libc.
   but deferred. Would need Unix-socket IPC and reference-counting on
   staged files.
 - **Tier-aware admission control.** Currently any file in a DataHint is
-  admitted equally. A richer policy would admit tier-1 predictions
+  admitted equally. A richer policy would admit tier-1 detections
   preferentially and stage tier-3 only if capacity permits.
 - **Hot tier sharding across multiple NVMe devices.** For nodes with
   multiple NVMe SSDs, distribute staged files across devices to
@@ -592,7 +592,7 @@ dependencies beyond libc.
   faster.
 - **Predicted-but-unread eviction priority.** Track which staged files
   the agent actually opened vs. which remained unread; bias eviction
-  against unread files first (they were predictor false positives).
+  against unread files first (they were detector false positives).
 - **In-flight cold reads.** If the agent opens a cold file *while* the
   stager is mid-copy of that same file, current behavior falls through
   to cold (the rename hasn't happened yet). A more aggressive
@@ -605,7 +605,7 @@ dependencies beyond libc.
 - **Hot capacity**: 32 GB default. Fits any single AIOB workload
   without eviction; isolates the E5 signal.
 - **Atomicity retry**: 20 ms retry-spin then fallthrough to cold.
-  Bounded latency injection; covers prediction-race window.
+  Bounded latency injection; covers detection-race window.
 
 These are configurable via env vars (§6) for sensitivity sweeps if
 reviewers ask.

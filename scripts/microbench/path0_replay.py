@@ -2,15 +2,15 @@
 
 Replays a recorded PoC stream.jsonl through the frozen rule library
 against a real Stager + real cold files. Measures first-read latency
-on the predicted tier-1 files with vs without the stager.
+on the detected tier-1 files with vs without the stager.
 
 This is the cheapest path to a real-data, real-files speedup number.
 No LLM call (we use a recorded thinking stream instead) but everything
-downstream of the LLM — predictor, stager, shim, file I/O — is real.
+downstream of the LLM — detector, stager, shim, file I/O — is real.
 
 Modes:
   --mode baseline:    no Stager prefetch; opens cold paths directly
-  --mode with-stager: Stager prefetches each predicted tier-1 file,
+  --mode with-stager: Stager prefetches each detected tier-1 file,
                       waits, then opens (shim redirects to hot)
 
 The shell wrapper at path0_run.sh runs both modes and prints
@@ -54,8 +54,8 @@ def main() -> int:
 
     # Lazy imports so the import path doesn't trip the shim before we want it
     from agentiobench.utils.cache import _resident_pages
-    from agentstage.predictor.engine import parse_anthropic_stream, run_predictor
-    from agentstage.predictor.rules import get_ruleset
+    from agentstage.detector.engine import parse_anthropic_stream, run_detector
+    from agentstage.detector.rules import get_ruleset
     from agentstage.stager import DataHint, Stager
     from agentstage.workloads.aiob import (
         load_aiob_101, load_aiob_104, load_aiob_107, load_aiob_107_s3, load_aiob_110,
@@ -69,7 +69,7 @@ def main() -> int:
         "aiob_110": load_aiob_110,
     }
     workload = loaders[args.workload]()
-    # S3 variants share the same predictor rules as their local counterpart —
+    # S3 variants share the same detector rules as their local counterpart —
     # rules match against thinking text + logical paths; the data's physical
     # location doesn't affect what the agent says or thinks.
     rules_key = args.workload.replace("_s3", "")
@@ -77,10 +77,10 @@ def main() -> int:
 
     # 1. Replay the stream → tier-1 logical paths
     blocks = parse_anthropic_stream(args.stream)
-    prediction = run_predictor(blocks, workload.workspace_prior, ruleset)
+    detection = run_detector(blocks, workload.workspace_prior, ruleset)
 
-    tier1_logical = list(prediction.tier_1.predicted_files)
-    tier3_logical = list(prediction.tier_3.predicted_files)
+    tier1_logical = list(detection.tier_1.detected_files)
+    tier3_logical = list(detection.tier_3.detected_files)
 
     # 2. Translate logical → physical via the workload's prefix_map
     def to_physical(logical: str) -> str:
@@ -90,7 +90,7 @@ def main() -> int:
         return logical
 
     # Pick the sample set: tier-1 if it has enough files; otherwise extend
-    # from tier-3 (the predictor's broader set). All samples must be predicted
+    # from tier-3 (the detector's broader set). All samples must be detected
     # by SOMETHING — we're measuring "files the stager would prefetch."
     candidate_logical = tier1_logical + [
         p for p in tier3_logical if p not in tier1_logical
@@ -107,7 +107,7 @@ def main() -> int:
         return 1
 
     sample = candidate_physical[: args.n_samples]
-    # The predicted tier-1 set we actually stage (might be smaller than sample)
+    # The detected tier-1 set we actually stage (might be smaller than sample)
     tier1_physical = [to_physical(p) for p in tier1_logical
                       if Path(to_physical(p)).is_file()]
 
@@ -161,7 +161,7 @@ def main() -> int:
     # (We stage the same set we'll measure, so the comparison is per-file.)
     if args.mode == "with-stager":
         hint = DataHint(
-            predicted_files=tuple(sample),
+            detected_files=tuple(sample),
             tier=1,
             fired_at_ms=0.0,
             rule_id="path0_replay",
@@ -209,9 +209,9 @@ def main() -> int:
         "shim_in_ld_preload": "agentstage_shim" in os.environ.get("LD_PRELOAD", ""),
         "workload": args.workload,
         "stream": str(args.stream),
-        "rule_library_version": prediction.rule_library_version,
-        "n_tier1_files_predicted": len(tier1_logical),
-        "n_tier3_files_predicted": len(tier3_logical),
+        "rule_library_version": detection.rule_library_version,
+        "n_tier1_files_detected": len(tier1_logical),
+        "n_tier3_files_detected": len(tier3_logical),
         "n_samples_measured": len(sample),
         "hot_root": str(hot_root),
         "cold_root": str(cold_root),

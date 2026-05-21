@@ -1,7 +1,7 @@
 """H10: The capture proxy adds negligible LLM-side latency, and the
 no-thinking pathway is indistinguishable from the no-proxy baseline.
 
-The proxy terminates the LLM SSE stream, parses events, runs the predictor,
+The proxy terminates the LLM SSE stream, parses events, runs the detector,
 and forwards everything to the agent harness unchanged. Two distinct claims:
 
   (E4) Proxy overhead: p99 LLM-side latency with proxy vs without ≤ 1%.
@@ -70,13 +70,13 @@ class TestGracefulDegradation:
             "runs (e.g. Anthropic turn-2 from §6.8) with and without proxy."
         )
 
-    def test_no_data_corruption_when_predictor_disabled(self, outputs_root):
-        """With --predictor-disabled, the proxy is a pure SSE pass-through.
+    def test_no_data_corruption_when_detector_disabled(self, outputs_root):
+        """With --detector-disabled, the proxy is a pure SSE pass-through.
         Every event forwarded byte-identical to upstream.
         """
         if outputs_root is None:
             pytest.skip("H10 requires --staging-root")
         pytest.skip(
-            "H10.passthrough_byte_identity: pending — needs --predictor-disabled "
+            "H10.passthrough_byte_identity: pending — needs --detector-disabled "
             "flag in the proxy CLI."
         )

@@ -91,7 +91,7 @@ source "$VLLM_VENV/bin/activate"
 #
 #   --default-chat-template-kwargs '{"enable_thinking": true}'
 #     ^ AIOB sets this to false. We want the model to emit thinking content
-#       in the streamed response so the predictor can see intent before tool
+#       in the streamed response so the detector can see intent before tool
 #       dispatch.
 #
 #   --reasoning-parser qwen3

@@ -2,12 +2,12 @@
 
 For every run dir under an outputs root, this module:
 
-1. Parses `stream.jsonl` into blocks (via `predictor.engine.parse_stream`)
-2. Runs the v1 predictor → `Prediction`
+1. Parses `stream.jsonl` into blocks (via `detector.engine.parse_stream`)
+2. Runs the v1 detector → `Detection`
 3. Computes byte recall + overfetch against the workload's static GT
    (both "first inspect" and "full working set" flavors) for each
    tier and the HOT layer
-4. Writes `byte_metrics_v1.json` + `prediction_v1.json` alongside the
+4. Writes `byte_metrics_v1.json` + `detection_v1.json` alongside the
    originals (the PoC's `byte_metrics.json` is kept untouched as a
    pre-freeze snapshot)
 
@@ -27,17 +27,17 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from agentstage.metrics.byte_metrics import ByteScore, byte_score
-from agentstage.predictor.engine import (
-    Prediction,
+from agentstage.detector.engine import (
+    Detection,
     parse_stream,
-    run_predictor,
+    run_detector,
 )
-from agentstage.predictor.rules import RULE_LIBRARY_HASH, RULE_LIBRARY_VERSION, get_ruleset
+from agentstage.detector.rules import RULE_LIBRARY_HASH, RULE_LIBRARY_VERSION, get_ruleset
 from agentstage.workloads import Workload, get_workload
 
 
 def _score_all_tiers(
-    pred: Prediction,
+    pred: Detection,
     workload: Workload,
 ) -> dict[str, dict]:
     """Compute byte_score per (tier, ground-truth flavor)."""
@@ -52,7 +52,7 @@ def _score_all_tiers(
     # Tier scores against immediate-need + eventual-working-set
     for tier_name, tier in (("tier_1", pred.tier_1), ("tier_2", pred.tier_2), ("tier_3", pred.tier_3)):
         for gt_name, gt in (("first", gt_first), ("full", gt_full)):
-            score = byte_score(tier.predicted_files, gt, workload.prefix_map)
+            score = byte_score(tier.detected_files, gt, workload.prefix_map)
             out[f"{tier_name}_{gt_name}"] = score.to_dict()
 
     # HOT scan score (high-precision, low-recall layer)
@@ -73,7 +73,7 @@ def _score_all_tiers(
 def rescore_run(run_dir: Path, force: bool = False) -> Path | None:
     """Re-score one run dir's stream.jsonl against the frozen v1 rule lib.
 
-    Writes `byte_metrics_v1.json` + `prediction_v1.json` next to the
+    Writes `byte_metrics_v1.json` + `detection_v1.json` next to the
     originals. Returns the path to `byte_metrics_v1.json`, or None if
     the run can't be re-scored (no thinking, unknown task, etc.).
     """
@@ -93,7 +93,7 @@ def rescore_run(run_dir: Path, force: bool = False) -> Path | None:
         return None
 
     out_metrics = run_dir / "byte_metrics_v1.json"
-    out_prediction = run_dir / "prediction_v1.json"
+    out_detection = run_dir / "detection_v1.json"
     if out_metrics.is_file() and not force:
         return out_metrics
 
@@ -103,11 +103,11 @@ def rescore_run(run_dir: Path, force: bool = False) -> Path | None:
 
     provider = summary.get("provider")
     blocks = parse_stream(stream_path, provider=provider)
-    prediction = run_predictor(blocks, workload.workspace_prior, ruleset)
-    metrics = _score_all_tiers(prediction, workload)
+    detection = run_detector(blocks, workload.workspace_prior, ruleset)
+    metrics = _score_all_tiers(detection, workload)
 
     out_metrics.write_text(json.dumps(metrics, indent=2, default=float))
-    out_prediction.write_text(json.dumps(prediction.to_dict(), indent=2, default=float))
+    out_detection.write_text(json.dumps(detection.to_dict(), indent=2, default=float))
     return out_metrics
 
 

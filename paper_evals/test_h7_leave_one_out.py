@@ -40,7 +40,7 @@ class TestLeaveOneOut:
         """
         pytest.skip(
             f"H7.loo[{held_out}]: pending — needs (a) rule-origin tagging in "
-            "agentstage.predictor.rules and (b) a re-score driver. Both "
+            "agentstage.detector.rules and (b) a re-score driver. Both "
             "land alongside Day 2's leave-one-out work in §11.8."
         )
 

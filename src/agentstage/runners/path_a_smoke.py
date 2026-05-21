@@ -1,7 +1,7 @@
 """Path A — minimum live smoke for AgentStage.
 
 Single Anthropic Haiku 4.5 call on aiob_107 with planning prompt.
-Streaming → predictor → stager pipeline runs live. We catch the first
+Streaming → detector → stager pipeline runs live. We catch the first
 tool_use the LLM emits, execute its open() through the LD_PRELOAD shim,
 time the read. For comparison: same file, shim-disabled, freshly evicted.
 
@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 from agentstage.client.anthropic import AnthropicClient
-from agentstage.predictor.rules import get_ruleset
+from agentstage.detector.rules import get_ruleset
 from agentstage.stager import Stager, StagingReport
 from agentstage.workloads.aiob import load_aiob_107, load_aiob_107_s3
 
@@ -138,7 +138,7 @@ def main() -> int:
         return 2
 
     # Load workload + ruleset. S3 variant shares aiob_107's rules
-    # (predictor rules match against thinking text + logical paths;
+    # (detector rules match against thinking text + logical paths;
     # the data's physical location doesn't affect what the agent thinks).
     if args.workload == "aiob_107_s3":
         workload = load_aiob_107_s3()
@@ -150,8 +150,8 @@ def main() -> int:
           file=sys.stderr)
 
     # Translate logical→physical for the prior so the stager dispatches
-    # real cold-tier paths. The predictor's rules match against logical
-    # text in the thinking content, but the predicted_files list it
+    # real cold-tier paths. The detector's rules match against logical
+    # text in the thinking content, but the detected_files list it
     # produces will use logical paths from the prior; we translate
     # before dispatching.
     prefix_map = workload.prefix_map
@@ -268,7 +268,7 @@ def main() -> int:
 
     # Identify the file to measure. Prefer agent's first open_file/file-target
     # tool call; otherwise fall back to the FIRST file the stager staged
-    # (which is what the predictor's tier-1 rule pointed at).
+    # (which is what the detector's tier-1 rule pointed at).
     target_logical: str | None = None
     target_physical: str | None = None
     target_source = "none"
@@ -317,7 +317,7 @@ def main() -> int:
             from agentstage.stager import DataHint
             print("  force-prefetching target for measurement...", file=sys.stderr)
             futures = stager.prefetch(DataHint(
-                predicted_files=(target_physical,),
+                detected_files=(target_physical,),
                 tier=1,
                 fired_at_ms=0.0,
                 rule_id="path_a_force",

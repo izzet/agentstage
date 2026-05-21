@@ -5,7 +5,7 @@ For each captured multi-turn run, computes:
   - Opened set (from tool_use.jsonl trails)
   - Precision, recall, byte overfetch, wasted bytes
 
-Reveals how often the predictor's prefetches went to files the agent
+Reveals how often the detector's prefetches went to files the agent
 never opened — the "false positive" rate that paper claim C2's overfetch
 metric was supposed to bound, now measured in the multi-turn live
 setting (rather than turn-1 seeds).
@@ -41,8 +41,8 @@ def collect_prefetched(
     Excludes rule_ids in ``exclude_rule_ids``: these are runner-level
     force-prefetches (e.g. the measurement step at the end of a Path B
     sparse_live run, which stages the agent's file just so we can time
-    cold vs. hot). Counting those toward "predictor precision" would
-    flatter the predictor.
+    cold vs. hot). Counting those toward "detector precision" would
+    flatter the detector.
     """
     if not staging_report_path.exists():
         return {}
@@ -136,7 +136,7 @@ def main() -> int:
     # C2's metric (1.5× ceiling on byte_overfetch) only makes sense when
     # prefetched is a superset of accessed; in sparse-prompt regimes we
     # observe disjoint sets and the ratio collapses to misleading values
-    # (e.g. 0.07× because agent opened a larger file we didn't predict).
+    # (e.g. 0.07× because agent opened a larger file we did not detect).
     union_paths = pf_paths | op_paths
     union_bytes = pf_bytes + op_bytes - hit_bytes
     jaccard_files = (len(hit_paths) / len(union_paths)) if union_paths else None

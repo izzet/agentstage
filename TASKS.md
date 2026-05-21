@@ -17,14 +17,14 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [x] T02 Scaffold paper_evals H1-H10 stubs — _commit `9f0d6a6`_
 - [x] T03 Lay down CAMPAIGN/TASKS/README/.env.example — _commit `748a91d`_
 - [x] T04 Add agentiobench submodule + revise architecture (client-lib primary, outputs/, 15-turn cap, cold cache mandatory) — _this commit_
-- [x] T05 Port rule library `poc/probe_reasoning_slack.py` → `src/agentstage/predictor/rules.py` with `Rule` + `RuleSet` dataclasses and per-rule `origin` tagging for leave-one-out. 105 rules across 5 workloads (58 aiob_104 / 16 aiob_110 / 13 code_repo / 10 aiob_107 / 8 aiob_101; 16 tagged "general"). HOT scan + engine deferred to T07-T08.
-- [x] T06 `RULE_LIBRARY_VERSION="v1"` + `RULE_LIBRARY_HASH` (sha256 over canonical serialization) in `src/agentstage/predictor/rules.py`; `tests/test_rules_freeze.py` pins hash + per-workload counts + origin distribution + leave-one-out filter behavior (9 tests, all green).
+- [x] T05 Port rule library `poc/probe_reasoning_slack.py` → `src/agentstage/detector/rules.py` with `Rule` + `RuleSet` dataclasses and per-rule `origin` tagging for leave-one-out. 105 rules across 5 workloads (58 aiob_104 / 16 aiob_110 / 13 code_repo / 10 aiob_107 / 8 aiob_101; 16 tagged "general"). HOT scan + engine deferred to T07-T08.
+- [x] T06 `RULE_LIBRARY_VERSION="v1"` + `RULE_LIBRARY_HASH` (sha256 over canonical serialization) in `src/agentstage/detector/rules.py`; `tests/test_rules_freeze.py` pins hash + per-workload counts + origin distribution + leave-one-out filter behavior (9 tests, all green).
 - [x] T07 `src/agentstage/workloads/{aiob,code_repo}.py` — `Workload` dataclass + per-task loaders (`load_aiob_101/104/107/110/code_repo`). `TaskConfig` mirrored locally to avoid AIOB's eager-numpy import (switches to `from agentiobench import TaskConfig` when T13b lands). Workspace priors keyed to match the rule library's `target_keys`. `AGENTIOBENCH_DATA_ROOT` env-resolved.
 - [x] T08 `src/agentstage/metrics/byte_metrics.py` — `ByteScore` frozen dataclass + `byte_score()` + `file_size()` with `lru_cache` size lookup and prefix_map resolution. GOES collapse reproduces at 6078× overfetch in the smoke test.
 - [x] T09 `src/agentstage/metrics/empirical_gt.py` — `load_empirical_reads()` parses io_report.json `file_name_view[*]` filtering on `posix_count_sum>0` + `posix_read_size_sum>0`, drops `/output/` and `/repo/result/` write targets. Verified on a real sciiobench io_report (aiob_101 sonnet-4-5: 39 files, 25.4 GB read).
-- [x] T10 H3 headline assertions live: tier_1_first byte recall ≥0.85 on ≥90% (got 93% of 67 seeds), tier_1_first overfetch ≤1.5× on ≥95% (99%), tier_3_full recall ≥0.85 on ≥95% (99%), tier_3_full overfetch ≤2.0× on ≥95% (99%), Anthropic family 100%, Gemini family ≥95% overfetch. PoC corpus re-scored against frozen v1 rules. Required side-effects: ported predictor engine (`src/agentstage/predictor/engine.py` — parse_anthropic_stream + parse_gemini_stream + hot_path_scan + run_predictor), Campaign indexer (`src/agentstage/workloads/campaign.py`), rescore helper (`src/agentstage/metrics/rescore.py`), and `campaign` session fixture in `paper_evals/conftest.py`.
+- [x] T10 H3 headline assertions live: tier_1_first byte recall ≥0.85 on ≥90% (got 93% of 67 seeds), tier_1_first overfetch ≤1.5× on ≥95% (99%), tier_3_full recall ≥0.85 on ≥95% (99%), tier_3_full overfetch ≤2.0× on ≥95% (99%), Anthropic family 100%, Gemini family ≥95% overfetch. PoC corpus re-scored against frozen v1 rules. Required side-effects: ported detector engine (`src/agentstage/detector/engine.py` — parse_anthropic_stream + parse_gemini_stream + hot_path_scan + run_detector), Campaign indexer (`src/agentstage/workloads/campaign.py`), rescore helper (`src/agentstage/metrics/rescore.py`), and `campaign` session fixture in `paper_evals/conftest.py`.
 - [x] T11 H1 slack assertions live: median slack ≥5s, ≥80% of seeds clear 2s, ≥50% clear 5s, every provider family with ≥3 seeds has median ≥2s. Reads `slack_ms` derived from summary.json blocks (first thinking_delta → first tool_use).
-- [x] T12 `src/agentstage/predictor/auto_rules.py` scaffolded — `AutoRuleGenerator` class with TODO docstring, returns empty RuleSet. Real implementation deferred to T13 / Day 2.
+- [x] T12 `src/agentstage/detector/auto_rules.py` scaffolded — `AutoRuleGenerator` class with TODO docstring, returns empty RuleSet. Real implementation deferred to T13 / Day 2.
 
 ## Day 2 — 2026-05-20 (Leave-one-out + stager design + OSS setup + fetch scripts + AIOB branch)
 
@@ -46,8 +46,8 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 
 ## Day 3 — 2026-05-21 (Client library + simulator)
 
-- [ ] T18 `src/agentstage/client/base.py` — `AgentStageClient` ABC + `DataHint` dataclass (`predicted_files`, `tier`, `fired_at_ms`, `rule_id`, `byte_estimate`, `signature`). Tee-stream semantics: caller sees identical chunks; predictor sees identical chunks; stager sees prefetch dispatches.
-- [ ] T19 `src/agentstage/client/anthropic.py` — wraps `anthropic.Anthropic.messages.create(stream=True)`; intercepts `thinking_delta`/`signature_delta`/`text_delta`/`input_json_delta`; runs predictor live; dispatches to stager. **Replaces previously-planned `src/agentstage/proxy/anthropic.py`.** Also handle OpenAI-shape clients: `delta.reasoning_content` (vLLM extension) is the thinking field for Qwen-served-via-vLLM and any future reasoning-parser-enabled OpenAI-compatible endpoint.
+- [ ] T18 `src/agentstage/client/base.py` — `AgentStageClient` ABC + `DataHint` dataclass (`detected_files`, `tier`, `fired_at_ms`, `rule_id`, `byte_estimate`, `signature`). Tee-stream semantics: caller sees identical chunks; detector sees identical chunks; stager sees prefetch dispatches.
+- [ ] T19 `src/agentstage/client/anthropic.py` — wraps `anthropic.Anthropic.messages.create(stream=True)`; intercepts `thinking_delta`/`signature_delta`/`text_delta`/`input_json_delta`; runs detector live; dispatches to stager. **Replaces previously-planned `src/agentstage/proxy/anthropic.py`.** Also handle OpenAI-shape clients: `delta.reasoning_content` (vLLM extension) is the thinking field for Qwen-served-via-vLLM and any future reasoning-parser-enabled OpenAI-compatible endpoint.
 - [ ] T20 `src/agentstage/simulator/bandwidth.py` — bandwidth-vs-speedup sensitivity model (E6 backbone)
 
 ## Day 4 — 2026-05-22 (More client wrappers + cache integration + Campaign A start)
@@ -112,7 +112,7 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 ## Day 12 — 2026-05-30 (Paper draft §5-7 + all figures)
 
 - [ ] T59 Generate all results figures from `report.json`
-- [ ] T60 Draft §5 Methodology · T61 §6 Prediction results · T62 §7 Staging effectiveness + robustness
+- [ ] T60 Draft §5 Methodology · T61 §6 Detection results · T62 §7 Staging effectiveness + robustness
 
 ## Day 13 — 2026-05-31 (Paper draft §8 + reproducibility kit)
 
@@ -133,7 +133,7 @@ Task IDs are `T<NN>`. Format: `- [ ] T01 <subject> — <served-by>`.
 - [ ] B02 Tier-2 rule engineering for medium-granularity (per-day, per-band) signals
 - [ ] B03 MCP `data_hints` SEP draft (independent contribution; the client lib's DataHint maps directly to this)
 - [ ] B04 NCSA Delta Lustre cross-PFS validation
-- [ ] B05 Online-learned predictor (uses captured trace pairs as training data)
+- [ ] B05 Online-learned detector (uses captured trace pairs as training data)
 - [ ] B06 Sonnet sanity-check sub-matrix on aiob_110 + code_repo with frozen rules (~$3)
 - [ ] B07 Full HTTP proxy implementation (beyond the thin `proxy/server.py` wrapper) — for harnesses that can't import agentstage at all
 - [ ] B08 SWE-bench Lite end-to-end (Docker integration) — reconsidered for a future version of the paper; KramaBench replaces it for the eScience submission because of its better I/O profile

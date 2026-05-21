@@ -5,7 +5,7 @@ the filesystem (tmpfs via pytest's tmp_path) but no LLM, no shim, and no
 LD_PRELOAD. Fast (< 1 s total); runs on every `uv run pytest`.
 
 Six invariants pinned:
-  - prefetch dispatches one stage per predicted file
+  - prefetch dispatches one stage per detected file
   - _stage's atomic rename means a concurrent observer sees either ENOENT
     or the full final bytes — never a partial file
   - re-prefetching the same cold_path produces no new copy work
@@ -78,7 +78,7 @@ def make_cold_file(cold_dir: Path, name: str, size_bytes: int) -> Path:
 
 def make_hint(*paths: Path, tier: int = 1, rule_id: str = "test") -> DataHint:
     return DataHint(
-        predicted_files=tuple(str(p) for p in paths),
+        detected_files=tuple(str(p) for p in paths),
         tier=tier,
         fired_at_ms=0.0,
         rule_id=rule_id,
@@ -352,10 +352,10 @@ def test_in_flight_files_protected_from_eviction(
 # T6: write pass-through contract
 # ---------------------------------------------------------------------------
 
-def test_stager_only_sees_predicted_files_not_writes(stager: Stager, cold_dir: Path):
+def test_stager_only_sees_detected_files_not_writes(stager: Stager, cold_dir: Path):
     """The shim is responsible for never invoking the stager on writes.
     The stager's API surface (prefetch) only takes file paths from DataHints,
-    which are read-set predictions. This is a contract test pinning that
+    which are read-set detections. This is a contract test pinning that
     the stager has no API for write-redirection."""
     # The Stager class should have no method that accepts open flags or
     # write-mode semantics. If someone ever adds one, this test will fail

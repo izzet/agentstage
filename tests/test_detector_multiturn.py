@@ -1,7 +1,7 @@
-"""Tests for the multi-turn / tool_result-aware predictor extensions.
+"""Tests for the multi-turn / tool_result-aware detector extensions.
 
 These cover:
-  - run_predictor scanning tool_result blocks alongside thinking
+  - run_detector scanning tool_result blocks alongside thinking
   - StreamBlock.turn / RuleActivation.source / RuleActivation.turn
   - blocks_from_messages() parsing a multi-turn Anthropic message history
 """
@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import re
 
-from agentstage.predictor.engine import (
+from agentstage.detector.engine import (
     StreamBlock,
     blocks_from_messages,
-    run_predictor,
+    run_detector,
 )
-from agentstage.predictor.rules import Rule, RuleSet
+from agentstage.detector.rules import Rule, RuleSet
 
 
 def _ruleset_with(pattern: str, target_keys: tuple[str, ...] = ("k",)) -> RuleSet:
@@ -32,9 +32,9 @@ def _ruleset_with(pattern: str, target_keys: tuple[str, ...] = ("k",)) -> RuleSe
     )
 
 
-def test_predictor_fires_on_tool_result_when_thinking_silent():
+def test_detector_fires_on_tool_result_when_thinking_silent():
     """If the only place the pattern appears is the tool_result text,
-    the predictor must still fire — and report source='tool_result'."""
+    the detector must still fire — and report source='tool_result'."""
     blocks = [
         StreamBlock(
             type="thinking", t_first=0.0, t_stop=100.0,
@@ -47,7 +47,7 @@ def test_predictor_fires_on_tool_result_when_thinking_silent():
     ]
     prior = {"k": ("/data/foo/bar_C08.nc", "/data/foo/bar_C09.nc")}
     ruleset = _ruleset_with(r"bar_C08\.nc")
-    pred = run_predictor(blocks, prior, ruleset)
+    pred = run_detector(blocks, prior, ruleset)
     assert len(pred.activations) == 1
     act = pred.activations[0]
     assert act.source == "tool_result"
@@ -55,7 +55,7 @@ def test_predictor_fires_on_tool_result_when_thinking_silent():
     assert pred.tier_1.size == 2  # both files in target
 
 
-def test_predictor_prefers_earliest_match_across_blocks():
+def test_detector_prefers_earliest_match_across_blocks():
     """If a rule pattern appears in thinking AND a later tool_result,
     the thinking activation wins (source='thinking', turn=0)."""
     blocks = [
@@ -70,7 +70,7 @@ def test_predictor_prefers_earliest_match_across_blocks():
     ]
     prior = {"k": ("/data/foo/bar_C08.nc",)}
     ruleset = _ruleset_with(r"bar_C08\.nc")
-    pred = run_predictor(blocks, prior, ruleset)
+    pred = run_detector(blocks, prior, ruleset)
     assert len(pred.activations) == 1
     assert pred.activations[0].source == "thinking"
     assert pred.activations[0].turn == 0
@@ -88,7 +88,7 @@ def test_text_blocks_scanned_with_text_source():
     ]
     prior = {"k": ("/data/foo/bar_C08.nc",)}
     ruleset = _ruleset_with(r"bar_C08\.nc")
-    pred = run_predictor(blocks, prior, ruleset)
+    pred = run_detector(blocks, prior, ruleset)
     assert len(pred.activations) == 1
     act = pred.activations[0]
     assert act.source == "text"
@@ -134,13 +134,13 @@ def test_blocks_from_messages_chronological_order():
     ]
 
 
-def test_session_predictor_returns_only_new_activations_per_turn():
-    """SessionPredictor.feed_turn must only return rules that fired
+def test_session_detector_returns_only_new_activations_per_turn():
+    """SessionDetector.feed_turn must only return rules that fired
     on THIS call, not the cumulative set."""
-    from agentstage.predictor.session import SessionPredictor
+    from agentstage.detector.session import SessionDetector
     prior = {"k": ("/data/foo/bar_C08.nc",)}
     ruleset = _ruleset_with(r"bar_C08\.nc")
-    sp = SessionPredictor(prior=prior, ruleset=ruleset)
+    sp = SessionDetector(prior=prior, ruleset=ruleset)
 
     # Turn 0: thinking does NOT mention bar_C08
     new_t0 = sp.feed_turn([
@@ -173,13 +173,13 @@ def test_session_predictor_returns_only_new_activations_per_turn():
     assert len(sp.activations) == 1
 
 
-def test_session_predictor_turn_indices_correct():
+def test_session_detector_turn_indices_correct():
     """Turn counter must increment across feed_turn calls; tool_results
     stamped with the NEXT turn's index."""
-    from agentstage.predictor.session import SessionPredictor
+    from agentstage.detector.session import SessionDetector
     prior = {"k": ("/data/a.nc",)}
     ruleset = _ruleset_with(r"a\.nc")
-    sp = SessionPredictor(prior=prior, ruleset=ruleset)
+    sp = SessionDetector(prior=prior, ruleset=ruleset)
 
     sp.feed_turn([
         StreamBlock(type="thinking", t_first=0.0, t_stop=100.0,
@@ -198,9 +198,9 @@ def test_session_predictor_turn_indices_correct():
     assert sp.current_turn == 2
 
 
-def test_multi_turn_replay_through_run_predictor():
+def test_multi_turn_replay_through_run_detector():
     """End-to-end: build a multi-turn message history, parse into blocks,
-    run predictor. Confirm rule fires on the right turn and source."""
+    run detector. Confirm rule fires on the right turn and source."""
     messages = [
         {
             "role": "assistant",
@@ -218,7 +218,7 @@ def test_multi_turn_replay_through_run_predictor():
     prior = {"all_bands": ("raw/C08.nc", "raw/C09.nc")}
     ruleset = _ruleset_with(r"C08\.nc", target_keys=("all_bands",))
     blocks = blocks_from_messages(messages)
-    pred = run_predictor(blocks, prior, ruleset)
+    pred = run_detector(blocks, prior, ruleset)
     assert len(pred.activations) == 1
     act = pred.activations[0]
     assert act.source == "tool_result"

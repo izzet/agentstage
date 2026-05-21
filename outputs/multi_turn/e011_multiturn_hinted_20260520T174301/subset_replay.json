@@ -1,0 +1,135 @@
+{
+  "corpus": "outputs/multi_turn/e011_multiturn_hinted_20260520T174301",
+  "workload": "aiob_107_s3",
+  "gt_actual_files": 1,
+  "gt_static_files": 6042,
+  "fired_rules": [
+    "all_files_signal",
+    "first_inspect",
+    "band_08",
+    "band_09"
+  ],
+  "tier_unions": {
+    "tier_1_size": 1,
+    "tier_2_size": 1,
+    "tier_3_size": 6042
+  },
+  "tier_1_vs_actual": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "jaccard": 1.0,
+    "hits": 1,
+    "predicted_size": 1,
+    "gt_size": 1
+  },
+  "tier_2_vs_actual": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "jaccard": 1.0,
+    "hits": 1,
+    "predicted_size": 1,
+    "gt_size": 1
+  },
+  "tier_3_vs_actual": {
+    "precision": 0.00016550810989738498,
+    "recall": 1.0,
+    "jaccard": 0.00016550810989738498,
+    "hits": 1,
+    "predicted_size": 6042,
+    "gt_size": 1
+  },
+  "tier_1_vs_static_gt": {
+    "precision": 1.0,
+    "recall": 0.00016550810989738498,
+    "jaccard": 0.00016550810989738498,
+    "hits": 1,
+    "predicted_size": 1,
+    "gt_size": 6042
+  },
+  "tier_2_vs_static_gt": {
+    "precision": 1.0,
+    "recall": 0.00016550810989738498,
+    "jaccard": 0.00016550810989738498,
+    "hits": 1,
+    "predicted_size": 1,
+    "gt_size": 6042
+  },
+  "tier_3_vs_static_gt": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "jaccard": 1.0,
+    "hits": 6042,
+    "predicted_size": 6042,
+    "gt_size": 6042
+  },
+  "rule_detail": [
+    {
+      "rule": "all_files_signal",
+      "source": "thinking",
+      "turn": 0,
+      "tier": 3,
+      "subset_size": 6042,
+      "vs_actual": {
+        "hits": 1,
+        "precision": 0.00016550810989738498,
+        "recall": 1.0
+      },
+      "vs_static_gt": {
+        "hits": 6042,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    },
+    {
+      "rule": "first_inspect",
+      "source": "thinking",
+      "turn": 0,
+      "tier": 1,
+      "subset_size": 1,
+      "vs_actual": {
+        "hits": 1,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "vs_static_gt": {
+        "hits": 1,
+        "precision": 1.0,
+        "recall": 0.00016550810989738498
+      }
+    },
+    {
+      "rule": "band_08",
+      "source": "tool_result",
+      "turn": 5,
+      "tier": 3,
+      "subset_size": 2014,
+      "vs_actual": {
+        "hits": 1,
+        "precision": 0.0004965243296921549,
+        "recall": 1.0
+      },
+      "vs_static_gt": {
+        "hits": 2014,
+        "precision": 1.0,
+        "recall": 0.3333333333333333
+      }
+    },
+    {
+      "rule": "band_09",
+      "source": "tool_result",
+      "turn": 5,
+      "tier": 3,
+      "subset_size": 2014,
+      "vs_actual": {
+        "hits": 0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "vs_static_gt": {
+        "hits": 2014,
+        "precision": 1.0,
+        "recall": 0.3333333333333333
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""H3: A tiered semantic-class predictor over the workspace prior achieves
+"""H3: A tiered semantic-class detector over the workspace prior achieves
 high byte recall and low overfetch against the agent's actual file accesses.
 
 THIS IS THE PAPER'S HEADLINE HYPOTHESIS. Tier-1 covers the immediate-need
@@ -7,7 +7,7 @@ stated thresholds (≥ 0.85 byte recall, ≤ 1.5× / ≤ 2.0× overfetch) across
 provider families and workloads.
 
 Serves: C2, C3 (and through them, the entire paper's central claim)
-Origin: AGENTSTAGE.md §3, §6.2 (predictor accuracy), §6.4 (per-config)
+Origin: AGENTSTAGE.md §3, §6.2 (detector accuracy), §6.4 (per-config)
 Required data: trace-only (--outputs-root, includes outputs/poc/) +
                 ground-truth (--io-report-root for empirical GT)
 """
@@ -178,7 +178,7 @@ class TestCrossProviderConsistency:
     def test_gemini_overfetch_holds(self, campaign, report):
         """Gemini family: byte overfetch ≤ 1.5× holds on 100% of seeds
         even when recall misses fire (the misses are strategy-variance,
-        not predictor failures; see §6.4.1).
+        not detector failures; see §6.4.1).
         """
         seeds = _seeds(campaign).filter(provider_family="gemini")
         if len(seeds) < 5:

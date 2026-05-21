@@ -29,7 +29,7 @@ class TestGoesCollapse:
         §6.3 reports 1.00× on the sonnet+PP, seed 0 trace; the 11-seed
         sonnet config in §TLDR is 100% at ≤ 1.5×.
 
-        Records: `figure_goes_collapse` (predictor → overfetch table).
+        Records: `figure_goes_collapse` (detector → overfetch table).
         """
         pytest.skip(
             "H4.aiob107_collapse: pending — depends on H3's byte_metrics "
@@ -61,7 +61,7 @@ class TestTieringIsLoadBearing:
     ):
         """On workloads where workspace ≫ working set (aiob_107, code_repo),
         the union-of-rules overfetch is ≥ 10× the tier-1 overfetch. This
-        is what justifies the tiering choice over a single-set predictor.
+        is what justifies the tiering choice over a single-set detector.
         """
         pytest.skip(
             "H4.union_vs_tier1: pending — needs both tier-1 and union "

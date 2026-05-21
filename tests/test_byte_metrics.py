@@ -50,9 +50,9 @@ def test_byte_score_perfect_recall(tmp_path: Path):
     pred = ("/data/a.nc", "/data/b.nc", "/data/c.nc")
     gt = pred
     score = byte_score(pred, gt, prefix_map)
-    assert score.n_predicted == 3
+    assert score.n_detected == 3
     assert score.n_overlap == 3
-    assert score.bytes_predicted == 600
+    assert score.bytes_detected == 600
     assert score.bytes_ground_truth == 600
     assert score.byte_recall == 1.0
     assert score.byte_overfetch == 1.0
@@ -70,7 +70,7 @@ def test_byte_score_goes_collapse_arithmetic(tmp_path: Path):
     score = byte_score(naive, gt, prefix_map)
     assert score.byte_recall == 1.0
     assert score.byte_overfetch == 1000.0
-    assert score.n_predicted == 1000
+    assert score.n_detected == 1000
 
 
 def test_byte_score_partial_recall(tmp_path: Path):
@@ -82,7 +82,7 @@ def test_byte_score_partial_recall(tmp_path: Path):
     gt = ("/data/a.nc", "/data/b.nc", "/data/c.nc")
     pred = ("/data/a.nc", "/data/b.nc")  # missing c.nc
     score = byte_score(pred, gt, prefix_map)
-    assert score.bytes_predicted == 3000
+    assert score.bytes_detected == 3000
     assert score.bytes_ground_truth == 7000
     assert score.bytes_overlap == 3000
     assert abs(score.byte_recall - 3000 / 7000) < 1e-9
@@ -98,7 +98,7 @@ def test_byte_score_dedupes_inputs(tmp_path: Path):
         ("/data/a.nc", "/data/a.nc"),
         prefix_map,
     )
-    assert score.n_predicted == 1
+    assert score.n_detected == 1
     assert score.n_ground_truth == 1
 
 
@@ -112,8 +112,8 @@ def test_byte_score_empty_ground_truth_yields_zero_recall_inf_overfetch(tmp_path
 
 def test_byte_score_to_dict_round_trip():
     score = ByteScore(
-        n_predicted=2, n_ground_truth=3, n_overlap=1,
-        bytes_predicted=2000, bytes_ground_truth=6000, bytes_overlap=1000,
+        n_detected=2, n_ground_truth=3, n_overlap=1,
+        bytes_detected=2000, bytes_ground_truth=6000, bytes_overlap=1000,
     )
     d = score.to_dict()
     assert d["byte_recall"] == 1000 / 6000

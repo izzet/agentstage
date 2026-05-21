@@ -1,9 +1,9 @@
-"""Frozen semantic-class rule library for AgentStage's intent predictor.
+"""Frozen semantic-class rule library for AgentStage's intent detector.
 
 Each rule maps a regex pattern over the agent's streaming thinking text to
 one or more workspace-prior bucket keys. When the regex matches, the rule
 "fires" and contributes every file in its target buckets to the tiered
-predicted set.
+detected set.
 
 This module is the load-bearing artifact for the paper's genericity claim
 (see AGENTSTAGE.md §11.6). The rules are FROZEN: `RULE_LIBRARY_VERSION`
@@ -45,7 +45,7 @@ class Rule:
 
     Attributes:
         name: Unique identifier within the rule library (used as activation
-            key in `prediction.json`).
+            key in `detection.json`).
         pattern: Regex applied (case-insensitive) to streaming thinking text.
         target_keys: Workspace-prior bucket keys to contribute when fired.
         origin: Workload this rule was authored for, or "general" if it

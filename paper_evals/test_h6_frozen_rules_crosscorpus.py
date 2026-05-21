@@ -4,7 +4,7 @@ Applying the FROZEN rule library (zero per-task tuning) to traces from
 externally-released benchmarks — ScienceAgentBench (Chen et al., ICLR
 2025) and KramaBench (Lai et al., 2025; MIT DB Lab preprint) — preserves
 tier-1 byte recall ≥ 0.70. This is the L2 level of the §11.6 genericity
-defense and the strongest argument that the predictor architecture is
+defense and the strongest argument that the detector architecture is
 corpus-agnostic.
 
 KramaBench's preprint (not peer-reviewed) status is acknowledged in the
@@ -80,6 +80,6 @@ class TestRuleLibraryFreezeContract:
         """
         pytest.skip(
             "H6.freeze_contract: pending — depends on Day-1 rule freeze "
-            "(agentstage.predictor.rules.RULE_LIBRARY_VERSION). The same "
+            "(agentstage.detector.rules.RULE_LIBRARY_VERSION). The same "
             "version hash gets unit-tested in tests/test_rules_freeze.py."
         )

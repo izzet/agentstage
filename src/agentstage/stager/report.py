@@ -25,8 +25,8 @@ class StageEvent:
       - fetch_ms: wall-clock time from start of shutil.copy to atomic
         rename. Zero on `hit` (file already staged before this call).
       - tier: 1/2/3 from the DataHint that triggered the stage.
-      - rule_id: predictor rule that fired.
-      - t_predicted_ms: monotonic time when the predictor emitted the hint.
+      - rule_id: detector rule that fired.
+      - t_detected_ms: monotonic time when the detector emitted the hint.
       - t_completed_ms: monotonic time when rename finished.
       - outcome: "staged" (fresh copy), "hit" (already present), "error"
         (exception during copy/rename), "skip_oversize" (file larger than
@@ -40,7 +40,7 @@ class StageEvent:
     fetch_ms: float
     tier: int
     rule_id: str
-    t_predicted_ms: float
+    t_detected_ms: float
     t_completed_ms: float
     outcome: StageOutcome
     error: str = ""
@@ -115,11 +115,11 @@ def _percentile(values: list[float], p: float) -> float:
 
 @dataclass(frozen=True)
 class DataHint:
-    """Predictor output: a set of files predicted to be read next, with
+    """Detector output: a set of files detected to be read next, with
     metadata about why and when. Consumed by Stager.prefetch().
     """
 
-    predicted_files: tuple[str, ...]
+    detected_files: tuple[str, ...]
     tier: int
     fired_at_ms: float
     rule_id: str

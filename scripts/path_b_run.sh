@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Path B multi-turn runner: live Haiku across N turns with predictor + stager.
+# Path B multi-turn runner: live Haiku across N turns with detector + stager.
 # Used for E-011 (hinted baseline), E-014 (sparse replay), E-015 (sparse live).
 #
 # Usage:

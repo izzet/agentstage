@@ -6,7 +6,7 @@ This is the closest analog of E5 we can run pre-Day-5:
   - Stager runs in-process, gets a DataHint, starts copying cold -> hot
   - A subprocess opens the cold paths via LD_PRELOAD shim
   - The shim redirects opens that have hot copies; falls through otherwise
-  - We assert: predicted files were served from hot; unpredicted from cold
+  - We assert: detected files were served from hot; undetected from cold
 
 If this passes, the stager + shim contract is fully wired and we can
 trust the Day-7 manual smoke (T32 with real LLM) to work or fail for
@@ -129,7 +129,7 @@ def test_end_to_end_synthetic_5_file_workload(shim_lib, tmp_path, with_dftracer)
         capacity_bytes=256 * 1024 * 1024,
     )
     hint = DataHint(
-        predicted_files=tuple(str(p) for p in cold_paths[:3]),
+        detected_files=tuple(str(p) for p in cold_paths[:3]),
         tier=1,
         fired_at_ms=0.0,
         rule_id="integration_test",
@@ -234,7 +234,7 @@ def test_end_to_end_latency_signal(shim_lib, tmp_path):
         max_workers=1,
     )
     futures = stager.prefetch(DataHint(
-        predicted_files=(str(staged_file),),
+        detected_files=(str(staged_file),),
         tier=1,
         fired_at_ms=0.0,
         rule_id="latency_test",
