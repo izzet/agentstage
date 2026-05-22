@@ -1,0 +1,23 @@
+{
+  "experiment": "E-028",
+  "tier": "local",
+  "cold_dir": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00",
+  "n_task_files": 36,
+  "total_bytes": 109786207,
+  "n_staged": 36,
+  "stage_elapsed_s": 0.242,
+  "baseline": {
+    "elapsed_s": 3.913,
+    "returncode": 1,
+    "stdout_tail": "49063.nc: Python integer 255 out of bounds for int8\nError processing /mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C10_G16_s20241220051170_e20241220053554_c20241220054032.nc: Python integer 255 out of bounds for int8\nError processing /mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C10_G16_s20241220056170_e20241220058556_c20241220059053.nc: Python integer 255 out of bounds for int8\n",
+    "stderr_tail": "sk_script_chunked.py\", line 321, in main\n    df = process_all_files(data_dir, output_csv)\n  File \"/mnt/common/iyildirim/projects/agentstage/outputs/e2e/task_script_chunked.py\", line 151, in process_all_files\n    df = df.sort_values(['location', 'band', 'datetime_utc'])\n  File \"/home/iyildirim/.local/lib/python3.10/site-packages/pandas/core/frame.py\", line 7194, in sort_values\n    keys = [self._get_label_or_level_values(x, axis=axis) for x in by]\n  File \"/home/iyildirim/.local/lib/python3.10/site-packages/pandas/core/frame.py\", line 7194, in <listcomp>\n    keys = [self._get_label_or_level_values(x, axis=axis) for x in by]\n  File \"/home/iyildirim/.local/lib/python3.10/site-packages/pandas/core/generic.py\", line 1914, in _get_label_or_level_values\n    raise KeyError(key)\nKeyError: 'location'\n"
+  },
+  "staged": {
+    "elapsed_s": 2.565,
+    "returncode": 1,
+    "stdout_tail": "49063.nc: Python integer 255 out of bounds for int8\nError processing /mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C10_G16_s20241220051170_e20241220053554_c20241220054032.nc: Python integer 255 out of bounds for int8\nError processing /mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00/OR_ABI-L2-CMIPC-M6C10_G16_s20241220056170_e20241220058556_c20241220059053.nc: Python integer 255 out of bounds for int8\n",
+    "stderr_tail": "sk_script_chunked.py\", line 321, in main\n    df = process_all_files(data_dir, output_csv)\n  File \"/mnt/common/iyildirim/projects/agentstage/outputs/e2e/task_script_chunked.py\", line 151, in process_all_files\n    df = df.sort_values(['location', 'band', 'datetime_utc'])\n  File \"/home/iyildirim/.local/lib/python3.10/site-packages/pandas/core/frame.py\", line 7194, in sort_values\n    keys = [self._get_label_or_level_values(x, axis=axis) for x in by]\n  File \"/home/iyildirim/.local/lib/python3.10/site-packages/pandas/core/frame.py\", line 7194, in <listcomp>\n    keys = [self._get_label_or_level_values(x, axis=axis) for x in by]\n  File \"/home/iyildirim/.local/lib/python3.10/site-packages/pandas/core/generic.py\", line 1914, in _get_label_or_level_values\n    raise KeyError(key)\nKeyError: 'location'\n"
+  },
+  "session_speedup": 1.53,
+  "wall_time_saved_s": 1.3
+}

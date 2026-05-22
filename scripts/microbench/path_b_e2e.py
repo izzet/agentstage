@@ -39,7 +39,8 @@ from pathlib import Path
 
 from agentstage.stager import DataHint, Stager
 
-TASK_SCRIPT = Path("outputs/e2e/task_script.py")
+TASK_SCRIPT = Path(os.environ.get("E2E_TASK_SCRIPT",
+                                   "outputs/e2e/task_script.py"))
 
 # Cold-tier roots (scoped to day 122, hour 00 — 36 C08/C09/C10 files —
 # to keep the S3 cold baseline tractable; HDF5-over-FUSE-S3 issues many

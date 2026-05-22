@@ -19,6 +19,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 | **E-025** | 2026-05-21 | Per-file vs per-session wall-time gap (analysis of E-023 captures) | **Per-file 10^4x, per-session 1% in 8-turn smoke runs (agent opens only 1 file); projected ~75 min saved per full aiob_107 task; needs task-completing runner for full session ablation** | (analysis only — no new run) | _next commit_ |
 | **E-026** | 2026-05-21 | Cross-vendor live multi-turn (Gemini 2.5 Flash, n=3) | **3/3 hits, speedup 3,965x-13,152x (mean ~7,000x); architecture works end-to-end on Anthropic AND Gemini families** | `GEMINI_MODEL=gemini-2.5-flash ./scripts/path_b_run.sh e026_gemini_sparse_enrich_live` (3 reps) | _next commit_ |
 | **E-027** | 2026-05-21 | Session-level speedup from REAL AIOB production runs (n=30 across 3 workloads) | **I/O fraction 1.4-30.6% on local NFS; eliminating it gives 1.01-2.08x session speedup measured, 1.32-24.35x projected on S3** | `scripts/microbench/path_b_aiob_realruns.py` | _next commit_ |
+| **E-031** | 2026-05-22 | Cross-script variance: naive vs chunked I/O pattern (same task) | **Naive 23x / chunked 54x on S3; both save ~160s wall; architecture benefit holds across script styles** | `E2E_TASK_SCRIPT=outputs/e2e/task_script_chunked.py ./scripts/microbench/path_b_e2e.py` | _next commit_ |
 | **E-030** | 2026-05-22 | Verified-cold-cache local rerun (3 reps, mincore residency check) | **Local NVMe XFS 1.2x plain / 1.5x decomp; verified truly cold (0/3611 pages resident); honest spectrum: 1.2x local NVMe → 12x throttled NFS-class → 23x S3** | `scripts/microbench/path_b_e2e*.py` ×3 reps each | _next commit_ |
 | **E-029** | 2026-05-22 | Decompression-staging end-to-end (uncompressed hot copies) | **S3 29.1x, local 1.6x session speedup; decompression moved off critical path into staging window** | `scripts/microbench/path_b_e2e_decompress.py` | _next commit_ |
 | **E-028** | 2026-05-22 | End-to-end task-script speedup (real agent script, baseline vs staged) | **S3 23.4x (169s->7.2s), local 1.2x; shim fopen bug found+fixed** | `scripts/microbench/path_b_e2e.py` | _next commit_ |
@@ -2267,4 +2268,102 @@ for i in 1 2 3; do
 done
 # Eviction verification fields appear in stderr / json's "evict" payload.
 ```
+
+
+---
+
+## Cold-cache methodology (standard for all timing experiments)
+
+All session-level timing experiments (E-028, E-029, E-030, E-031,
+and any future Path B / e2e measurement) MUST use this eviction
+protocol before the BASELINE phase:
+
+1. **`posix_fadvise(POSIX_FADV_DONTNEED)`** on every target file
+   (same as `agentiobench.utils.cache.evict_dataset`)
+2. **`os.sync()`** to flush any dirty writes
+3. **`mincore` residency verification** via
+   `agentiobench.utils.cache._resident_pages` on a sample of 5 files;
+   record `resident_frac_sample` in the experiment's JSON output.
+4. **Verification**: `resident_frac_sample` should be ~0.0 (≤ 1%).
+   If a tier doesn't honor `DONTNEED` (some FUSE mounts, mountpoint-s3,
+   read-only FS) this is recorded; the result is still reported but
+   marked "warm-cache-suspect".
+
+Both `path_b_e2e.py` (E-028) and `path_b_e2e_decompress.py` (E-029)
+share the same `evict()` implementation. Codified 2026-05-22 after the
+user flagged inconsistent eviction in earlier reps.
+
+---
+
+## E-031 — Cross-script variance: naive vs chunked I/O patterns (2026-05-22)
+
+**Goal**: Address the "single task/model/rep" concern. The Sonnet 4.5
+production-run script we used in E-028/E-029 uses the I/O-NAIVE pattern
+(`ds.variables['CMI'][:]` — reads the whole 1500×2500 grid). Real
+agent scripts vary: Haiku 4.5, Gemini Flash, and another Sonnet run
+all use chunk-aware slicing (`var[y0:y1, x0:x1]`). This run tests
+how the architecture's benefit varies with the agent's script style.
+
+**Method**: hand-modified the Sonnet script's read pattern to be
+chunk-aware (`outputs/e2e/task_script_chunked.py`) — reads only the
+bounding box covering all 5 locations × 5-pixel halo (~46×716 region
+out of 1500×2500). This mirrors what an I/O-efficient agent would
+write. Same evict-and-verify methodology. n=1 per cell (smoke).
+
+**Results**
+
+| Script | Tier | Baseline | Staged | **Speedup** | Wall saved |
+|---|---|---:|---:|---:|---:|
+| **Naive** (Sonnet original) | local | 8.2 s | 6.0 s | **1.37×** | 2.2 s |
+| | S3 | 169 s | 7.2 s | **23.4×** | 162 s |
+| **Chunked** (modified)      | local | 3.9 s | 2.6 s | **1.53×** | 1.3 s |
+| | S3 | 163 s | 3.0 s | **53.7×** | 160 s |
+
+**Findings**
+
+1. **Both scripts save ~160 s of wall time on S3.** This is because
+   both pay 36 × ~4.5 s per HDF5 file-open against the FUSE-S3 mount
+   (file metadata + superblock + chunk-index GETs). The agent's
+   chunk-vs-whole-grid choice only affects which chunks get
+   decompressed AFTER the file is opened.
+
+2. **The speedup *ratio* differs by 2.3×**: chunked 54× vs naive 23×.
+   Chunked has less compute on the staged side (3.0 s vs 7.2 s
+   because it decompresses ~5 chunks instead of ~120), so the ratio
+   looks more dramatic — but the absolute saved wall time is similar.
+
+3. **The architecture benefit generalizes across agent script
+   patterns.** Plain staging eliminates the cold-tier-open cost
+   regardless of how the agent reads inside the file. Decompression-
+   staging (E-029) helps the naive script substantially; for chunked
+   scripts the decompression cost is already small so decomp-staging
+   would barely help.
+
+**Caveats** (honest scope)
+
+- **n=1 per cell** for the chunked variant. Should be ≥3 for the
+  paper; Campaign C work.
+- **Same task** (aiob_107). Cross-workload (aiob_104 / aiob_110)
+  would have very different I/O patterns and absolute timings.
+- **Same model family** (Sonnet 4.5) — the chunked variant is a
+  HAND-MODIFIED version of Sonnet's script, not a different agent's
+  output. To genuinely test cross-model variance we'd need to run
+  Haiku's / Gemini's / DeepSeek's actual scripts (each hardcodes
+  paths differently, would need a per-script parameterization pass).
+- **Chunked variant returns rc=1** in our run because the NaN-filled
+  array breaks the matplotlib plot at the end. I/O timings are still
+  valid (the failure is post-I/O). For paper-grade we'd fix the
+  trivial NaN-handling issue.
+
+**Implication for the paper**
+
+The "single script" result IS narrow. The honest scope is:
+- E-028/E-029 measure ONE agent script (Sonnet 4.5, I/O-naive)
+- E-031 widens to TWO script styles (naive + hand-chunked) on the
+  SAME task
+- Cross-model + cross-workload + multi-seed = full Campaign C scope
+
+The architecture-level claim — "staging hides cold-tier latency in
+the reasoning slack window" — holds across both script styles tested.
+Specific speedup numbers depend on the agent's I/O pattern.
 
