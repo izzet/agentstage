@@ -1,0 +1,23 @@
+{
+  "experiment": "E-028",
+  "tier": "local",
+  "cold_dir": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122",
+  "n_task_files": 864,
+  "total_bytes": 2531249065,
+  "n_staged": 864,
+  "stage_elapsed_s": 33.544,
+  "baseline": {
+    "elapsed_s": 110.259,
+    "returncode": 0,
+    "stdout_tail": "===============================================================\nSaved report to outputs/e2e/local/baseline_output/report.md\n\n================================================================================\nProcessing Complete!\n================================================================================\nOutput files:\n  - outputs/e2e/local/baseline_output/goes_cmi_timeseries.csv\n  - outputs/e2e/local/baseline_output/goes_cmi_point_timeseries.png\n  - outputs/e2e/local/baseline_output/report.md\n",
+    "stderr_tail": ""
+  },
+  "staged": {
+    "elapsed_s": 97.676,
+    "returncode": 0,
+    "stdout_tail": "=======================================================================\nSaved report to outputs/e2e/local/staged_output/report.md\n\n================================================================================\nProcessing Complete!\n================================================================================\nOutput files:\n  - outputs/e2e/local/staged_output/goes_cmi_timeseries.csv\n  - outputs/e2e/local/staged_output/goes_cmi_point_timeseries.png\n  - outputs/e2e/local/staged_output/report.md\n",
+    "stderr_tail": ""
+  },
+  "session_speedup": 1.13,
+  "wall_time_saved_s": 12.6
+}
