@@ -1,0 +1,26 @@
+{
+  "experiment": "E-029",
+  "tier": "local",
+  "cold_dir": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00",
+  "n_task_files": 36,
+  "cold_bytes": 109786207,
+  "hot_bytes_uncompressed": 407470320,
+  "transcode": {
+    "elapsed_s": 1.676,
+    "returncode": 0,
+    "stdout": "transcode: 36 files, 8 workers\ntranscode done: 36/36 ok in 1.3s\n  src_total=105MB  dst_total=389MB  expansion=3.71x\n",
+    "stderr_tail": ""
+  },
+  "baseline": {
+    "elapsed_s": 6.349,
+    "returncode": 0,
+    "stderr_tail": ""
+  },
+  "decomp_staged": {
+    "elapsed_s": 3.945,
+    "returncode": 0,
+    "stderr_tail": ""
+  },
+  "session_speedup": 1.61,
+  "wall_time_saved_s": 2.4
+}

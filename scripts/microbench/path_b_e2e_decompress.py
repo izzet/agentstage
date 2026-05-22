@@ -38,8 +38,8 @@ TRANSCODER = Path("outputs/e2e/transcode.py")
 SHIM = Path("src/agentstage/stager/shim/libagentstage_shim.so").resolve()
 
 COLD_ROOTS = {
-    "local": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122",
-    "s3": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122",
+    "local": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00",
+    "s3": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00",
 }
 COLD_ROOT_ANCESTORS = {
     "local": "/mnt/common/datasets-staging/agentiobench/datasets",

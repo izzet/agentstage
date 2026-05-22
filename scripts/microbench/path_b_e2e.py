@@ -41,11 +41,13 @@ from agentstage.stager import DataHint, Stager
 
 TASK_SCRIPT = Path("outputs/e2e/task_script.py")
 
-# Cold-tier roots (scoped to day-of-year 122 to keep the run tractable;
-# the full task is days 122-128. Day 122 has 864 C08/C09/C10 files.)
+# Cold-tier roots (scoped to day 122, hour 00 — 36 C08/C09/C10 files —
+# to keep the S3 cold baseline tractable; HDF5-over-FUSE-S3 issues many
+# small GETs per file so a full day of 864 files exceeds 1 h. Numbers
+# scale ~linearly with file count; the full task is 6042 files.)
 COLD_ROOTS = {
-    "local": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122",
-    "s3": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122",
+    "local": "/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122/00",
+    "s3": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00",
 }
 
 # Managed cold-root ancestors for the Stager + shim. Must be a real

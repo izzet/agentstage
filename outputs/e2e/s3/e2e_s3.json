@@ -1,0 +1,23 @@
+{
+  "experiment": "E-028",
+  "tier": "s3",
+  "cold_dir": "/tmp/s3-noaa-goes16/ABI-L2-CMIPC/2024/122/00",
+  "n_task_files": 36,
+  "total_bytes": 109786207,
+  "n_staged": 36,
+  "stage_elapsed_s": 14.994,
+  "baseline": {
+    "elapsed_s": 169.31,
+    "returncode": 0,
+    "stdout_tail": "===========================================================================\nSaved report to outputs/e2e/s3/baseline_output/report.md\n\n================================================================================\nProcessing Complete!\n================================================================================\nOutput files:\n  - outputs/e2e/s3/baseline_output/goes_cmi_timeseries.csv\n  - outputs/e2e/s3/baseline_output/goes_cmi_point_timeseries.png\n  - outputs/e2e/s3/baseline_output/report.md\n",
+    "stderr_tail": ""
+  },
+  "staged": {
+    "elapsed_s": 7.231,
+    "returncode": 0,
+    "stdout_tail": "rt\n================================================================================\nSaved report to outputs/e2e/s3/staged_output/report.md\n\n================================================================================\nProcessing Complete!\n================================================================================\nOutput files:\n  - outputs/e2e/s3/staged_output/goes_cmi_timeseries.csv\n  - outputs/e2e/s3/staged_output/goes_cmi_point_timeseries.png\n  - outputs/e2e/s3/staged_output/report.md\n",
+    "stderr_tail": ""
+  },
+  "session_speedup": 23.41,
+  "wall_time_saved_s": 162.1
+}

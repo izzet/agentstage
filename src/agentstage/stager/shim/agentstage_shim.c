@@ -140,7 +140,16 @@ static void cfg_init(void) {
 
     const char *log_path = getenv("AGENTSTAGE_SHIM_LOG");
     if (log_path && *log_path) {
-        g_cfg.log_fp = fopen(log_path, "a");
+        /* MUST use the real glibc fopen via dlsym(RTLD_NEXT), NOT fopen:
+         * the shim now interposes fopen, and this open runs inside
+         * cfg_init (under pthread_once). Calling the interposed fopen
+         * here would re-enter ensure_init() and deadlock pthread_once.
+         * dlsym directly (LOAD_NEXT / real_fopen are declared later). */
+        FILE *(*real_fopen_local)(const char *, const char *) =
+            (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
+        if (real_fopen_local) {
+            g_cfg.log_fp = real_fopen_local(log_path, "a");
+        }
         if (g_cfg.log_fp) {
             setvbuf(g_cfg.log_fp, NULL, _IOLBF, 0);
         }
@@ -174,6 +183,7 @@ typedef int (*fstatat_fn_t)(int, const char *, struct stat *, int);
 typedef int (*access_fn_t)(const char *, int);
 typedef int (*faccessat_fn_t)(int, const char *, int, int);
 typedef int (*creat_fn_t)(const char *, mode_t);
+typedef FILE *(*fopen_fn_t)(const char *, const char *);
 
 static openat_fn_t   real_openat   = NULL;
 static stat_fn_t     real_stat     = NULL;
@@ -182,6 +192,7 @@ static fstatat_fn_t  real_fstatat  = NULL;
 static access_fn_t   real_access   = NULL;
 static faccessat_fn_t real_faccessat = NULL;
 static creat_fn_t    real_creat    = NULL;
+static fopen_fn_t    real_fopen    = NULL;
 
 #define LOAD_NEXT(var, name) do { \
     if (!var) var = dlsym(RTLD_NEXT, name); \
@@ -471,6 +482,63 @@ int creat(const char *pathname, mode_t mode) {
 }
 
 int creat64(const char *pathname, mode_t mode) __attribute__((alias("creat")));
+
+/* -------------------------------------------------------------------------
+ * Intercepted: fopen / fopen64
+ *
+ * The netCDF-C library (libnetcdf) format-sniffs a file with fopen64()
+ * before handing it to HDF5's sec2 driver (which uses open()). Without
+ * intercepting fopen, that sniff read hits the cold tier even when the
+ * file is staged hot — costing one cold first-byte latency per file.
+ * Observed: ~2 s/file on an S3 cold tier (E-028/E-029 debugging).
+ *
+ * Read-only modes only ("r", "rb", "rt"); writes/append pass through.
+ * ------------------------------------------------------------------------- */
+
+static int fmode_is_read_only(const char *mode) {
+    return mode && mode[0] == 'r' && !strchr(mode, '+');
+}
+
+FILE *fopen(const char *pathname, const char *mode) {
+    LOAD_NEXT(real_fopen, "fopen");
+
+    ensure_init();
+    if (g_cfg.disabled || t_in_shim || !pathname || !fmode_is_read_only(mode)) {
+        return real_fopen(pathname, mode);
+    }
+
+    char abs[PATH_MAX];
+    t_in_shim = 1;
+    int resolved = resolve_absolute(AT_FDCWD, pathname, abs, sizeof(abs));
+    t_in_shim = 0;
+    if (!resolved || !under_managed_cold_root(abs)) {
+        return real_fopen(pathname, mode);
+    }
+
+    char hot[PATH_MAX];
+    if (!build_hot_path(abs, hot, sizeof(hot))) {
+        return real_fopen(pathname, mode);
+    }
+
+    /* Spin-wait for the hot copy, then wrap the fd in a FILE*. */
+    t_in_shim = 1;
+    int fd = open_hot_with_spin(hot, O_RDONLY, 0);
+    t_in_shim = 0;
+    if (fd >= 0) {
+        FILE *f = fdopen(fd, mode);
+        if (f) {
+            shim_log("HIT(fopen) %s -> %s\n", abs, hot);
+            return f;
+        }
+        close(fd);
+    }
+
+    shim_log("MISS(fopen) %s (errno=%d)\n", abs, errno);
+    return real_fopen(pathname, mode);
+}
+
+FILE *fopen64(const char *pathname, const char *mode)
+    __attribute__((alias("fopen")));
 
 /* -------------------------------------------------------------------------
  * 64-bit-LFS and legacy aliases.
