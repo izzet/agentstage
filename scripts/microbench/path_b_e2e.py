@@ -69,18 +69,46 @@ def enumerate_target_files(data_dir: str) -> list[str]:
     return sorted(set(files))
 
 
-def evict(paths: list[str]) -> None:
-    """Drop the OS page cache for every file (best-effort)."""
+def evict(paths: list[str], *, verify: bool = True) -> dict:
+    """Drop the OS page cache for every file. Mirrors AIOB's
+    ``evict_dataset`` approach: posix_fadvise(POSIX_FADV_DONTNEED)
+    per file, then optionally verify residency dropped via mincore.
+
+    Returns a report: {files, bytes, resident_pages_before/after}.
+    """
+    n_files = n_bytes = 0
     for p in paths:
         try:
+            st = os.stat(p)
             fd = os.open(p, os.O_RDONLY)
             try:
                 os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+                n_files += 1
+                n_bytes += st.st_size
             finally:
                 os.close(fd)
         except OSError:
             pass
     os.sync()
+    if not verify:
+        return {"files": n_files, "bytes": n_bytes}
+    # Use AIOB's verified mincore helper (already known to work on /mnt/common XFS)
+    try:
+        from agentiobench.utils.cache import _resident_pages
+    except ImportError:
+        return {"files": n_files, "bytes": n_bytes}
+    resident = total = 0
+    for p in paths[:5]:  # sample to keep verify cheap
+        try:
+            r, t = _resident_pages(Path(p))
+            resident += r
+            total += t
+        except OSError:
+            continue
+    return {"files": n_files, "bytes": n_bytes,
+            "resident_pages_sample": resident,
+            "total_pages_sample": total,
+            "resident_frac_sample": (resident / total if total else 0.0)}
 
 
 def run_script(data_dir: str, output_dir: str, *,

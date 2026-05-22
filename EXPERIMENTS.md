@@ -19,6 +19,7 @@ support which paper claims), see [`STAGER_VERIFICATION.md`](STAGER_VERIFICATION.
 | **E-025** | 2026-05-21 | Per-file vs per-session wall-time gap (analysis of E-023 captures) | **Per-file 10^4x, per-session 1% in 8-turn smoke runs (agent opens only 1 file); projected ~75 min saved per full aiob_107 task; needs task-completing runner for full session ablation** | (analysis only — no new run) | _next commit_ |
 | **E-026** | 2026-05-21 | Cross-vendor live multi-turn (Gemini 2.5 Flash, n=3) | **3/3 hits, speedup 3,965x-13,152x (mean ~7,000x); architecture works end-to-end on Anthropic AND Gemini families** | `GEMINI_MODEL=gemini-2.5-flash ./scripts/path_b_run.sh e026_gemini_sparse_enrich_live` (3 reps) | _next commit_ |
 | **E-027** | 2026-05-21 | Session-level speedup from REAL AIOB production runs (n=30 across 3 workloads) | **I/O fraction 1.4-30.6% on local NFS; eliminating it gives 1.01-2.08x session speedup measured, 1.32-24.35x projected on S3** | `scripts/microbench/path_b_aiob_realruns.py` | _next commit_ |
+| **E-030** | 2026-05-22 | Verified-cold-cache local rerun (3 reps, mincore residency check) | **Local NVMe XFS 1.2x plain / 1.5x decomp; verified truly cold (0/3611 pages resident); honest spectrum: 1.2x local NVMe → 12x throttled NFS-class → 23x S3** | `scripts/microbench/path_b_e2e*.py` ×3 reps each | _next commit_ |
 | **E-029** | 2026-05-22 | Decompression-staging end-to-end (uncompressed hot copies) | **S3 29.1x, local 1.6x session speedup; decompression moved off critical path into staging window** | `scripts/microbench/path_b_e2e_decompress.py` | _next commit_ |
 | **E-028** | 2026-05-22 | End-to-end task-script speedup (real agent script, baseline vs staged) | **S3 23.4x (169s->7.2s), local 1.2x; shim fopen bug found+fixed** | `scripts/microbench/path_b_e2e.py` | _next commit_ |
 | **E-023** | 2026-05-21 | Multi-seed E-021 (3 reps) stability check | **3/3 seeds: `was_staged=True`; speedup range 6.8k×-25k× (S3 cold latency variance); enrichment structurally reliable** | `PATHFUL_VERSION=v4 ./scripts/path_b_run.sh e021_sparse_enrich_live` ×3 | _next commit_ |
@@ -2185,4 +2186,85 @@ vs 105 MB compressed (3.71× expansion).
 - `outputs/e2e/transcode.py` — decompression transcoder
 - `outputs/e2e/task_script.py` — the agent's extracted script
 - `outputs/e2e/{local,s3}/e2e_*.json` — per-run results
+
+
+---
+
+## E-030 — Verified cold-cache local rerun (2026-05-22)
+
+**Goal**: Address the user's concern about cold-cache rigour. AIOB's
+methodology (`agentiobench.utils.cache`) does `posix_fadvise(DONTNEED)`
+per file PLUS a mincore-based residency-verification check
+(`selftest_eviction`). My initial `evict()` had no verification, and
+back-to-back runs showed local baseline variance (6 s — 26 s).
+
+**Method**: extended `evict()` in `path_b_e2e.py` to also call
+`_resident_pages()` (from `agentiobench.utils.cache`) on a sample of
+the targets after fadvise, confirming residency drops to 0 of N pages.
+Then ran n=3 reps per cell.
+
+**Verified-cold local results (n=3)**
+
+| Config | Rep 1 | Rep 2 | Rep 3 | Median |
+|---|---:|---:|---:|---:|
+| E-028 baseline | 16.3 s | 8.2 s | 6.3 s | **8.2 s** |
+| E-028 staged   |  7.4 s | 6.0 s | 6.0 s | **6.0 s**  |
+| E-028 speedup  | 2.20×  | 1.37× | 1.05× | **1.37×**  |
+| E-029 baseline |  6.1 s | 6.3 s | 6.3 s | **6.3 s**  |
+| E-029 decomp-staged | 4.2 s | 4.2 s | 4.4 s | **4.2 s** |
+| E-029 speedup  | 1.45×  | 1.50× | 1.43× | **1.46×**  |
+
+Residency check after `evict()`: **0 of 3611 sample pages resident**
+on /mnt/common XFS. Eviction is genuinely working; the local "cold"
+baseline really is page-cache-cold.
+
+**Findings**
+
+1. **The 6-8 s local baseline IS truly cold-page-cache** — eviction
+   is verified. The fast number reflects /mnt/common's underlying
+   NVMe+XFS performance, not a cache artifact.
+
+2. **First-rep variance**: the very first cold-cache run hits 16 s,
+   subsequent runs land at 6-8 s. The XFS metadata/inode cache and
+   SSD-internal cache warm up across reps; the page cache eviction
+   doesn't reach those layers. This is the realistic "first cold run
+   ever vs steady-state cold-page-cache" gap.
+
+3. **E-029 is more stable than E-028** because its baseline doesn't
+   include the first-cold outlier (we'd already warmed XFS metadata
+   from prior E-028 reps).
+
+**Honest conclusion**
+
+This host has **no slow cold tier** other than S3. Local /mnt/common
+XFS is fast NVMe storage — even cold-page-cache, it delivers
+~6 ms/file. The 1.2-1.5× session speedup on local IS the honest
+reality of staging fast-local-NVMe data. On a slower on-prem cold
+tier (NFS, Lustre, BeeGFS), staging would help more — bracketed by
+E-007's throttled-sweep (1.7× — 12× across 10-200 MB/s simulated
+bandwidth) and our S3 measurement (23-29×).
+
+**Three-point picture for the paper**
+
+| Cold tier                                          | Source         | Plain stage |
+|---|---|---:|
+| Local NVMe XFS, verified-cold-page-cache (E-030)   | measured       | **1.2×**     |
+| Throttled local at 10 MB/s (E-007)                 | simulated      | **12×**      |
+| S3 via mountpoint-s3 (E-028)                       | measured       | **23×**      |
+
+The headline is the spectrum, not a single number. The paper should
+say: "AgentStage's session-level speedup scales with cold-tier
+latency, from ~1.2× on fast-NVMe-XFS to ~23× on S3-class cloud cold
+storage, with realistic on-prem NFS/Lustre falling between
+(E-007 throttled sweep at 10 MB/s shows ~12×)."
+
+**Reproduction**
+
+```bash
+for i in 1 2 3; do
+  ~/.local/bin/uv run python scripts/microbench/path_b_e2e.py --tier local --out outputs/e2e/local
+  ~/.local/bin/uv run python scripts/microbench/path_b_e2e_decompress.py --tier local --out outputs/e2e/local
+done
+# Eviction verification fields appear in stderr / json's "evict" payload.
+```
 

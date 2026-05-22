@@ -6,21 +6,21 @@
   "cold_bytes": 109786207,
   "hot_bytes_uncompressed": 407470320,
   "transcode": {
-    "elapsed_s": 1.676,
+    "elapsed_s": 1.718,
     "returncode": 0,
-    "stdout": "transcode: 36 files, 8 workers\ntranscode done: 36/36 ok in 1.3s\n  src_total=105MB  dst_total=389MB  expansion=3.71x\n",
+    "stdout": "transcode: 36 files, 8 workers\ntranscode done: 36/36 ok in 1.4s\n  src_total=105MB  dst_total=389MB  expansion=3.71x\n",
     "stderr_tail": ""
   },
   "baseline": {
-    "elapsed_s": 6.349,
+    "elapsed_s": 6.303,
     "returncode": 0,
     "stderr_tail": ""
   },
   "decomp_staged": {
-    "elapsed_s": 3.945,
+    "elapsed_s": 4.374,
     "returncode": 0,
     "stderr_tail": ""
   },
-  "session_speedup": 1.61,
-  "wall_time_saved_s": 2.4
+  "session_speedup": 1.44,
+  "wall_time_saved_s": 1.9
 }
