@@ -1,0 +1,277 @@
+{
+  "experiment": "E-033",
+  "root": "/mnt/common/datasets-staging/agentiobench/outputs",
+  "n_runs_scanned": 931,
+  "n_runs_with_first_tool": 638,
+  "overall_list_dir_pct": 96.08,
+  "overall_distribution": {
+    "list_dir": 96.1,
+    "run_shell_command": 3.9
+  },
+  "per_workload": {
+    "aiob_101_climate_era5_heatwave": {
+      "n": 87,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 83,
+          "pct": 95.4
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 4,
+          "pct": 4.6
+        }
+      ],
+      "list_dir_pct": 95.4
+    },
+    "aiob_102_singlecell_cellxgene_pseudobulk": {
+      "n": 63,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 56,
+          "pct": 88.9
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 7,
+          "pct": 11.1
+        }
+      ],
+      "list_dir_pct": 88.9
+    },
+    "aiob_103_remote_sensing_sentinel2_ndvi": {
+      "n": 75,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 75,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "aiob_104_genomics_igsr_coverage_qc": {
+      "n": 51,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 51,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "aiob_105_astronomy_jwst_coadd_catalog": {
+      "n": 49,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 49,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "aiob_106_oceanography_argo_mld_climatology": {
+      "n": 58,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 58,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "aiob_107_meteorology_goes_cmi_composites": {
+      "n": 63,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 54,
+          "pct": 85.7
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 9,
+          "pct": 14.3
+        }
+      ],
+      "list_dir_pct": 85.7
+    },
+    "aiob_108_topography_opentopo_canopy_model": {
+      "n": 54,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 54,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "aiob_110_neuroscience_steinmetz_neuropixels_population": {
+      "n": 63,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 58,
+          "pct": 92.1
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 5,
+          "pct": 7.9
+        }
+      ],
+      "list_dir_pct": 92.1
+    },
+    "aiob_111_genomics_vcf_cohort_harmonize": {
+      "n": 51,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 51,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "aiob_109_bioimaging_ome_zarr_roi_features": {
+      "n": 24,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 24,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    }
+  },
+  "per_model": {
+    "deltaai_gemma4_31b/gemma4_31b_it": {
+      "n": 94,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 94,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "deltaai_qwen36_27b/qwen3_6_27b": {
+      "n": 82,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 82,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "google/gemini_2_5_flash": {
+      "n": 79,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 79,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "azureopenai/gpt_4_1": {
+      "n": 99,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 99,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "azure_foundry_anthropic/haiku_4_5": {
+      "n": 67,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 49,
+          "pct": 73.1
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 18,
+          "pct": 26.9
+        }
+      ],
+      "list_dir_pct": 73.1
+    },
+    "azure_foundry_anthropic/sonnet_4_5": {
+      "n": 90,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 88,
+          "pct": 97.8
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 2,
+          "pct": 2.2
+        }
+      ],
+      "list_dir_pct": 97.8
+    },
+    "modal_gemma4_26b_a4b/gemma4_26b_a4b_it": {
+      "n": 60,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 60,
+          "pct": 100.0
+        }
+      ],
+      "list_dir_pct": 100.0
+    },
+    "deltaai_qwen36/qwen3_6_27b": {
+      "n": 67,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 62,
+          "pct": 92.5
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 5,
+          "pct": 7.5
+        }
+      ],
+      "list_dir_pct": 92.5
+    }
+  },
+  "per_knowledge_regime": {
+    "none": {
+      "n": 638,
+      "top": [
+        {
+          "tool": "list_dir",
+          "count": 613,
+          "pct": 96.1
+        },
+        {
+          "tool": "run_shell_command",
+          "count": 25,
+          "pct": 3.9
+        }
+      ],
+      "list_dir_pct": 96.1
+    }
+  }
+}

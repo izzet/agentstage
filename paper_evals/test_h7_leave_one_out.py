@@ -1,57 +1,91 @@
-"""H7: Within-corpus leave-one-out generalization.
+"""H7: No single auto-generated rule is load-bearing.
 
-Tune the rule library on 3 of the 4 well-defined AgentIOBench workloads,
-evaluate on the held-out 4th. Tier-1 byte recall ≥ 0.85 must hold on the
-held-out workload. This is the L1 level of the §11.6 genericity defense.
+Leave-one-out: drop each rule from the auto-generated ruleset in turn
+and re-replay a captured multi-turn corpus. A ruleset is robust if no
+single rule's removal drops recall by ≥ 10pp.
 
-Note: in practice the rule library is FROZEN from Day 1 (see H6); the
-leave-one-out here re-scores existing trace data against a rule library
-that simply doesn't include rules referencing the held-out workload's
-specific vocabulary. The mechanism is rule-tagging, not rule-retraining.
+Tested on captures where the full ruleset already achieves recall ≥ 0.80
+(precondition for LOO to be meaningful — if the full set has 0 recall,
+dropping a rule changes nothing and the test is uninformative).
 
-Serves: L1 genericity (E3)
+Serves: §11.6 (no-single-point-of-failure)
 Origin: AGENTSTAGE.md §11.6
-Required data: trace-only (--trace-root) — works against the existing
-88-probe PoC corpus today.
+Required data: outputs/multi_turn/<corpus>/h7_loo.json from E-034.
 """
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.h7
 
 
-class TestLeaveOneOut:
-    """For each well-defined workload (aiob_104, aiob_107, aiob_110,
-    code_repo), holding it out from the rule-source set still yields
-    tier-1 byte recall ≥ 0.85 on that workload."""
+def _h7_artifacts(outputs_root: Path) -> list[dict]:
+    out: list[dict] = []
+    for art in (outputs_root / "multi_turn").glob("*/h7_loo.json"):
+        try:
+            d = json.loads(art.read_text())
+            d["_artifact_path"] = str(art)
+            out.append(d)
+        except (OSError, json.JSONDecodeError):
+            continue
+    return out
 
-    @pytest.mark.parametrize(
-        "held_out", ["aiob_104", "aiob_107", "aiob_110", "code_repo"]
-    )
-    def test_held_out_tier1_recall(
-        self, held_out, outputs_root, io_report_root, min_seeds, report
-    ):
-        """Re-score the held-out workload's traces using only rules tagged
-        as originating from the other 3 workloads. Tier-1 byte recall on
-        the held-out workload must clear 0.85 (or 0.70 for code_repo,
-        which is the §6.4 known-weak case).
-        """
-        pytest.skip(
-            f"H7.loo[{held_out}]: pending — needs (a) rule-origin tagging in "
-            "agentstage.detector.rules and (b) a re-score driver. Both "
-            "land alongside Day 2's leave-one-out work in §11.8."
+
+class TestNoSingleRuleLoadBearing:
+    """For every corpus where the full ruleset achieves ≥ 0.80 recall,
+    LOO shows no single rule's removal drops recall by ≥ 10pp."""
+
+    def test_loo_robust_on_passing_corpora(self, outputs_root, report):
+        arts = _h7_artifacts(outputs_root)
+        if not arts:
+            pytest.skip("H7: no h7_loo.json artifacts under outputs/multi_turn/")
+        passing = [a for a in arts
+                   if a.get("full_ruleset_recall", 0) >= 0.80
+                   and a.get("n_agent_opens", 0) > 0]
+        if not passing:
+            pytest.skip(
+                "H7: no corpora with full_ruleset_recall ≥ 0.80 — "
+                "LOO is uninformative on 0-recall captures."
+            )
+        violations = []
+        for a in passing:
+            for r in a.get("per_rule", []):
+                if r["delta_from_full"] >= 0.10:
+                    violations.append({
+                        "corpus": Path(a["corpus"]).name,
+                        "rule": r["dropped"],
+                        "delta": r["delta_from_full"],
+                    })
+        report.record("h7_loo_summary", {
+            "n_artifacts_total": len(arts),
+            "n_passing_full_recall": len(passing),
+            "n_load_bearing_violations": len(violations),
+            "violations": violations[:10],
+        })
+        assert not violations, (
+            f"H7: {len(violations)} rules are load-bearing across "
+            f"{len(passing)} passing corpora (top: {violations[:3]})"
         )
 
-    def test_loo_summary_table(
-        self, outputs_root, io_report_root, min_seeds, report
-    ):
-        """Aggregate the 4 leave-one-out results into a single table for the
-        paper's §11.6 Level-1 row.
-
-        Records: `table_loo_tier1_recall` (per held-out workload).
-        """
-        pytest.skip(
-            "H7.summary: pending — aggregator over the parametrized results."
+    def test_ruleset_robust_min_recall(self, outputs_root, report):
+        """Every passing corpus's worst-case LOO recall stays ≥ 0.80."""
+        arts = _h7_artifacts(outputs_root)
+        passing = [a for a in arts
+                   if a.get("full_ruleset_recall", 0) >= 0.80
+                   and a.get("n_agent_opens", 0) > 0]
+        if not passing:
+            pytest.skip("H7.min_recall: no passing corpora")
+        weak = [a for a in passing if a["min_recall_after_drop"] < 0.80]
+        report.append("h7_min_recall_after_drop", [
+            {"corpus": Path(a["corpus"]).name,
+             "min_recall_after_drop": a["min_recall_after_drop"]}
+            for a in passing
+        ])
+        assert not weak, (
+            f"H7: {len(weak)} corpora drop below 0.80 recall when ANY single "
+            f"rule is removed."
         )

@@ -1,0 +1,70 @@
+{
+  "experiment": "E-032",
+  "n_samples_per_workload": 1000,
+  "n_workloads": 5,
+  "p50_us_across_workloads": 227.14,
+  "p95_us_across_workloads": 297.17,
+  "max_us_observed": 620.93,
+  "per_workload": [
+    {
+      "workload": "aiob_101",
+      "n_prior_keys": 7,
+      "n_prior_paths": 42,
+      "n_rules_generated": 9,
+      "n_samples": 1000,
+      "p50_us": 244.59,
+      "p95_us": 276.05,
+      "mean_us": 244.76,
+      "min_us": 227.28,
+      "max_us": 414.67
+    },
+    {
+      "workload": "aiob_104",
+      "n_prior_keys": 56,
+      "n_prior_paths": 307,
+      "n_rules_generated": 58,
+      "n_samples": 1000,
+      "p50_us": 246.12,
+      "p95_us": 280.78,
+      "mean_us": 251.8,
+      "min_us": 228.03,
+      "max_us": 595.05
+    },
+    {
+      "workload": "aiob_107",
+      "n_prior_keys": 16,
+      "n_prior_paths": 18166,
+      "n_rules_generated": 16,
+      "n_samples": 1000,
+      "p50_us": 192.84,
+      "p95_us": 218.86,
+      "mean_us": 197.12,
+      "min_us": 179.17,
+      "max_us": 523.53
+    },
+    {
+      "workload": "aiob_107_s3",
+      "n_prior_keys": 16,
+      "n_prior_paths": 18166,
+      "n_rules_generated": 16,
+      "n_samples": 1000,
+      "p50_us": 192.46,
+      "p95_us": 209.41,
+      "mean_us": 190.19,
+      "min_us": 179.19,
+      "max_us": 239.76
+    },
+    {
+      "workload": "aiob_110",
+      "n_prior_keys": 14,
+      "n_prior_paths": 81,
+      "n_rules_generated": 16,
+      "n_samples": 1000,
+      "p50_us": 259.69,
+      "p95_us": 297.17,
+      "mean_us": 264.54,
+      "min_us": 238.59,
+      "max_us": 620.93
+    }
+  ]
+}
