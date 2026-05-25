@@ -13,3 +13,6 @@
 [submodule "external/libs/dfanalyzer"]
 	path = external/libs/dfanalyzer
 	url = https://github.com/izzet/dfanalyzer.git
+[submodule "external/benchmarks/dsbench"]
+	path = external/benchmarks/dsbench
+	url = https://github.com/LiqiangJing/DSBench.git
