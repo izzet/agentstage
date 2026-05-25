@@ -247,6 +247,46 @@ static int under_managed_cold_root(const char *abs_path) {
     return 0;
 }
 
+/* Symlink-aware cold-root match. Tries the raw `abs_path` first (fast
+ * path — no syscall); if no match, calls realpath() to resolve any
+ * symlinks in the path and checks again. On match, writes the path
+ * that should be used to build the hot equivalent into `out` (raw on
+ * fast-path match, canonical on slow-path match). Returns 1 on match.
+ *
+ * This is critical for agent-written scripts that access cold-tier
+ * files through symlinks (e.g. an agent harness placing a symlink
+ * under /workspace/data/<task>/ that points at the real cold root).
+ * Without this resolution the shim would see the symlinked path,
+ * fail the cold-root prefix check, and pass through to cold storage.
+ */
+static int under_managed_cold_root_resolved(
+    const char *abs_path, char *out, size_t outsz) {
+    /* Fast path — raw match. Copy abs_path through unchanged. */
+    if (under_managed_cold_root(abs_path)) {
+        size_t n = strlen(abs_path);
+        if (n >= outsz) return 0;
+        memcpy(out, abs_path, n + 1);
+        return 1;
+    }
+    /* Slow path — resolve symlinks. realpath() does one stat per
+     * path component but is only paid on first miss; the kernel
+     * caches the dentries, so subsequent calls in the same process
+     * are cheap. Skipped when the file doesn't exist (realpath
+     * fails) since there's nothing to redirect to anyway. */
+    char canon[PATH_MAX];
+    t_in_shim = 1;
+    char *r = realpath(abs_path, canon);
+    t_in_shim = 0;
+    if (!r) return 0;
+    if (under_managed_cold_root(canon)) {
+        size_t n = strlen(canon);
+        if (n >= outsz) return 0;
+        memcpy(out, canon, n + 1);
+        return 1;
+    }
+    return 0;
+}
+
 static int build_hot_path(const char *abs_cold, char *out, size_t outsz) {
     /* Hot = HOT_ROOT + absolute cold path (preserving leading /) */
     int n = snprintf(out, outsz, "%s%s", g_cfg.hot_root, abs_cold);
@@ -325,12 +365,13 @@ int openat(int dirfd, const char *pathname, int flags, ...) {
         return real_openat(dirfd, pathname, flags, mode);
     }
 
-    if (!under_managed_cold_root(abs)) {
+    char resolved_abs[PATH_MAX];
+    if (!under_managed_cold_root_resolved(abs, resolved_abs, sizeof(resolved_abs))) {
         return real_openat(dirfd, pathname, flags, mode);
     }
 
     char hot[PATH_MAX];
-    if (!build_hot_path(abs, hot, sizeof(hot))) {
+    if (!build_hot_path(resolved_abs, hot, sizeof(hot))) {
         return real_openat(dirfd, pathname, flags, mode);
     }
 
@@ -338,12 +379,12 @@ int openat(int dirfd, const char *pathname, int flags, ...) {
     int fd = open_hot_with_spin(hot, flags, mode);
     t_in_shim = 0;
     if (fd >= 0) {
-        shim_log("HIT  %s -> %s\n", abs, hot);
+        shim_log("HIT  %s -> %s\n", resolved_abs, hot);
         return fd;
     }
 
     /* Hot miss after retry-spin — fall through to cold */
-    shim_log("MISS %s (errno=%d)\n", abs, errno);
+    shim_log("MISS %s (errno=%d)\n", resolved_abs, errno);
     return real_openat(dirfd, pathname, flags, mode);
 }
 
@@ -363,8 +404,12 @@ static int try_redirect_stat_path(const char *pathname, char *hot_out, size_t ou
     int resolved = resolve_absolute(AT_FDCWD, pathname, abs, sizeof(abs));
     t_in_shim = 0;
     if (!resolved) return 0;
-    if (!under_managed_cold_root(abs)) return 0;
-    return build_hot_path(abs, hot_out, outsz);
+    char resolved_abs[PATH_MAX];
+    if (!under_managed_cold_root_resolved(abs, resolved_abs,
+                                           sizeof(resolved_abs))) {
+        return 0;
+    }
+    return build_hot_path(resolved_abs, hot_out, outsz);
 }
 
 int stat(const char *pathname, struct stat *statbuf) {
@@ -409,13 +454,17 @@ int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags) {
     t_in_shim = 1;
     int resolved = resolve_absolute(dirfd, pathname, abs, sizeof(abs));
     t_in_shim = 0;
-    if (resolved && under_managed_cold_root(abs)) {
-        char hot[PATH_MAX];
-        if (build_hot_path(abs, hot, sizeof(hot))) {
-            t_in_shim = 1;
-            int r = real_fstatat(AT_FDCWD, hot, statbuf, flags);
-            t_in_shim = 0;
-            if (r == 0) return 0;
+    if (resolved) {
+        char resolved_abs[PATH_MAX];
+        if (under_managed_cold_root_resolved(abs, resolved_abs,
+                                              sizeof(resolved_abs))) {
+            char hot[PATH_MAX];
+            if (build_hot_path(resolved_abs, hot, sizeof(hot))) {
+                t_in_shim = 1;
+                int r = real_fstatat(AT_FDCWD, hot, statbuf, flags);
+                t_in_shim = 0;
+                if (r == 0) return 0;
+            }
         }
     }
     return real_fstatat(dirfd, pathname, statbuf, flags);
@@ -456,13 +505,17 @@ int faccessat(int dirfd, const char *pathname, int mode, int flags) {
     t_in_shim = 1;
     int resolved = resolve_absolute(dirfd, pathname, abs, sizeof(abs));
     t_in_shim = 0;
-    if (resolved && under_managed_cold_root(abs)) {
-        char hot[PATH_MAX];
-        if (build_hot_path(abs, hot, sizeof(hot))) {
-            t_in_shim = 1;
-            int r = real_faccessat(AT_FDCWD, hot, mode, flags);
-            t_in_shim = 0;
-            if (r == 0) return 0;
+    if (resolved) {
+        char resolved_abs[PATH_MAX];
+        if (under_managed_cold_root_resolved(abs, resolved_abs,
+                                              sizeof(resolved_abs))) {
+            char hot[PATH_MAX];
+            if (build_hot_path(resolved_abs, hot, sizeof(hot))) {
+                t_in_shim = 1;
+                int r = real_faccessat(AT_FDCWD, hot, mode, flags);
+                t_in_shim = 0;
+                if (r == 0) return 0;
+            }
         }
     }
     return real_faccessat(dirfd, pathname, mode, flags);
@@ -511,12 +564,14 @@ FILE *fopen(const char *pathname, const char *mode) {
     t_in_shim = 1;
     int resolved = resolve_absolute(AT_FDCWD, pathname, abs, sizeof(abs));
     t_in_shim = 0;
-    if (!resolved || !under_managed_cold_root(abs)) {
+    char resolved_abs[PATH_MAX];
+    if (!resolved || !under_managed_cold_root_resolved(abs, resolved_abs,
+                                                        sizeof(resolved_abs))) {
         return real_fopen(pathname, mode);
     }
 
     char hot[PATH_MAX];
-    if (!build_hot_path(abs, hot, sizeof(hot))) {
+    if (!build_hot_path(resolved_abs, hot, sizeof(hot))) {
         return real_fopen(pathname, mode);
     }
 
@@ -527,7 +582,7 @@ FILE *fopen(const char *pathname, const char *mode) {
     if (fd >= 0) {
         FILE *f = fdopen(fd, mode);
         if (f) {
-            shim_log("HIT(fopen) %s -> %s\n", abs, hot);
+            shim_log("HIT(fopen) %s -> %s\n", resolved_abs, hot);
             return f;
         }
         close(fd);
