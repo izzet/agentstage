@@ -1,0 +1,53 @@
+{
+  "experiment": "E-039",
+  "task": "santander-value-prediction-challenge",
+  "n_input_files": 3,
+  "input_total_mb": 63.5,
+  "n_staged": 3,
+  "stage_elapsed_s": 0.055,
+  "reps": 1,
+  "baseline": {
+    "times_s": [
+      5.343
+    ],
+    "median_s": 5.343,
+    "runs": [
+      {
+        "elapsed_s": 5.343,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  3.37s\nloaded test   rows=     892  cols=4992  0.84s\nloaded sample rows=   49342  0.08s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander_smoke/baseline_out_0/submission.csv  rows=49342\nTOTAL_IO_TIME: 4.295s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      3.504
+    ],
+    "median_s": 3.504,
+    "runs": [
+      {
+        "elapsed_s": 3.504,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  2.06s\nloaded test   rows=     892  cols=4992  0.44s\nloaded sample rows=   49342  0.03s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander_smoke/staged_out_0/submission.csv  rows=49342\nTOTAL_IO_TIME: 2.526s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 1.525,
+  "wall_time_saved_s": 1.84
+}

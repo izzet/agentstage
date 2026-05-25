@@ -1,0 +1,109 @@
+{
+  "experiment": "E-039",
+  "task": "santander-value-prediction-challenge",
+  "n_input_files": 3,
+  "input_total_mb": 63.5,
+  "n_staged": 3,
+  "stage_elapsed_s": 0.05,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      5.281,
+      5.331,
+      5.427
+    ],
+    "median_s": 5.331,
+    "runs": [
+      {
+        "elapsed_s": 5.427,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  3.60s\nloaded test   rows=     892  cols=4992  0.81s\nloaded sample rows=   49342  0.09s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander-value-prediction-challenge_native/baseline_out_0/submission.csv  rows=49342\nTOTAL_IO_TIME: 4.506s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 5.331,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  3.50s\nloaded test   rows=     892  cols=4992  0.73s\nloaded sample rows=   49342  0.14s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander-value-prediction-challenge_native/baseline_out_1/submission.csv  rows=49342\nTOTAL_IO_TIME: 4.373s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 5.281,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  3.55s\nloaded test   rows=     892  cols=4992  0.66s\nloaded sample rows=   49342  0.12s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander-value-prediction-challenge_native/baseline_out_2/submission.csv  rows=49342\nTOTAL_IO_TIME: 4.335s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      3.326,
+      3.451,
+      3.478
+    ],
+    "median_s": 3.451,
+    "runs": [
+      {
+        "elapsed_s": 3.451,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  2.04s\nloaded test   rows=     892  cols=4992  0.43s\nloaded sample rows=   49342  0.02s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander-value-prediction-challenge_native/staged_out_0/submission.csv  rows=49342\nTOTAL_IO_TIME: 2.496s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 3.326,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  2.01s\nloaded test   rows=     892  cols=4992  0.43s\nloaded sample rows=   49342  0.02s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander-value-prediction-challenge_native/staged_out_1/submission.csv  rows=49342\nTOTAL_IO_TIME: 2.464s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 3.478,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=    3567  cols=4993  2.04s\nloaded test   rows=     892  cols=4992  0.44s\nloaded sample rows=   49342  0.02s\ntarget column: target\nprediction value: 6031730.960521447\nsubmission written: outputs/dsbench_e2e/santander-value-prediction-challenge_native/staged_out_2/submission.csv  rows=49342\nTOTAL_IO_TIME: 2.503s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 66583253,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 16257,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 1.545,
+  "wall_time_saved_s": 1.88
+}

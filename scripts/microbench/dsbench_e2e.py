@@ -42,7 +42,7 @@ SHIM = (REPO / "src" / "agentstage" / "stager" / "shim"
 # Where data_resplit/<name>/ lives after unzipping data.zip
 DSBENCH_DATA_ROOT = Path(
     os.environ.get("DSBENCH_DATA_ROOT",
-                    REPO / "outputs" / "dsbench-data" / "data_modeling"))
+                    REPO / "outputs" / "dsbench-data" / "data_modeling" / "data"))
 
 
 def list_task_files(task_name: str) -> list[Path]:

@@ -1,0 +1,109 @@
+{
+  "experiment": "E-039",
+  "task": "tabular-playground-series-feb-2022",
+  "n_input_files": 3,
+  "input_total_mb": 463.3,
+  "n_staged": 3,
+  "stage_elapsed_s": 0.259,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      18.026,
+      18.962,
+      20.496
+    ],
+    "median_s": 18.962,
+    "runs": [
+      {
+        "elapsed_s": 18.026,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=   66900  cols= 288  13.43s\nloaded test   rows=   16725  cols= 287  3.58s\nloaded sample rows=  100000  0.20s\ntarget column: target\nprediction value: Campylobacter_jejuni\nsubmission written: outputs/dsbench_e2e/tabular-playground-series-feb-2022_native/baseline_out_0/submission.csv  rows=100000\nTOTAL_IO_TIME: 17.209s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 485802962,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 118606,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 18.962,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=   66900  cols= 288  13.67s\nloaded test   rows=   16725  cols= 287  4.31s\nloaded sample rows=  100000  0.15s\ntarget column: target\nprediction value: Campylobacter_jejuni\nsubmission written: outputs/dsbench_e2e/tabular-playground-series-feb-2022_native/baseline_out_1/submission.csv  rows=100000\nTOTAL_IO_TIME: 18.133s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 485802962,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 118606,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 20.496,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=   66900  cols= 288  14.66s\nloaded test   rows=   16725  cols= 287  4.59s\nloaded sample rows=  100000  0.40s\ntarget column: target\nprediction value: Campylobacter_jejuni\nsubmission written: outputs/dsbench_e2e/tabular-playground-series-feb-2022_native/baseline_out_2/submission.csv  rows=100000\nTOTAL_IO_TIME: 19.648s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 485802962,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 118606,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      10.157,
+      10.158,
+      10.216
+    ],
+    "median_s": 10.158,
+    "runs": [
+      {
+        "elapsed_s": 10.158,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=   66900  cols= 288  7.96s\nloaded test   rows=   16725  cols= 287  1.37s\nloaded sample rows=  100000  0.03s\ntarget column: target\nprediction value: Campylobacter_jejuni\nsubmission written: outputs/dsbench_e2e/tabular-playground-series-feb-2022_native/staged_out_0/submission.csv  rows=100000\nTOTAL_IO_TIME: 9.367s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 485802962,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 118606,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 10.157,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=   66900  cols= 288  7.92s\nloaded test   rows=   16725  cols= 287  1.39s\nloaded sample rows=  100000  0.03s\ntarget column: target\nprediction value: Campylobacter_jejuni\nsubmission written: outputs/dsbench_e2e/tabular-playground-series-feb-2022_native/staged_out_1/submission.csv  rows=100000\nTOTAL_IO_TIME: 9.341s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 485802962,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 118606,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 10.216,
+        "returncode": 0,
+        "stdout_tail": "loaded train  rows=   66900  cols= 288  7.95s\nloaded test   rows=   16725  cols= 287  1.40s\nloaded sample rows=  100000  0.03s\ntarget column: target\nprediction value: Campylobacter_jejuni\nsubmission written: outputs/dsbench_e2e/tabular-playground-series-feb-2022_native/staged_out_2/submission.csv  rows=100000\nTOTAL_IO_TIME: 9.382s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 485802962,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 118606,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 1.867,
+  "wall_time_saved_s": 8.8
+}
