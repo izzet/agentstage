@@ -1,0 +1,143 @@
+{
+  "session_elapsed_s": 58.549,
+  "n_turns": 10,
+  "n_tool_uses": 12,
+  "files_opened_logical": [
+    "/data/tabular-playground-series-may-2022/train.csv",
+    "/data/tabular-playground-series-may-2022/test.csv",
+    "/data/tabular-playground-series-may-2022/sample_submission.csv"
+  ],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_prefetched_files": 4,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 3.266,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_csv",
+        "first_inspect",
+        "output_submission_signal"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "sample_csv",
+          "n_files": 1
+        },
+        {
+          "rule": "first_inspect",
+          "n_files": 3,
+          "source": "tool_result"
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "duration_s": 2.251,
+      "n_tool_uses": 3,
+      "tool_names": [
+        "read_file",
+        "read_file",
+        "read_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 8.052,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 2.058,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 1.843,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 1.759,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 13.661,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 6.119,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 14.69,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 4.843,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "tabular-playground-series-may-2022",
+  "mode": "staged",
+  "model": "claude-haiku-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 3,
+    "bytes": 326671558,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 79755,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-040"
+}

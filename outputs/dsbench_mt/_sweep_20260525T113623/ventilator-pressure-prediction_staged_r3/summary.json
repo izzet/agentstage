@@ -1,0 +1,140 @@
+{
+  "session_elapsed_s": 226.161,
+  "n_turns": 10,
+  "n_tool_uses": 13,
+  "files_opened_logical": [
+    "/data/ventilator-pressure-prediction/train.csv",
+    "/data/ventilator-pressure-prediction/test.csv",
+    "/data/ventilator-pressure-prediction/sample_submission.csv"
+  ],
+  "submitted": true,
+  "submission_bytes": 20959021,
+  "n_prefetched_files": 3,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 4.375,
+      "n_tool_uses": 4,
+      "tool_names": [
+        "list_dir",
+        "open_file",
+        "open_file",
+        "open_file"
+      ],
+      "fired_rules": [
+        "first_inspect",
+        "sample_csv",
+        "output_submission_signal"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "first_inspect",
+          "n_files": 3,
+          "source": "tool_result"
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "duration_s": 9.732,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 1.778,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 1.91,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 1.649,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 1.738,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 182.64,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 6.062,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 13.653,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 2.589,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "ventilator-pressure-prediction",
+  "mode": "staged",
+  "model": "claude-haiku-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 3,
+    "bytes": 458055724,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 111831,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-040"
+}
