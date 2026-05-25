@@ -81,8 +81,28 @@ def _bucket_for_file(fname: str) -> str | None:
     return None  # silently skip txt readmes, etc.
 
 
+def _has_zip_for(dir_name: str, top_level_files: set[str]) -> bool:
+    """Returns True if a sibling .zip file with a matching name exists.
+    E.g. train/ + train.zip → True; test/ + test.zip → True."""
+    return f"{dir_name}.zip" in top_level_files
+
+
 def load_mle_competition(competition_id: str) -> MLEWorkload:
-    """Load a prepared MLE-bench competition by id."""
+    """Load a prepared MLE-bench competition by id.
+
+    Workspace-prior policy:
+      - Always include top-level files (description.md, *.csv, *.zip).
+      - For subdirectories: include each file IF the dir has < 2000 files
+        AND no sibling .zip exists. Rationale:
+          * If a sibling .zip exists, the agent naturally reads from the
+            zip — staging the unpacked dir is redundant work.
+          * If the unpacked dir has > 2000 files, enumerating each one
+            into the prior makes the Stager prefetch impractical (each
+            file copied via thread pool). Better to skip the dir entirely
+            and let the script either read from a non-existent zip
+            (graceful error → agent rewrites) or hit the cold tier
+            per-file (the failure case we report honestly).
+    """
     comp_dir = MLEBENCH_DATA_ROOT / competition_id / "prepared" / "public"
     if not comp_dir.is_dir():
         raise FileNotFoundError(
@@ -97,9 +117,37 @@ def load_mle_competition(competition_id: str) -> MLEWorkload:
 
     log_root = f"/data/{competition_id}"
 
-    # Build workspace_prior by walking the public dir
+    # First, enumerate top-level entries to decide which subdirs to skip
+    top_level_files: set[str] = set()
+    for entry in comp_dir.iterdir():
+        if entry.is_file():
+            top_level_files.add(entry.name)
+
+    # Decide which subdirectories to include based on file count + zip presence
+    SUBDIR_MAX_FILES = 2000
+    skip_subdirs: set[str] = set()
+    for entry in comp_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        n_files = sum(1 for _ in entry.iterdir())
+        has_zip = _has_zip_for(entry.name, top_level_files)
+        if has_zip:
+            # Use the zip; skip the unpacked dir to avoid double-staging
+            skip_subdirs.add(entry.name)
+        elif n_files > SUBDIR_MAX_FILES:
+            # Too many files for individual prefetch — skip this dir.
+            # Honest tradeoff: agent's script will hit cold tier per-file
+            # if it iterates these. For our experiments we should pick
+            # competitions where this isn't the dominant access pattern.
+            skip_subdirs.add(entry.name)
+
+    # Build workspace_prior by walking the public dir, honoring skip_subdirs
     buckets: dict[str, list[str]] = {}
-    for root, _, files in os.walk(comp_dir):
+    for root, dirs, files in os.walk(comp_dir):
+        # Mutate dirs in place to skip subdirectories we've excluded
+        rel_root = Path(root).relative_to(comp_dir)
+        if rel_root == Path("."):
+            dirs[:] = [d for d in dirs if d not in skip_subdirs]
         for fname in files:
             bucket = _bucket_for_file(fname)
             if bucket is None:
@@ -139,15 +187,26 @@ def load_mle_competition(competition_id: str) -> MLEWorkload:
     )
 
 
-# Curated 3-competition slice for full-agentic E-041 experiments.
-# Picked for I/O-heavy + compute-light profile:
-#   - histopathologic-cancer-detection : 7 GB, 220K image files (massive open-fanout)
-#   - new-york-city-taxi-fare-prediction : 5 GB tabular CSV (sequential read)
-#   - dogs-vs-cats-redux-kernels-edition : 800 MB image classification (mid-fanout)
+# Curated slice for full-agentic E-041 experiments — picked for
+# I/O-heavy + tractable-prefetch profile:
+#   - new-york-city-taxi-fare-prediction : 5.3 GB single labels.csv (perfect)
+#   - dogs-vs-cats-redux-kernels-edition  : 490 MB train.zip + 54 MB test.zip
+#     (zips ship alongside unpacked dirs; loader uses zips to bound prefetch)
 MLE_AGENTIC_SLICE = (
-    "histopathologic-cancer-detection",
     "new-york-city-taxi-fare-prediction",
     "dogs-vs-cats-redux-kernels-edition",
+)
+
+# Edge case for the paper's honest-negative section. histopathologic ships
+# 220,025 individual TIF files with no zip alternative. Per-file staging
+# can't fit inside the agent's reasoning slack; even bulk `cp -r` takes
+# 76s. The loader skips the unpacked dirs (SUBDIR_MAX_FILES gate), so only
+# train_labels.csv + sample_submission.csv get staged. Result: agent
+# scripts that iterate over individual images hit the cold tier file-by-
+# file regardless of mode → AgentStage shows little/no speedup. We
+# include this run honestly to bound the regime where AgentStage helps.
+MLE_NEGATIVE_SLICE = (
+    "histopathologic-cancer-detection",
 )
 
 # Smoke-test only (too small for I/O headline but pipeline-validation)
