@@ -1,0 +1,110 @@
+{
+  "experiment": "E-038",
+  "task": "wildfire-easy-2",
+  "domain": "wildfire",
+  "n_input_files": 2,
+  "input_total_mb": 26.35,
+  "n_staged": 2,
+  "stage_elapsed_s": 0.025,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      3.615,
+      3.675,
+      3.728
+    ],
+    "median_s": 3.675,
+    "runs": [
+      {
+        "elapsed_s": 3.675,
+        "returncode": 0,
+        "stdout_tail": "\nNIFC Geographic Area(s) intersecting with the most states:\n\nGACC Name: Eastern Area Coordination Center\nGACC Abbreviation: EACC\nNumber of intersecting states: 30\nStates: Arkansas, Connecticut, Delaware, District of Columbia, Illinois, Indiana, Iowa, Kansas, Kentucky, Maine, Maryland, Massachusetts, Michigan, Minnesota, Missouri, Nebraska, New Hampshire, New Jersey, New York, North Dakota, Ohio, Oklahoma, Pennsylvania, Rhode Island, South Dakota, Tennessee, Vermont, Virginia, West Virginia, Wisconsin\n",
+        "stderr_tail": "/home/iyildirim/.local/lib/python3.10/site-packages/pyogrio/raw.py:200: RuntimeWarning: Non-conformant content for record 1 in column DateCurrent, 2022-01-03T16:37:52.0Z, successfully parsed\n  return ogr_read(\n",
+        "evict": {
+          "files": 2,
+          "bytes": 27627520,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 6745,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 3.728,
+        "returncode": 0,
+        "stdout_tail": "\nNIFC Geographic Area(s) intersecting with the most states:\n\nGACC Name: Eastern Area Coordination Center\nGACC Abbreviation: EACC\nNumber of intersecting states: 30\nStates: Arkansas, Connecticut, Delaware, District of Columbia, Illinois, Indiana, Iowa, Kansas, Kentucky, Maine, Maryland, Massachusetts, Michigan, Minnesota, Missouri, Nebraska, New Hampshire, New Jersey, New York, North Dakota, Ohio, Oklahoma, Pennsylvania, Rhode Island, South Dakota, Tennessee, Vermont, Virginia, West Virginia, Wisconsin\n",
+        "stderr_tail": "/home/iyildirim/.local/lib/python3.10/site-packages/pyogrio/raw.py:200: RuntimeWarning: Non-conformant content for record 1 in column DateCurrent, 2022-01-03T16:37:52.0Z, successfully parsed\n  return ogr_read(\n",
+        "evict": {
+          "files": 2,
+          "bytes": 27627520,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 6745,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 3.615,
+        "returncode": 0,
+        "stdout_tail": "\nNIFC Geographic Area(s) intersecting with the most states:\n\nGACC Name: Eastern Area Coordination Center\nGACC Abbreviation: EACC\nNumber of intersecting states: 30\nStates: Arkansas, Connecticut, Delaware, District of Columbia, Illinois, Indiana, Iowa, Kansas, Kentucky, Maine, Maryland, Massachusetts, Michigan, Minnesota, Missouri, Nebraska, New Hampshire, New Jersey, New York, North Dakota, Ohio, Oklahoma, Pennsylvania, Rhode Island, South Dakota, Tennessee, Vermont, Virginia, West Virginia, Wisconsin\n",
+        "stderr_tail": "/home/iyildirim/.local/lib/python3.10/site-packages/pyogrio/raw.py:200: RuntimeWarning: Non-conformant content for record 1 in column DateCurrent, 2022-01-03T16:37:52.0Z, successfully parsed\n  return ogr_read(\n",
+        "evict": {
+          "files": 2,
+          "bytes": 27627520,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 6745,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      3.472,
+      3.562,
+      3.563
+    ],
+    "median_s": 3.562,
+    "runs": [
+      {
+        "elapsed_s": 3.563,
+        "returncode": 0,
+        "stdout_tail": "\nNIFC Geographic Area(s) intersecting with the most states:\n\nGACC Name: Eastern Area Coordination Center\nGACC Abbreviation: EACC\nNumber of intersecting states: 30\nStates: Arkansas, Connecticut, Delaware, District of Columbia, Illinois, Indiana, Iowa, Kansas, Kentucky, Maine, Maryland, Massachusetts, Michigan, Minnesota, Missouri, Nebraska, New Hampshire, New Jersey, New York, North Dakota, Ohio, Oklahoma, Pennsylvania, Rhode Island, South Dakota, Tennessee, Vermont, Virginia, West Virginia, Wisconsin\n",
+        "stderr_tail": "/home/iyildirim/.local/lib/python3.10/site-packages/pyogrio/raw.py:200: RuntimeWarning: Non-conformant content for record 1 in column DateCurrent, 2022-01-03T16:37:52.0Z, successfully parsed\n  return ogr_read(\n",
+        "evict": {
+          "files": 2,
+          "bytes": 27627520,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 6745,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 3.472,
+        "returncode": 0,
+        "stdout_tail": "\nNIFC Geographic Area(s) intersecting with the most states:\n\nGACC Name: Eastern Area Coordination Center\nGACC Abbreviation: EACC\nNumber of intersecting states: 30\nStates: Arkansas, Connecticut, Delaware, District of Columbia, Illinois, Indiana, Iowa, Kansas, Kentucky, Maine, Maryland, Massachusetts, Michigan, Minnesota, Missouri, Nebraska, New Hampshire, New Jersey, New York, North Dakota, Ohio, Oklahoma, Pennsylvania, Rhode Island, South Dakota, Tennessee, Vermont, Virginia, West Virginia, Wisconsin\n",
+        "stderr_tail": "/home/iyildirim/.local/lib/python3.10/site-packages/pyogrio/raw.py:200: RuntimeWarning: Non-conformant content for record 1 in column DateCurrent, 2022-01-03T16:37:52.0Z, successfully parsed\n  return ogr_read(\n",
+        "evict": {
+          "files": 2,
+          "bytes": 27627520,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 6745,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 3.562,
+        "returncode": 0,
+        "stdout_tail": "\nNIFC Geographic Area(s) intersecting with the most states:\n\nGACC Name: Eastern Area Coordination Center\nGACC Abbreviation: EACC\nNumber of intersecting states: 30\nStates: Arkansas, Connecticut, Delaware, District of Columbia, Illinois, Indiana, Iowa, Kansas, Kentucky, Maine, Maryland, Massachusetts, Michigan, Minnesota, Missouri, Nebraska, New Hampshire, New Jersey, New York, North Dakota, Ohio, Oklahoma, Pennsylvania, Rhode Island, South Dakota, Tennessee, Vermont, Virginia, West Virginia, Wisconsin\n",
+        "stderr_tail": "/home/iyildirim/.local/lib/python3.10/site-packages/pyogrio/raw.py:200: RuntimeWarning: Non-conformant content for record 1 in column DateCurrent, 2022-01-03T16:37:52.0Z, successfully parsed\n  return ogr_read(\n",
+        "evict": {
+          "files": 2,
+          "bytes": 27627520,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 6745,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 1.032,
+  "wall_time_saved_s": 0.11
+}

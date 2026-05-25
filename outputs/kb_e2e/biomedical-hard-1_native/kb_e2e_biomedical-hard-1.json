@@ -1,0 +1,110 @@
+{
+  "experiment": "E-038",
+  "task": "biomedical-hard-1",
+  "domain": "biomedical",
+  "n_input_files": 2,
+  "input_total_mb": 70.71,
+  "n_staged": 2,
+  "stage_elapsed_s": 0.051,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      113.656,
+      114.911,
+      114.991
+    ],
+    "median_s": 114.911,
+    "runs": [
+      {
+        "elapsed_s": 114.991,
+        "returncode": 0,
+        "stdout_tail": "Total number of cases: 153\nTumor cases: 95\nSpearman correlation coefficient: 0.4764813684787027\nP-value: 0.0004084391725761019\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 2,
+          "bytes": 74146479,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 18103,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 114.911,
+        "returncode": 0,
+        "stdout_tail": "Total number of cases: 153\nTumor cases: 95\nSpearman correlation coefficient: 0.4764813684787027\nP-value: 0.0004084391725761019\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 2,
+          "bytes": 74146479,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 18103,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 113.656,
+        "returncode": 0,
+        "stdout_tail": "Total number of cases: 153\nTumor cases: 95\nSpearman correlation coefficient: 0.4764813684787027\nP-value: 0.0004084391725761019\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 2,
+          "bytes": 74146479,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 18103,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      113.833,
+      115.859,
+      117.511
+    ],
+    "median_s": 115.859,
+    "runs": [
+      {
+        "elapsed_s": 113.833,
+        "returncode": 0,
+        "stdout_tail": "Total number of cases: 153\nTumor cases: 95\nSpearman correlation coefficient: 0.4764813684787027\nP-value: 0.0004084391725761019\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 2,
+          "bytes": 74146479,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 18103,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 117.511,
+        "returncode": 0,
+        "stdout_tail": "Total number of cases: 153\nTumor cases: 95\nSpearman correlation coefficient: 0.4764813684787027\nP-value: 0.0004084391725761019\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 2,
+          "bytes": 74146479,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 18103,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 115.859,
+        "returncode": 0,
+        "stdout_tail": "Total number of cases: 153\nTumor cases: 95\nSpearman correlation coefficient: 0.4764813684787027\nP-value: 0.0004084391725761019\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 2,
+          "bytes": 74146479,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 18103,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 0.992,
+  "wall_time_saved_s": -0.95
+}

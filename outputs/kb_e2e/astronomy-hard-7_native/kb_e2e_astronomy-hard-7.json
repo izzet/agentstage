@@ -1,0 +1,110 @@
+{
+  "experiment": "E-038",
+  "task": "astronomy-hard-7",
+  "domain": "astronomy",
+  "n_input_files": 1432,
+  "input_total_mb": 313.7,
+  "n_staged": 1432,
+  "stage_elapsed_s": 77.182,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      1.912,
+      2.026,
+      6.504
+    ],
+    "median_s": 2.026,
+    "runs": [
+      {
+        "elapsed_s": 6.504,
+        "returncode": 0,
+        "stdout_tail": "Length of each DF: train_df 1441, test_df 1441, train_dens 73, test_dens 73\nMax projected F10.7 in wu334 in the next hour: 75.03476558600128\nrmse for the training data: 1.064661454112843e-26\nMax projected F10.7 in wu335 in the next hour: 77.145615871417\nrMSE for 4-hour density prediction  \u2013  train wu334, test wu335:  1.211e-13\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 1432,
+          "bytes": 328942943,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 4628,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 2.026,
+        "returncode": 0,
+        "stdout_tail": "Length of each DF: train_df 1441, test_df 1441, train_dens 73, test_dens 73\nMax projected F10.7 in wu334 in the next hour: 75.03476558600128\nrmse for the training data: 1.064661454112843e-26\nMax projected F10.7 in wu335 in the next hour: 77.145615871417\nrMSE for 4-hour density prediction  \u2013  train wu334, test wu335:  1.211e-13\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 1432,
+          "bytes": 328942943,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 4628,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 1.912,
+        "returncode": 0,
+        "stdout_tail": "Length of each DF: train_df 1441, test_df 1441, train_dens 73, test_dens 73\nMax projected F10.7 in wu334 in the next hour: 75.03476558600128\nrmse for the training data: 1.064661454112843e-26\nMax projected F10.7 in wu335 in the next hour: 77.145615871417\nrMSE for 4-hour density prediction  \u2013  train wu334, test wu335:  1.211e-13\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 1432,
+          "bytes": 328942943,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 4628,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      1.831,
+      1.881,
+      1.941
+    ],
+    "median_s": 1.881,
+    "runs": [
+      {
+        "elapsed_s": 1.831,
+        "returncode": 0,
+        "stdout_tail": "Length of each DF: train_df 1441, test_df 1441, train_dens 73, test_dens 73\nMax projected F10.7 in wu334 in the next hour: 75.03476558600128\nrmse for the training data: 1.064661454112843e-26\nMax projected F10.7 in wu335 in the next hour: 77.145615871417\nrMSE for 4-hour density prediction  \u2013  train wu334, test wu335:  1.211e-13\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 1432,
+          "bytes": 328942943,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 4628,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 1.881,
+        "returncode": 0,
+        "stdout_tail": "Length of each DF: train_df 1441, test_df 1441, train_dens 73, test_dens 73\nMax projected F10.7 in wu334 in the next hour: 75.03476558600128\nrmse for the training data: 1.064661454112843e-26\nMax projected F10.7 in wu335 in the next hour: 77.145615871417\nrMSE for 4-hour density prediction  \u2013  train wu334, test wu335:  1.211e-13\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 1432,
+          "bytes": 328942943,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 4628,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 1.941,
+        "returncode": 0,
+        "stdout_tail": "Length of each DF: train_df 1441, test_df 1441, train_dens 73, test_dens 73\nMax projected F10.7 in wu334 in the next hour: 75.03476558600128\nrmse for the training data: 1.064661454112843e-26\nMax projected F10.7 in wu335 in the next hour: 77.145615871417\nrMSE for 4-hour density prediction  \u2013  train wu334, test wu335:  1.211e-13\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 1432,
+          "bytes": 328942943,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 4628,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 1.077,
+  "wall_time_saved_s": 0.14
+}
