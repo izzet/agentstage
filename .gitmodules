@@ -16,3 +16,6 @@
 [submodule "external/benchmarks/dsbench"]
 	path = external/benchmarks/dsbench
 	url = https://github.com/LiqiangJing/DSBench.git
+[submodule "external/benchmarks/mle-bench"]
+	path = external/benchmarks/mle-bench
+	url = https://github.com/openai/mle-bench.git
