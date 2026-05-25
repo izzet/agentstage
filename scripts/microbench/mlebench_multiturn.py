@@ -177,15 +177,26 @@ def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
             p = Path(phys)
             if not p.is_dir():
                 return f"ERROR: list_dir: not a directory: {path}"
+            # Cap output at 200 entries to avoid blowing up the LLM
+            # context (dogs-vs-cats train/ has 22.5k files; an uncapped
+            # listing returns ~2 MB of text which exceeds the model's
+            # context window on the next request and crashes the runner).
+            MAX_ENTRIES = 200
             entries = sorted(p.iterdir())
+            n_total = len(entries)
+            shown = entries[:MAX_ENTRIES]
             display = path.rstrip("/")
-            lines = [f"# Listing of {display} ({len(entries)} entries):"]
-            for e in entries:
+            header = (f"# Listing of {display} ({n_total} entries"
+                      + (f", showing first {MAX_ENTRIES}):" if n_total > MAX_ENTRIES else "):"))
+            lines = [header]
+            for e in shown:
                 kind = "FILE" if e.is_file() else "DIR "
                 sz = e.stat().st_size if e.is_file() else 0
                 full = f"{display}/{e.name}" + ("/" if e.is_dir() else "")
                 lines.append(f"  {kind}  {full}  ({sz} bytes)" if e.is_file()
                              else f"  {kind}  {full}")
+            if n_total > MAX_ENTRIES:
+                lines.append(f"  ... ({n_total - MAX_ENTRIES} more entries elided)")
             return "\n".join(lines)
         elif name in ("open_file", "read_file"):
             path = args.get("path", "")
@@ -640,11 +651,34 @@ def main() -> int:
     print(f"  resident_frac_after_evict: {ev.get('resident_frac_sample','?')}")
     print()
 
-    result = run_session(
-        workload=workload, model=args.model, mode=args.mode,
-        prompt_mode=args.prompt_mode, out_dir=args.out,
-        hot_root=Path(args.hot_root), max_turns=args.max_turns,
-    )
+    # Wrap in try/except so a runner crash (e.g., API context overflow,
+    # SDK error, subprocess oddity) still writes a summary.json with the
+    # crash info — otherwise the sweep loses the slot entirely.
+    crash_info = None
+    try:
+        result = run_session(
+            workload=workload, model=args.model, mode=args.mode,
+            prompt_mode=args.prompt_mode, out_dir=args.out,
+            hot_root=Path(args.hot_root), max_turns=args.max_turns,
+        )
+    except Exception as e:
+        import traceback
+        crash_info = {
+            "exc_type": type(e).__name__,
+            "exc_msg": str(e)[:1000],
+            "traceback": traceback.format_exc()[:3000],
+        }
+        result = {
+            "session_elapsed_s": None,
+            "n_turns": None,
+            "n_tool_uses": None,
+            "files_opened_logical": [],
+            "submitted": False,
+            "submission_bytes": 0,
+            "n_prefetched_files": 0,
+            "per_turn": [],
+            "crash": crash_info,
+        }
     result["task"] = args.task
     result["mode"] = args.mode
     result["model"] = args.model
