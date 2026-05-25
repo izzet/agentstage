@@ -92,114 +92,65 @@ This is the load-bearing engineering choice that lets us claim:
 | "180s shell timeout — not MLE-bench's 24h budget." | Symmetric (both modes see it). The submission-rate jump is itself evidence that baselines are timing out *because of cold I/O* — exactly what AgentStage exists to eliminate. | Report both raw wall-time AND completion rate. The latter is half the story. |
 | "You picked 3 of 22 Lite competitions — cherry-picking?" | Selection criterion is documented and PRINCIPLED: I/O-heavy + compute-light. On compute-bound competitions we showed (E-038) AgentStage helps less by design. | Show the FULL profile: include 1–2 compute-bound competitions to anchor the spectrum. Don't hide negatives. |
 | "12 turns isn't realistic agent behavior." | E-040 per-turn data shows real sessions converge in 8–12 turns when not timing out. 12 is generous, not constraining. | Show per-turn distribution in supplementary. |
-| "Submission rate 11% baseline — is the baseline a fair comparison?" | That's the honest reality: baseline agents *do* timeout on cold I/O. AgentStage's value IS that more sessions complete. Pretending baseline is healthy would understate AgentStage's value. | Make the failure-mode analysis explicit. "AgentStage reduces session failure rate from X% to Y%" is a *separate* claim from "speedup". |
+| "Submission rate 11% baseline — is the baseline a fair comparison?" | Don't claim submission-rate as a separate win (see §4 — it's downstream of the wall-time claim, easily countered with "raise the timeout"). The baseline IS noisy because Haiku-non-determinism + 180s budget interact. Mitigate with more reps and report median session time only on COMPLETED submissions. | When reporting, restrict A/B to sessions that submitted in *both* modes, OR report median of completed sessions only. |
 | "Only AIOB local was measured for o1-class behavior; rest is Haiku noise." | E-030/E-031 (real Sonnet 4.5 agent-generated script under controlled I/O conditions) showed 1.5× local + 23× S3. Production AIOB at scale (E-027) added 30 runs of real production agents. The full-agentic Haiku numbers ADD to that, they don't replace it. | Explicitly stack the evidence — Haiku full-agentic builds ON production-grade lower-stack measurements. |
 
 ---
 
-## 4. The unexpected finding — failure-rate reduction
+## 4. Observation: submission-rate jump in E-040 — diagnostic only, NOT a paper claim
 
-### What we observed (E-040)
+### What we observed
 
-```
-                            baseline submission rate    staged submission rate
-DSBench full agentic sweep            1/9 (11%)                  6/9 (67%)
-                                                                 ─────────
-                                                                  6× more
-```
+In the DSBench full-agentic sweep (E-040), baseline mode submitted in
+1/9 sessions (11%) while staged mode submitted in 6/9 (67%). It was
+tempting to surface this as a separate "AgentStage reduces failure
+rate" claim.
 
-### Why this happens — mechanism
+### Decision: do NOT claim this in the paper
 
-**Not** a separate "AgentStage makes agents more reliable" property —
-it's a downstream consequence of the I/O speedup interacting with the
-fixed time budgets agentic harnesses impose:
+This is **not a methodological win** — it's an artifact of the per-turn
+180s shell-command timeout we imposed. A reviewer's trivial counter is
+"just raise the timeout". They would be right. The submission-rate gap
+collapses under any sufficiently relaxed budget.
 
-```
-Baseline session timeline:
-  Turn 0:  list_dir            (1-2s)
-  Turn 1:  read previews       (~5s, mostly LLM)
-  Turn 2:  write_file solution (~10s LLM)
-  Turn 3:  run python solution.py
-              │
-              ▼
-          pd.read_csv('data/<task>/train.csv')     ← COLD READ
-              │ takes 30-50s on local NFS for ~500 MB
-              │
-          model.fit(...)                            ← compute
-              │ another 30-60s
-              ▼
-          [TOTAL: 60-120s → may approach 180s timeout]
+The underlying wall-time speedup (1.2×–3.8×) **already implies** this
+effect: any per-turn budget the baseline marginally fits will be
+comfortably under for staged. Reporting it as a separate claim
+double-counts the same underlying mechanism and gives reviewers an
+easy attack surface that splashes onto the legitimate wall-time claim
+by association.
 
-  If timeout fires: rc=-9, stderr="[TIMEOUT]"
-  Turn 4:  agent reads timeout, rewrites simpler solution    (~10s)
-  Turn 5:  run again — still slow because data still cold    (might timeout again)
-  Turn 6:  rewrite again
-  Turn 7-9: keep failing/rewriting
-  Session ends at max_turns=10 with no submission
-```
+### Mechanism (kept here for diagnostic reference only)
 
-vs:
+When baseline cold-I/O turns approach the 180s shell timeout, they
+sometimes hit it → agent must rewrite a simpler script → burns a turn
+→ eventually exhausts `max_turns`. Same underlying I/O cost; just a
+different downstream consequence depending on whether the budget is
+tight or loose.
 
-```
-Staged session timeline:
-  Turn 0:  list_dir → detector fires sample_csv / first_inspect rules
-             → Stager prefetches train.csv + test.csv to /dev/shm
-             (1-2s; parallel with the agent's next reasoning turn)
-  Turn 1:  read previews
-  Turn 2:  write_file solution
-  Turn 3:  run python solution.py
-              │
-              ▼
-          pd.read_csv('data/<task>/train.csv')     ← SHIM REDIRECTS
-              │ /dev/shm read: 0.5-2s
-              │
-          model.fit(...)                            ← compute (same as baseline)
-              │ 30-60s
-              ▼
-          [TOTAL: ~30-65s → comfortably under 180s timeout]
+### Use of this observation in the paper
 
-  rc=0, submission.csv written in turn 3
-  Turn 4-9: agent says "done" or does minor refinements
-  Session completes successfully.
-```
+- **In the headline / results section**: NOT mentioned.
+- **In a Methodology / Threats-to-Validity note**: explain that we
+  measure wall-time per session (not per-turn-success-rate) because the
+  per-turn-success-rate metric is an artifact of the budget settings.
+- **In supplementary**: can include the per-turn breakdown for one
+  illustrative session to show *why* baseline cold reads occasionally
+  cross the 180s budget. This is mechanism evidence for the wall-time
+  claim, not a separate claim.
 
-### So the failure-rate gain is a TIME-BUDGET interaction effect
-
-Restated for the paper:
-
-> *AgentStage's I/O speedup converts time savings into completion-rate
-> gains when the agent has a bounded time budget. With cold I/O, agents
-> spend turns retrying timed-out scripts; with staged data, the first
-> script run typically succeeds, conserving turns for actual progress.
-> An uncapped agent (24h budget, no per-turn timeout) would see the same
-> speedup expressed instead as raw wall-time improvement.*
-
-### Is this robust and reproducible?
-
-| Concern | Status |
-|---|---|
-| Direction consistent across reps? | Yes — every individual session that timed out shows the long-shell-command pattern; never seen staged time out where baseline didn't |
-| n=9 per cell — small N | Yes, small N. Caveat in paper or run more reps. |
-| Specific to our turn cap + 180s timeout? | Yes — this is contingent on having a bounded budget. AIDE with longer budgets would express this as wall-time, not failure rate. Worth noting explicitly. |
-| Could we be triggering the timeout artificially? | Both modes see the SAME timeout; symmetric. The asymmetry comes from baseline's cold-I/O cost being closer to the timeout boundary. |
-| Methodologically sound? | Yes if framed honestly as a BUDGET-INTERACTION EFFECT, not as "AgentStage makes agents inherently more reliable" |
-
-### Paper framing recommendation
-
-Treat this as a **separate, complementary** claim alongside wall-time:
+### Single claim, single mechanism
 
 ```
-Claim 1 (wall-time):   AgentStage reduces I/O-bound session wall time
-                       by 1.2×–3.8× on representative agentic ML tasks.
-Claim 2 (completion):  Under realistic per-turn time budgets, AgentStage
-                       raises the agent's session-completion rate by
-                       up to 6× on the same tasks, by keeping individual
-                       run_shell_command turns within the budget.
+Claim:  AgentStage reduces I/O-bound session wall time by 1.2×–3.8×
+        on representative agentic ML tasks (DSBench, MLE-bench,
+        AgentIOBench) on local NVMe storage, with the headline number
+        derived from session-level wall time on completed submissions.
 ```
 
-Don't merge them. Don't pretend completion-rate is the headline. They're
-two different consequences of the same underlying I/O reduction, observed
-under different framings of "what counts as wall time".
+Everything else (completion-rate, per-turn timing, cold-read latency
+elimination) is **evidence for** this single claim, not auxiliary
+claims.
 
 ---
 
