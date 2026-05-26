@@ -1,0 +1,111 @@
+{
+  "experiment": "E-041e",
+  "task": "dogs-vs-cats-redux-kernels-edition",
+  "solution_mode": "thorough",
+  "reference_solution": "/mnt/common/iyildirim/projects/agentstage/outputs/mlebench_e2e/scripts/dogs-vs-cats_thorough.py",
+  "n_input_files": 3,
+  "input_total_mb": 543.18,
+  "n_staged": 3,
+  "stage_elapsed_s": 0.344,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      1.626,
+      1.645,
+      1.69
+    ],
+    "median_s": 1.645,
+    "runs": [
+      {
+        "elapsed_s": 1.626,
+        "returncode": 0,
+        "stdout_tail": "read train.zip: 489.2 MB  0.72s\nread test.zip:  54.0 MB  0.14s\nloaded sample:  rows=2500  0.02s\nwrote submission.csv  rows=2500\nTOTAL_IO_TIME: 0.883s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 569564809,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 139056,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 1.69,
+        "returncode": 0,
+        "stdout_tail": "read train.zip: 489.2 MB  0.84s\nread test.zip:  54.0 MB  0.12s\nloaded sample:  rows=2500  0.01s\nwrote submission.csv  rows=2500\nTOTAL_IO_TIME: 0.964s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 569564809,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 139056,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 1.645,
+        "returncode": 0,
+        "stdout_tail": "read train.zip: 489.2 MB  0.78s\nread test.zip:  54.0 MB  0.10s\nloaded sample:  rows=2500  0.01s\nwrote submission.csv  rows=2500\nTOTAL_IO_TIME: 0.887s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 569564809,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 139056,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      0.846,
+      0.846,
+      0.866
+    ],
+    "median_s": 0.846,
+    "runs": [
+      {
+        "elapsed_s": 0.846,
+        "returncode": 0,
+        "stdout_tail": "read train.zip: 489.2 MB  0.12s\nread test.zip:  54.0 MB  0.01s\nloaded sample:  rows=2500  0.00s\nwrote submission.csv  rows=2500\nTOTAL_IO_TIME: 0.140s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 569564809,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 139056,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 0.846,
+        "returncode": 0,
+        "stdout_tail": "read train.zip: 489.2 MB  0.09s\nread test.zip:  54.0 MB  0.01s\nloaded sample:  rows=2500  0.00s\nwrote submission.csv  rows=2500\nTOTAL_IO_TIME: 0.107s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 569564809,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 139056,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 0.866,
+        "returncode": 0,
+        "stdout_tail": "read train.zip: 489.2 MB  0.12s\nread test.zip:  54.0 MB  0.01s\nloaded sample:  rows=2500  0.00s\nwrote submission.csv  rows=2500\nTOTAL_IO_TIME: 0.137s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 569564809,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 139056,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 1.944,
+  "wall_time_saved_s": 0.8
+}

@@ -1,0 +1,111 @@
+{
+  "experiment": "E-041e",
+  "task": "new-york-city-taxi-fare-prediction",
+  "solution_mode": "throughput",
+  "reference_solution": "/mnt/common/iyildirim/projects/agentstage/outputs/mlebench_e2e/scripts/nyc-taxi_throughput.py",
+  "n_input_files": 3,
+  "input_total_mb": 5401.29,
+  "n_staged": 3,
+  "stage_elapsed_s": 3.86,
+  "reps": 3,
+  "baseline": {
+    "times_s": [
+      7.5,
+      7.544,
+      7.766
+    ],
+    "median_s": 7.544,
+    "runs": [
+      {
+        "elapsed_s": 7.544,
+        "returncode": 0,
+        "stdout_tail": "read labels.csv: 5.27 GB  6.77s  (798 MB/s)\nread test.csv:   0.9 MB  0.02s\nloaded sample:   rows=9914  0.03s\nwrote submission.csv  rows=9914\nTOTAL_IO_TIME: 6.820s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 5663658360,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 1382730,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 7.5,
+        "returncode": 0,
+        "stdout_tail": "read labels.csv: 5.27 GB  6.72s  (804 MB/s)\nread test.csv:   0.9 MB  0.01s\nloaded sample:   rows=9914  0.01s\nwrote submission.csv  rows=9914\nTOTAL_IO_TIME: 6.742s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 5663658360,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 1382730,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 7.766,
+        "returncode": 0,
+        "stdout_tail": "read labels.csv: 5.27 GB  6.98s  (774 MB/s)\nread test.csv:   0.9 MB  0.00s\nloaded sample:   rows=9914  0.01s\nwrote submission.csv  rows=9914\nTOTAL_IO_TIME: 6.991s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 5663658360,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 1382730,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "staged": {
+    "times_s": [
+      2.26,
+      2.269,
+      2.461
+    ],
+    "median_s": 2.269,
+    "runs": [
+      {
+        "elapsed_s": 2.461,
+        "returncode": 0,
+        "stdout_tail": "read labels.csv: 5.27 GB  1.70s  (3169 MB/s)\nread test.csv:   0.9 MB  0.00s\nloaded sample:   rows=9914  0.02s\nwrote submission.csv  rows=9914\nTOTAL_IO_TIME: 1.725s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 5663658360,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 1382730,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 2.269,
+        "returncode": 0,
+        "stdout_tail": "read labels.csv: 5.27 GB  1.50s  (3591 MB/s)\nread test.csv:   0.9 MB  0.00s\nloaded sample:   rows=9914  0.01s\nwrote submission.csv  rows=9914\nTOTAL_IO_TIME: 1.517s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 5663658360,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 1382730,
+          "resident_frac_sample": 0.0
+        }
+      },
+      {
+        "elapsed_s": 2.26,
+        "returncode": 0,
+        "stdout_tail": "read labels.csv: 5.27 GB  1.47s  (3681 MB/s)\nread test.csv:   0.9 MB  0.00s\nloaded sample:   rows=9914  0.01s\nwrote submission.csv  rows=9914\nTOTAL_IO_TIME: 1.482s\n",
+        "stderr_tail": "",
+        "evict": {
+          "files": 3,
+          "bytes": 5663658360,
+          "resident_pages_sample": 0,
+          "total_pages_sample": 1382730,
+          "resident_frac_sample": 0.0
+        }
+      }
+    ]
+  },
+  "session_speedup": 3.325,
+  "wall_time_saved_s": 5.27
+}

@@ -79,6 +79,16 @@ SOLUTIONS = {
         "dogs-vs-cats-redux-kernels-edition":
             REPO / "outputs" / "mlebench_e2e" / "scripts" / "dogs-vs-cats_thorough.py",
     },
+    # Throughput-only: pure-I/O measurement, isolates the cold/hot
+    # delta on the competition's bulk bytes with no parse overhead.
+    # Bounds AgentStage's ceiling on this data; pair with `thorough`
+    # to see how much survives into a real ML pipeline.
+    "throughput": {
+        "new-york-city-taxi-fare-prediction":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "nyc-taxi_throughput.py",
+        "dogs-vs-cats-redux-kernels-edition":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "dogs-vs-cats_thorough.py",
+    },
 }
 
 
@@ -193,7 +203,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", required=True,
                         choices=list(SOLUTIONS["lifted"].keys()))
-    parser.add_argument("--solution", choices=["lifted", "thorough", "streaming"],
+    parser.add_argument("--solution",
+                        choices=["lifted", "thorough", "streaming", "throughput"],
                         default="thorough",
                         help="lifted = agent-written script from E-041 session; "
                              "thorough = generic full-read baseline (default)")
