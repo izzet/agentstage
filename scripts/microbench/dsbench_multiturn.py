@@ -298,6 +298,25 @@ def run_session(*, workload: DSBWorkload, model: str, mode: str,
                 prompt_mode: str, out_dir: Path,
                 hot_root: Path, max_turns: int = 12,
                 thinking_budget: int = 4096) -> dict:
+    """Run one full agentic session. Dispatch by model name."""
+    if model.lower().startswith("gemini"):
+        return _run_session_gemini(
+            workload=workload, model=model, mode=mode,
+            prompt_mode=prompt_mode, out_dir=out_dir,
+            hot_root=hot_root, max_turns=max_turns,
+        )
+    return _run_session_anthropic(
+        workload=workload, model=model, mode=mode,
+        prompt_mode=prompt_mode, out_dir=out_dir,
+        hot_root=hot_root, max_turns=max_turns,
+        thinking_budget=thinking_budget,
+    )
+
+
+def _run_session_anthropic(*, workload: DSBWorkload, model: str, mode: str,
+                            prompt_mode: str, out_dir: Path,
+                            hot_root: Path, max_turns: int = 12,
+                            thinking_budget: int = 4096) -> dict:
     """Run one full agentic session. Returns timing + outcome dict."""
     import anthropic
 
@@ -617,6 +636,282 @@ def run_session(*, workload: DSBWorkload, model: str, mode: str,
     session_elapsed = time.monotonic() - session_start
 
     # Look for a submission file to verify the agent actually finished
+    submission_path = workspace_dir / "submission.csv"
+    submitted = submission_path.is_file()
+    submission_size = submission_path.stat().st_size if submitted else 0
+
+    if stager is not None:
+        stager.shutdown(wait=True)
+
+    return {
+        "session_elapsed_s": round(session_elapsed, 3),
+        "n_turns": len(per_turn),
+        "n_tool_uses": tool_use_count,
+        "files_opened_logical": files_opened,
+        "submitted": submitted,
+        "submission_bytes": submission_size,
+        "n_prefetched_files": n_prefetched_total,
+        "per_turn": per_turn,
+    }
+
+
+def _run_session_gemini(*, workload: DSBWorkload, model: str, mode: str,
+                         prompt_mode: str, out_dir: Path,
+                         hot_root: Path, max_turns: int = 12) -> dict:
+    """Gemini-streaming variant. Mirrors _run_session_anthropic detector +
+    stager + tool-exec logic but uses the google.genai SDK."""
+    from google import genai
+    from google.genai import types
+
+    api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("GOOGLE_GEMINI_API_KEY not set")
+    client = genai.Client(api_key=api_key)
+
+    prefix_map = workload.prefix_map
+    data_phys_root = prefix_map[0][1].rstrip("/")
+    cold_root_anc = str(Path(data_phys_root).parent)
+
+    auto_rs = AutoRuleGenerator(
+        workload_id=workload.task_id,
+        task_instruction=workload.task.task_inst,
+        workspace_prior_keys=tuple(workload.workspace_prior.keys()),
+    ).generate()
+    session_detector = SessionDetector(
+        prior=workload.workspace_prior, ruleset=auto_rs,
+    )
+
+    stager = None
+    if mode == "staged":
+        if hot_root.exists():
+            shutil.rmtree(hot_root)
+        hot_root.mkdir(parents=True, exist_ok=True)
+        stager = Stager(
+            hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
+            max_workers=4, capacity_bytes=64 * 1024**3,
+        )
+
+    workspace_dir = out_dir / "agent_workspace"
+    execute = make_tool_executor(workload, workspace_dir,
+                                  mode=mode, hot_root=hot_root,
+                                  cold_root=cold_root_anc)
+
+    turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
+    tid = workload.task.task_id
+
+    if prompt_mode == "hinted":
+        user_msg = (
+            f"Task: {tid}\n\n"
+            f"{workload.task.task_inst}\n\n"
+            f"The task data is at /data/{tid}/. Specifically:\n"
+            f"  - /data/{tid}/train.csv\n"
+            f"  - /data/{tid}/test.csv\n"
+            f"  - /data/{tid}/sample_submission.csv\n\n"
+            f"Your working directory is /workspace/. Save the final "
+            f"submission to /workspace/submission.csv. "
+            f"Think step-by-step about which files you need to read."
+        )
+    else:
+        user_msg = (
+            f"Task: {tid}\n\n"
+            f"{workload.task.task_inst}\n\n"
+            f"Task data is under /data/. Use list_dir to discover what's "
+            f"available. Working directory is /workspace/. Save the final "
+            f"submission to /workspace/submission.csv."
+        )
+
+    system_msg = (
+        "You are a data-science agent solving a Kaggle-style modeling task.\n"
+        f"Workspace layout: data/{tid}/ for inputs (read-only), CWD is /workspace/. "
+        f"Tools: list_dir, open_file, read_file, write_file, run_shell_command. "
+        f"Save your final output as relative path 'submission.csv'. Pre-installed: "
+        f"pandas, numpy, scipy, sklearn, lightgbm, openpyxl. Shell commands time "
+        f"out at 180s — prefer fast baselines (constant predictor, Ridge, small "
+        f"LightGBM). Avoid hyperparameter search and >50 estimators."
+    )
+
+    fn_decls = []
+    for ts in TOOLS_SCHEMA:
+        props = {}
+        for pname, _pspec in ts["input_schema"]["properties"].items():
+            props[pname] = {"type": "STRING"}
+        fn_decls.append({
+            "name": ts["name"],
+            "description": ts["description"],
+            "parameters": {
+                "type": "OBJECT",
+                "properties": props,
+                "required": ts["input_schema"].get("required", []),
+            },
+        })
+    tools = [types.Tool(function_declarations=fn_decls)]
+
+    contents: list = [{"role": "user", "parts": [{"text": user_msg}]}]
+    session_start = time.monotonic()
+    tool_use_count = 0
+    files_opened: list[str] = []
+    n_prefetched_total = 0
+    per_turn: list[dict] = []
+
+    for turn in range(max_turns):
+        turn_dir = turns_dir / f"turn_{turn:02d}"
+        turn_dir.mkdir(parents=True, exist_ok=True)
+        thinking_log = (turn_dir / "thinking.jsonl").open("w")
+        text_log = (turn_dir / "text.jsonl").open("w")
+        tool_use_log = (turn_dir / "tool_use.jsonl").open("w")
+        tool_result_log = (turn_dir / "tool_result.jsonl").open("w")
+        turn_start = time.monotonic()
+        stream_started_ms = turn_start * 1000
+
+        cfg = types.GenerateContentConfig(
+            temperature=1.0,
+            tools=tools,
+            thinking_config=types.ThinkingConfig(include_thoughts=True),
+            system_instruction=system_msg or None,
+        )
+        assistant_blocks: list[dict] = []
+        fn_calls: list[dict] = []
+        for chunk in client.models.generate_content_stream(
+            model=model, contents=contents, config=cfg
+        ):
+            t_ms = time.monotonic() * 1000 - stream_started_ms
+            if not chunk.candidates:
+                continue
+            cand = chunk.candidates[0]
+            if not cand.content or not cand.content.parts:
+                continue
+            for part in cand.content.parts:
+                if getattr(part, "thought", False) and getattr(part, "text", None):
+                    thinking_log.write(json.dumps({
+                        "t_ms": round(t_ms, 1), "block": 0,
+                        "delta": part.text}) + "\n")
+                    assistant_blocks.append({
+                        "type": "thinking", "thinking": part.text})
+                elif getattr(part, "text", None):
+                    text_log.write(json.dumps({
+                        "t_ms": round(t_ms, 1), "block": 0,
+                        "delta": part.text}) + "\n")
+                    assistant_blocks.append({
+                        "type": "text", "text": part.text})
+                elif getattr(part, "function_call", None):
+                    fc = part.function_call
+                    name = getattr(fc, "name", "") or ""
+                    args = dict(getattr(fc, "args", {}) or {})
+                    sid = f"gem_{turn}_{len(fn_calls)}"
+                    fn_calls.append({"id": sid, "name": name, "args": args})
+                    assistant_blocks.append({
+                        "type": "tool_use", "id": sid, "name": name,
+                        "input": args})
+
+        contents.append({"role": "model", "parts": [
+            {"text": b.get("text") or b.get("thinking", "")}
+            if b["type"] in ("text", "thinking")
+            else {"function_call": {"name": b["name"], "args": b["input"]}}
+            for b in assistant_blocks
+        ]})
+
+        sp_blocks: list[StreamBlock] = []
+        for blk in assistant_blocks:
+            if blk["type"] == "thinking":
+                sp_blocks.append(StreamBlock(
+                    type="thinking", t_first=0, t_stop=0,
+                    text=blk["thinking"], chunks=1, turn=turn))
+            elif blk["type"] == "text":
+                sp_blocks.append(StreamBlock(
+                    type="text", t_first=0, t_stop=0,
+                    text=blk["text"], chunks=1, turn=turn))
+        new_acts = session_detector.feed_turn(sp_blocks)
+        fired_rules_this_turn = [a.rule_name for a in new_acts]
+
+        dispatched_this_turn: list[dict] = []
+        if mode == "staged" and stager is not None:
+            seen_phys: set[str] = set()
+            for act in new_acts:
+                phys_files = [resolve_logical(p, prefix_map)
+                              for p in act.detected_files]
+                phys_files = [p for p in phys_files
+                              if Path(p).is_file() and p not in seen_phys]
+                for p in phys_files:
+                    seen_phys.add(p)
+                if not phys_files:
+                    continue
+                hint = DataHint(
+                    detected_files=tuple(phys_files),
+                    tier=1 if len(phys_files) <= 10 else 3,
+                    fired_at_ms=act.fired_at_ms or 0.0,
+                    rule_id=f"turn{turn}:{act.rule_name}",
+                )
+                stager.prefetch(hint)
+                dispatched_this_turn.append({
+                    "rule": act.rule_name, "n_files": len(phys_files)})
+                n_prefetched_total += len(phys_files)
+
+        responses = []
+        tool_result_blocks_for_detector: list[StreamBlock] = []
+        any_tool = False
+        for fc in fn_calls:
+            any_tool = True
+            tool_use_count += 1
+            out = execute(fc["name"], fc["args"])
+            tool_use_log.write(json.dumps({
+                "name": fc["name"], "id": fc["id"],
+                "parsed_input": fc["args"]}) + "\n")
+            tool_result_log.write(json.dumps({
+                "tool_use_id": fc["id"], "content": out}) + "\n")
+            if fc["name"] in ("open_file", "read_file"):
+                files_opened.append(fc["args"].get("path", ""))
+            responses.append({"function_response": {
+                "name": fc["name"], "response": {"output": out}}})
+            tool_result_blocks_for_detector.append(StreamBlock(
+                type="tool_result", t_first=0, t_stop=0,
+                text=out, chunks=1, turn=turn))
+
+        if tool_result_blocks_for_detector:
+            tr_acts = session_detector.feed_tool_results(
+                tool_result_blocks_for_detector)
+            for a in tr_acts:
+                fired_rules_this_turn.append(a.rule_name)
+            if mode == "staged" and stager is not None and tr_acts:
+                seen_phys = set()
+                for act in tr_acts:
+                    phys_files = [resolve_logical(p, prefix_map)
+                                  for p in act.detected_files]
+                    phys_files = [p for p in phys_files
+                                  if Path(p).is_file() and p not in seen_phys]
+                    for p in phys_files:
+                        seen_phys.add(p)
+                    if not phys_files:
+                        continue
+                    hint = DataHint(
+                        detected_files=tuple(phys_files),
+                        tier=1 if len(phys_files) <= 10 else 3,
+                        fired_at_ms=act.fired_at_ms or 0.0,
+                        rule_id=f"turn{turn}:{act.rule_name}:from_tool_result",
+                    )
+                    stager.prefetch(hint)
+                    dispatched_this_turn.append({
+                        "rule": act.rule_name, "n_files": len(phys_files),
+                        "source": "tool_result"})
+                    n_prefetched_total += len(phys_files)
+
+        thinking_log.close(); text_log.close()
+        tool_use_log.close(); tool_result_log.close()
+
+        turn_elapsed = time.monotonic() - turn_start
+        per_turn.append({
+            "turn": turn, "duration_s": round(turn_elapsed, 3),
+            "n_tool_uses": len(fn_calls),
+            "tool_names": [fc["name"] for fc in fn_calls],
+            "fired_rules": fired_rules_this_turn,
+            "dispatched_prefetches": dispatched_this_turn,
+        })
+
+        if responses:
+            contents.append({"role": "function", "parts": responses})
+        if not any_tool:
+            break
+
+    session_elapsed = time.monotonic() - session_start
     submission_path = workspace_dir / "submission.csv"
     submitted = submission_path.is_file()
     submission_size = submission_path.stat().st_size if submitted else 0
