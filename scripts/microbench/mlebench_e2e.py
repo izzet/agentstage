@@ -50,10 +50,35 @@ SHIM = (REPO / "src" / "agentstage" / "stager" / "shim"
 # from a working directory that contains a symlink 'data/<comp>' →
 # .../prepared/public/ so paths resolve naturally.
 SOLUTIONS = {
-    "new-york-city-taxi-fare-prediction":
-        REPO / "outputs" / "mlebench_e2e" / "scripts" / "nyc-taxi_solution.py",
-    "dogs-vs-cats-redux-kernels-edition":
-        REPO / "outputs" / "mlebench_e2e" / "scripts" / "dogs-vs-cats_solution.py",
+    # Lifted: the actual Haiku-written solutions from real E-041 sessions.
+    # These are valid but I/O-light (agent uses nrows=500_000 sampling or
+    # reads from unpacked dirs we don't stage).
+    "lifted": {
+        "new-york-city-taxi-fare-prediction":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "nyc-taxi_solution.py",
+        "dogs-vs-cats-redux-kernels-edition":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "dogs-vs-cats_solution.py",
+    },
+    # Thorough: production-realistic baselines using fast Arrow-backed
+    # parsers (polars for CSV, raw-bytes for zips). Exercises the full
+    # I/O path of the staged data. Still parse-bound on local NVMe with
+    # modern parsers (polars CSV: ~600 MB/s CPU-bound).
+    "thorough": {
+        "new-york-city-taxi-fare-prediction":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "nyc-taxi_thorough.py",
+        "dogs-vs-cats-redux-kernels-edition":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "dogs-vs-cats_thorough.py",
+    },
+    # Streaming: I/O-bound baselines (chunked raw read or streaming CSV
+    # split). Mirrors production ETL patterns (Spark/Beam streaming,
+    # polars-streaming, custom DataLoaders). I/O dominates here, so
+    # AgentStage's contribution is direct.
+    "streaming": {
+        "new-york-city-taxi-fare-prediction":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "nyc-taxi_streaming.py",
+        "dogs-vs-cats-redux-kernels-edition":
+            REPO / "outputs" / "mlebench_e2e" / "scripts" / "dogs-vs-cats_thorough.py",
+    },
 }
 
 
@@ -166,7 +191,12 @@ def run_solution(*, solution_path: Path, workspace_dir: Path,
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", required=True, choices=list(SOLUTIONS.keys()))
+    parser.add_argument("--task", required=True,
+                        choices=list(SOLUTIONS["lifted"].keys()))
+    parser.add_argument("--solution", choices=["lifted", "thorough", "streaming"],
+                        default="thorough",
+                        help="lifted = agent-written script from E-041 session; "
+                             "thorough = generic full-read baseline (default)")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--hot-root", default="/dev/shm/agentstage_mlee2e")
     parser.add_argument("--reps", type=int, default=3)
@@ -178,7 +208,7 @@ def main() -> int:
         return 2
 
     workload = load_mle_competition(args.task)
-    solution = SOLUTIONS[args.task]
+    solution = SOLUTIONS[args.solution][args.task]
     if not solution.is_file():
         print(f"FATAL: solution {solution} not found", file=sys.stderr)
         return 2
@@ -273,6 +303,7 @@ def main() -> int:
     result = {
         "experiment": "E-041e",
         "task": args.task,
+        "solution_mode": args.solution,
         "reference_solution": str(solution),
         "n_input_files": len(targets),
         "input_total_mb": round(total_mb, 2),
