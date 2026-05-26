@@ -1,0 +1,134 @@
+{
+  "session_elapsed_s": 295.145,
+  "n_turns": 10,
+  "n_tool_uses": 13,
+  "files_opened_logical": [
+    "/data/tabular-playground-series-may-2022/train.csv",
+    "/data/tabular-playground-series-may-2022/test.csv",
+    "/data/tabular-playground-series-may-2022/sample_submission.csv"
+  ],
+  "submitted": true,
+  "submission_bytes": 4686573,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 9.181,
+      "n_tool_uses": 4,
+      "tool_names": [
+        "list_dir",
+        "open_file",
+        "open_file",
+        "open_file"
+      ],
+      "fired_rules": [
+        "sample_csv",
+        "first_inspect",
+        "output_submission_signal"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 20.29,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 2.518,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 2.799,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 17.754,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 16.523,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 185.677,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 14.807,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 22.0,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 3.589,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "tabular-playground-series-may-2022",
+  "mode": "baseline",
+  "model": "claude-sonnet-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 3,
+    "bytes": 326671558,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 79755,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-040"
+}

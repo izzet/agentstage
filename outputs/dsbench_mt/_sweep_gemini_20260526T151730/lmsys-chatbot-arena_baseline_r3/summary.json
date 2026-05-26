@@ -1,0 +1,113 @@
+{
+  "session_elapsed_s": 111.912,
+  "n_turns": 8,
+  "n_tool_uses": 9,
+  "files_opened_logical": [
+    "/data/lmsys-chatbot-arena/train.csv",
+    "/data/lmsys-chatbot-arena/test.csv",
+    "/data/lmsys-chatbot-arena/sample_submission.csv"
+  ],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 2.816,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_csv",
+        "first_inspect",
+        "output_submission_signal"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 1.783,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 1.524,
+      "n_tool_uses": 3,
+      "tool_names": [
+        "open_file",
+        "open_file",
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 26.299,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [
+        "all_signal"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 21.792,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 18.704,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 23.783,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 15.204,
+      "n_tool_uses": 0,
+      "tool_names": [],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "lmsys-chatbot-arena",
+  "mode": "baseline",
+  "model": "gemini-2.5-flash",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 3,
+    "bytes": 183752675,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 44864,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-040"
+}

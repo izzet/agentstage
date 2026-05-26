@@ -1,0 +1,171 @@
+{
+  "session_elapsed_s": 276.897,
+  "n_turns": 12,
+  "n_tool_uses": 12,
+  "files_opened_logical": [
+    "/data/new-york-city-taxi-fare-prediction/labels.csv",
+    "/data/new-york-city-taxi-fare-prediction/test.csv",
+    "/data/new-york-city-taxi-fare-prediction/sample_submission.csv"
+  ],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_prefetched_files": 7,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 2.088,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_csv"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "sample_csv",
+          "n_files": 1
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "duration_s": 1.807,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "first_inspect",
+        "output_submission_signal"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "first_inspect",
+          "n_files": 3,
+          "source": "tool_result"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "duration_s": 3.749,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 5.738,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 5.662,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 17.553,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [
+        "all_signal"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "all_signal",
+          "n_files": 3
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "duration_s": 15.19,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 11.34,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 11.701,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 15.171,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 10,
+      "duration_s": 98.998,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 11,
+      "duration_s": 87.891,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "new-york-city-taxi-fare-prediction",
+  "mode": "staged",
+  "model": "gemini-2.5-flash",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 3,
+    "bytes": 5663658360,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 1382730,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-041",
+  "total_input_mb": 5401.29
+}

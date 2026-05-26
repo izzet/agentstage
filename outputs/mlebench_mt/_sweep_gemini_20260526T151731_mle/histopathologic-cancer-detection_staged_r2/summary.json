@@ -1,0 +1,151 @@
+{
+  "session_elapsed_s": 29.089,
+  "n_turns": 11,
+  "n_tool_uses": 10,
+  "files_opened_logical": [],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_prefetched_files": 4,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 3.444,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_csv",
+        "first_inspect"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "sample_csv",
+          "n_files": 1
+        },
+        {
+          "rule": "first_inspect",
+          "n_files": 1
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "duration_s": 1.65,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "all_signal"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "all_signal",
+          "n_files": 2
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "duration_s": 1.767,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 1.529,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 1.403,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 1.63,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 1.875,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 1.221,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 2.776,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 1.894,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 10,
+      "duration_s": 9.893,
+      "n_tool_uses": 0,
+      "tool_names": [],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "histopathologic-cancer-detection",
+  "mode": "staged",
+  "model": "gemini-2.5-flash",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 2,
+    "bytes": 9461093,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 2311,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-041",
+  "total_input_mb": 9.02
+}

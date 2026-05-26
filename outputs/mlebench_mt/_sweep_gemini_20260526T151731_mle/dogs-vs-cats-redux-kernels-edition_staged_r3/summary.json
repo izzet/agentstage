@@ -1,0 +1,142 @@
+{
+  "session_elapsed_s": 174.527,
+  "n_turns": 10,
+  "n_tool_uses": 15,
+  "files_opened_logical": [
+    "/data/dogs-vs-cats-redux-kernels-edition/sample_submission.csv"
+  ],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_prefetched_files": 3,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 3.472,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_csv",
+        "first_inspect"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "sample_csv",
+          "n_files": 1
+        },
+        {
+          "rule": "first_inspect",
+          "n_files": 2
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "duration_s": 1.806,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 2.569,
+      "n_tool_uses": 2,
+      "tool_names": [
+        "run_shell_command",
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 4.389,
+      "n_tool_uses": 3,
+      "tool_names": [
+        "run_shell_command",
+        "run_shell_command",
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 8.271,
+      "n_tool_uses": 4,
+      "tool_names": [
+        "run_shell_command",
+        "run_shell_command",
+        "run_shell_command",
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 11.261,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 15.173,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 18.843,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 71.491,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 37.246,
+      "n_tool_uses": 0,
+      "tool_names": [],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "dogs-vs-cats-redux-kernels-edition",
+  "mode": "staged",
+  "model": "gemini-2.5-flash",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 3,
+    "bytes": 569564809,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 139056,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-041",
+  "total_input_mb": 543.18
+}
