@@ -1,0 +1,27 @@
+{
+  "session_elapsed_s": null,
+  "n_turns": null,
+  "n_tool_uses": null,
+  "files_opened_logical": [],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_prefetched_files": 0,
+  "per_turn": [],
+  "crash": {
+    "exc_type": "OSError",
+    "exc_msg": "[Errno 39] Directory not empty: '/dev/shm/agentstage_aiobmt/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122'",
+    "traceback": "Traceback (most recent call last):\n  File \"/mnt/common/iyildirim/projects/agentstage/scripts/microbench/aiob_multiturn.py\", line 852, in main\n    result = run_session(\n             ^^^^^^^^^^^^\n  File \"/mnt/common/iyildirim/projects/agentstage/scripts/microbench/aiob_multiturn.py\", line 379, in run_session\n    return _run_session_anthropic(\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/mnt/common/iyildirim/projects/agentstage/scripts/microbench/aiob_multiturn.py\", line 423, in _run_session_anthropic\n    shutil.rmtree(hot_root)\n  File \"/mnt/common/iyildirim/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/shutil.py\", line 759, in rmtree\n    _rmtree_safe_fd(stack, onexc)\n  File \"/mnt/common/iyildirim/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/shutil.py\", line 703, in _rmtree_safe_fd\n    onexc(func, path, err)\n  File \"/mnt/common/iyildirim/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/shutil.py\", line 662, in _rmtree_safe_fd\n    os.rmdir(name, dir_fd=dirfd)\nOSError: [Errno 39] Directory not empty: '/dev/shm/agentstage_aiobmt/mnt/common/datasets-staging/agentiobench/datasets/goes_cmi_composites/raw/2024/122'\n"
+  },
+  "task": "aiob_104",
+  "mode": "staged",
+  "model": "claude-sonnet-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 200,
+    "bytes": 13852209995,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 47231,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}

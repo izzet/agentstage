@@ -1,0 +1,139 @@
+{
+  "session_elapsed_s": 41.008,
+  "n_turns": 10,
+  "n_tool_uses": 10,
+  "files_opened_logical": [],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_workspace_outputs": 0,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 5.855,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "band_08",
+        "band_09",
+        "band_10",
+        "all_signal"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 2.124,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "day_122",
+        "day_123",
+        "day_124",
+        "day_125",
+        "day_126",
+        "day_127",
+        "day_128"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 4.02,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 3.122,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 6.29,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [
+        "first_inspect"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 4.348,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 2.72,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 2.345,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 3.414,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 6.51,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "aiob_107",
+  "mode": "baseline",
+  "model": "claude-sonnet-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 200,
+    "bytes": 568421376,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 3611,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}

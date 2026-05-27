@@ -1,0 +1,141 @@
+{
+  "session_elapsed_s": 64.075,
+  "n_turns": 10,
+  "n_tool_uses": 10,
+  "files_opened_logical": [
+    "/data/steinmetz_neuropixels/raw"
+  ],
+  "submitted": true,
+  "submission_bytes": 15531,
+  "n_workspace_outputs": 1,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 3.359,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "all_signal",
+        "report_out",
+        "subject_sub-Cori",
+        "subject_sub-Forssmann",
+        "subject_sub-Hench",
+        "subject_sub-Lederberg",
+        "subject_sub-Moniz",
+        "subject_sub-Muller",
+        "subject_sub-Radnitz",
+        "subject_sub-Richards",
+        "subject_sub-Tatum",
+        "subject_sub-Theiler"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 1.88,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 16.746,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [
+        "first_inspect"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 2.487,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 1.998,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 2.094,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 2.966,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 2.843,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 2.688,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 27.0,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "aiob_110",
+  "mode": "baseline",
+  "model": "claude-haiku-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 78,
+    "bytes": 29365172098,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 485354,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}

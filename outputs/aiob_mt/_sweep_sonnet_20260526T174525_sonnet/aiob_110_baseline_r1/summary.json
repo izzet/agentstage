@@ -1,0 +1,138 @@
+{
+  "session_elapsed_s": 53.263,
+  "n_turns": 10,
+  "n_tool_uses": 10,
+  "files_opened_logical": [],
+  "submitted": false,
+  "submission_bytes": 0,
+  "n_workspace_outputs": 0,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 6.425,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "report_out",
+        "subject_sub-Cori",
+        "subject_sub-Forssmann",
+        "subject_sub-Hench",
+        "subject_sub-Lederberg",
+        "subject_sub-Moniz",
+        "subject_sub-Muller",
+        "subject_sub-Radnitz",
+        "subject_sub-Richards",
+        "subject_sub-Tatum",
+        "subject_sub-Theiler"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 2.605,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 20.495,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [
+        "first_inspect"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 4.916,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 2.513,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 2.4,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 4.754,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 3.364,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 3.231,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 2.5,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "aiob_110",
+  "mode": "baseline",
+  "model": "claude-sonnet-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 78,
+    "bytes": 29365172098,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 485354,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}

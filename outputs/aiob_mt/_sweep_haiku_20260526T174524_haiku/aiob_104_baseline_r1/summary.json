@@ -1,0 +1,189 @@
+{
+  "session_elapsed_s": 55.881,
+  "n_turns": 10,
+  "n_tool_uses": 13,
+  "files_opened_logical": [
+    "/data/igsr_coverage_qc/raw/data/HG00096/exome_alignment/HG00096.chrom20.ILLUMINA.bwa.GBR.exome.20120522.bam.bas",
+    "/data/igsr_coverage_qc/raw/reference/20130108.exome.targets.bed",
+    "/data/igsr_coverage_qc/raw/reference/human_g1k_v37.fasta.fai"
+  ],
+  "submitted": true,
+  "submission_bytes": 16845,
+  "n_workspace_outputs": 1,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 3.098,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "reference",
+        "output_coverage_signal",
+        "output_qc_signal",
+        "output_undercov_signal",
+        "output_report_signal",
+        "report_out"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 2.072,
+      "n_tool_uses": 2,
+      "tool_names": [
+        "list_dir",
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_HG00096",
+        "sample_HG00097",
+        "sample_HG00099",
+        "sample_HG00100",
+        "sample_HG00101",
+        "sample_HG00102",
+        "sample_HG00103",
+        "sample_HG00105",
+        "sample_HG00106",
+        "sample_HG00107",
+        "sample_HG00108",
+        "sample_HG00109",
+        "sample_HG00110",
+        "sample_HG00111",
+        "sample_HG00112",
+        "sample_HG00113",
+        "sample_HG00114",
+        "sample_HG00115",
+        "sample_HG00116",
+        "sample_HG00117",
+        "sample_HG00118",
+        "sample_HG00119",
+        "sample_HG00120",
+        "sample_HG00121",
+        "sample_HG00122",
+        "sample_HG00123",
+        "sample_HG00124",
+        "sample_HG00125",
+        "sample_HG00126",
+        "sample_HG00127",
+        "sample_HG00128",
+        "sample_HG00129",
+        "sample_HG00130",
+        "sample_HG00131",
+        "sample_HG00132",
+        "sample_HG00133",
+        "sample_HG00136",
+        "sample_HG00137",
+        "sample_HG00138",
+        "sample_HG00139",
+        "sample_HG00140",
+        "sample_HG00141",
+        "sample_HG00142",
+        "sample_HG00143",
+        "sample_HG00145",
+        "sample_HG00146",
+        "sample_HG00148",
+        "sample_HG00149",
+        "sample_HG00150",
+        "sample_HG00151"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 1.78,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 1.76,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 2.711,
+      "n_tool_uses": 3,
+      "tool_names": [
+        "read_file",
+        "open_file",
+        "open_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 33.083,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 2.254,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 1.865,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 2.088,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 5.155,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "aiob_104",
+  "mode": "baseline",
+  "model": "claude-haiku-4-5",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 200,
+    "bytes": 13852209995,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 47231,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}

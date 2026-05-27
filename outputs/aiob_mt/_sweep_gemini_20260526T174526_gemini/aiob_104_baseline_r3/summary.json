@@ -1,0 +1,182 @@
+{
+  "session_elapsed_s": 70.037,
+  "n_turns": 10,
+  "n_tool_uses": 10,
+  "files_opened_logical": [],
+  "submitted": true,
+  "submission_bytes": 6556,
+  "n_workspace_outputs": 1,
+  "n_prefetched_files": 0,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 2.916,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "report_out",
+        "reference"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 1,
+      "duration_s": 2.599,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "sample_HG00096",
+        "sample_HG00097",
+        "sample_HG00099",
+        "sample_HG00100",
+        "sample_HG00101",
+        "sample_HG00102",
+        "sample_HG00103",
+        "sample_HG00105",
+        "sample_HG00106",
+        "sample_HG00107",
+        "sample_HG00108",
+        "sample_HG00109",
+        "sample_HG00110",
+        "sample_HG00111",
+        "sample_HG00112",
+        "sample_HG00113",
+        "sample_HG00114",
+        "sample_HG00115",
+        "sample_HG00116",
+        "sample_HG00117",
+        "sample_HG00118",
+        "sample_HG00119",
+        "sample_HG00120",
+        "sample_HG00121",
+        "sample_HG00122",
+        "sample_HG00123",
+        "sample_HG00124",
+        "sample_HG00125",
+        "sample_HG00126",
+        "sample_HG00127",
+        "sample_HG00128",
+        "sample_HG00129",
+        "sample_HG00130",
+        "sample_HG00131",
+        "sample_HG00132",
+        "sample_HG00133",
+        "sample_HG00136",
+        "sample_HG00137",
+        "sample_HG00138",
+        "sample_HG00139",
+        "sample_HG00140",
+        "sample_HG00141",
+        "sample_HG00142",
+        "sample_HG00143",
+        "sample_HG00145",
+        "sample_HG00146",
+        "sample_HG00148",
+        "sample_HG00149",
+        "sample_HG00150",
+        "sample_HG00151"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 2.415,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "first_inspect"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 2.312,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 3.251,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 26.001,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [
+        "all_signal"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 6.438,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 7.318,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 8,
+      "duration_s": 8.664,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 8.062,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "aiob_104",
+  "mode": "baseline",
+  "model": "gemini-2.5-flash",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 200,
+    "bytes": 13852209995,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 47231,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}

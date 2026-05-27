@@ -1,0 +1,202 @@
+{
+  "session_elapsed_s": 82.337,
+  "n_turns": 10,
+  "n_tool_uses": 10,
+  "files_opened_logical": [],
+  "submitted": true,
+  "submission_bytes": 8560,
+  "n_workspace_outputs": 1,
+  "n_prefetched_files": 117,
+  "per_turn": [
+    {
+      "turn": 0,
+      "duration_s": 4.747,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [
+        "all_signal",
+        "subject_sub-Cori",
+        "subject_sub-Forssmann",
+        "subject_sub-Hench",
+        "subject_sub-Lederberg",
+        "subject_sub-Moniz",
+        "subject_sub-Muller",
+        "subject_sub-Radnitz",
+        "subject_sub-Richards",
+        "subject_sub-Tatum",
+        "subject_sub-Theiler"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "all_signal",
+          "n_files": 39,
+          "source": "thinking"
+        },
+        {
+          "rule": "subject_sub-Cori",
+          "n_files": 3,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Forssmann",
+          "n_files": 4,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Hench",
+          "n_files": 4,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Lederberg",
+          "n_files": 7,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Moniz",
+          "n_files": 3,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Muller",
+          "n_files": 3,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Radnitz",
+          "n_files": 5,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Richards",
+          "n_files": 5,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Tatum",
+          "n_files": 4,
+          "source": "tool_result"
+        },
+        {
+          "rule": "subject_sub-Theiler",
+          "n_files": 1,
+          "source": "tool_result"
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "duration_s": 3.213,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "list_dir"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 2,
+      "duration_s": 15.8,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "write_file"
+      ],
+      "fired_rules": [
+        "report_out"
+      ],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 3,
+      "duration_s": 4.977,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 4,
+      "duration_s": 6.16,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 5,
+      "duration_s": 6.689,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 6,
+      "duration_s": 9.042,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 7,
+      "duration_s": 11.329,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [
+        "first_inspect"
+      ],
+      "dispatched_prefetches": [
+        {
+          "rule": "first_inspect",
+          "n_files": 39,
+          "source": "thinking"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "duration_s": 9.814,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    },
+    {
+      "turn": 9,
+      "duration_s": 10.514,
+      "n_tool_uses": 1,
+      "tool_names": [
+        "run_shell_command"
+      ],
+      "fired_rules": [],
+      "dispatched_prefetches": []
+    }
+  ],
+  "task": "aiob_110",
+  "mode": "staged",
+  "model": "gemini-2.5-flash",
+  "prompt_mode": "hinted",
+  "evict": {
+    "files": 78,
+    "bytes": 29365172098,
+    "resident_pages_sample": 0,
+    "total_pages_sample": 485354,
+    "resident_frac_sample": 0.0
+  },
+  "experiment": "E-042"
+}
