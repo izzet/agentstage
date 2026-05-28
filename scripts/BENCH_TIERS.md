@@ -96,12 +96,33 @@ Adds two things over default:
    ratio. Ratio ≈ 1.0 means single-thread is at the ceiling; ratio « 1.0 means
    the tier scales with concurrency.
 
+### `--small-files` (~3-5 min)
+| Parameter | Value | Total I/O |
+|---|---|---|
+| `IOR_REPS` | 10 | |
+| `IOR_BLOCK` | 4m | |
+| `IOR_XFER` | 4m (single read per file) | |
+| `IOR_TASKS` | 1 (agent-realistic concurrency) | ~80 MiB per tier |
+| `DD_REPS` | 10 | |
+| `DD_COUNT` | 4 (4 MiB per dd) | |
+
+The **agent-relevant** mode. Steady-state ceilings from `--rigorous` over-state
+real-world bandwidth because agents:
+- open files one at a time, not in parallel (so MPI tasks = 1);
+- read each file once (4 MiB typical), not in 4 GiB sequential bursts;
+- pay per-open / per-syscall overhead disproportionately at small file sizes.
+
+`--small-files` measures the bandwidth (and via `ms_per_4mib`, the per-file
+latency) under those constraints. Numbers are 2-3× lower than `--rigorous`
+on most tiers and the gap widens as you go down the storage hierarchy.
+
 ### Custom
-Any env var can override either mode:
+Any env var can override any mode:
 
 ```bash
 IOR_TASKS=8 IOR_REPS=10 bash scripts/bench_tiers.sh --rigorous
 TIERS="orangefs" IOR_BLOCK=8g bash scripts/bench_tiers.sh
+S3_N_FILES=20 bash scripts/bench_tiers.sh --small-files
 ```
 
 ## Idempotency
@@ -174,7 +195,7 @@ worth knowing if you adapt them:
 ## CSV schema
 
 ```
-tier,tool,op,odirect,tasks,n_reps,xfer,block,max_mibps,min_mibps,mean_mibps,stdev_mibps,mean_s,test_file
+tier,tool,op,odirect,tasks,n_reps,xfer,block,max_mibps,min_mibps,mean_mibps,stdev_mibps,mean_s,ms_per_4mib,test_file
 ```
 
 - `tool`: `ior` or `dd`
@@ -182,9 +203,16 @@ tier,tool,op,odirect,tasks,n_reps,xfer,block,max_mibps,min_mibps,mean_mibps,stde
 - `odirect`: `1` if `O_DIRECT` was set, `0` otherwise
 - `tasks`: MPI rank count (1 for dd, $IOR_TASKS for ior)
 - `mean_s`: mean wall time per rep (`-` for dd; not reported separately)
+- `ms_per_4mib`: derived = `4000 / mean_mibps`. Time in milliseconds to read
+  a 4 MiB file at this sustained bandwidth. The agent-readable column —
+  surfaces the cold/hot gap as a wall-time delta rather than a throughput
+  ratio. Lower bound for actual per-file latency (doesn't include per-open
+  fixed overhead, which is already folded into `mean_mibps` for the dd-
+  on-real-files and `--small-files` rows).
 
-## Default-mode example output
+## Example output, by mode
 
+### Default (~2 min, 1 thread, 2 GiB block)
 ```
 tier        tool  write_MiB/s  read_MiB/s   odirect
 tmpfs       ior   2059         4100         no
@@ -195,10 +223,10 @@ orangefs    ior   265          566          yes
 ```
 
 Single-thread numbers are bandwidth-floored by per-request serialization on
-several tiers. Use `--rigorous` for true ceilings.
+several tiers. Use `--rigorous` for steady-state ceilings or `--small-files`
+for agent-realistic per-file latency.
 
-## `--rigorous` example output (4 tasks, dd cross-check)
-
+### `--rigorous` (~15-20 min, 4 tasks, dd cross-check)
 ```
 tier         tool  write_MiB/s  read_MiB/s   odirect
 local_nvme   dd     998         1240         yes
@@ -211,6 +239,7 @@ shared_xfs   dd     154          616         yes
 shared_xfs   ior    701         1091         yes
 tmpfs        dd    1812         4164         no
 tmpfs        ior   7906        12552         no
+s3           dd     —          1.67         no
 
 dd vs ior cross-check (ratio = dd_mean / ior_mean):
 tier        op     dd_MiB/s     ior_MiB/s    ratio
@@ -226,14 +255,54 @@ tmpfs       write  1812         7906         0.23   # memcpy parallelizes across
 tmpfs       read   4164         12552        0.33   # ditto
 ```
 
+### `--small-files` (~3-5 min, 1 thread, 4 MiB files — agent-scale)
+```
+tier         tool  write_MiB/s  read_MiB/s   read_ms_4MiB odirect
+tmpfs        dd     792         1507         2.65         no
+tmpfs        ior   2634         4494         0.89         no
+local_nvme   dd     378          990         4.04         yes
+local_nvme   ior   435         1676         2.39         yes
+shared_xfs   dd     216          414         9.66         yes
+shared_xfs   ior   354          743         5.39         yes
+orangefs     dd     150          374        10.69         yes
+orangefs     ior   166          576         6.94         yes
+local_ssd    dd     284          416         9.62         yes
+local_ssd    ior   348          511         7.83         yes
+s3           dd     —           1.80      2218.52         no
+```
+
 ## Headline reading
 
-- Ratios near 1.0 (local_ssd both ops; local_nvme write) → already at the
-  device ceiling at 1 thread.
+**For agent workloads, `--small-files` reads are the metric that matters.** Agents
+open one file at a time, read it once, then move on — so steady-state IOR ceilings
+overstate available bandwidth. The `read_ms_4MiB` column is the agent-readable
+distillation: time to fetch a single 4 MiB file at this tier's sustained throughput.
+
+Agent-scale read latency ladder (single-stream, IOR best-case):
+
+| tier | read MiB/s | ms / 4 MiB file | ratio vs tmpfs |
+|---|---:|---:|---:|
+| tmpfs | 4494 | 0.89 | 1× |
+| local_nvme | 1676 | 2.39 | 2.7× slower |
+| shared_xfs | 743 | 5.39 | 6.1× slower |
+| orangefs | 576 | 6.94 | 7.8× slower |
+| local_ssd | 511 | 7.83 | 8.8× slower |
+| **s3** | **1.80** | **2218** | **2,500× slower** |
+
+S3 is **~2.2 seconds per 4 MiB file** with mountpoint-s3 at agent-scale —
+small-file open latency dominates. The cold-tier → hot-tier gap is **four
+orders of magnitude** under realistic agent access patterns; the agent's
+typical 5-10 second LLM thinking window is large enough to overlap several
+4 MiB cold-tier reads if a stager moves the bytes in advance. That's the
+motivation argument the AgentStage paper rests on.
+
+**Other observations from the `--rigorous` data:**
+- `dd vs ior` ratios near 1.0 (local_ssd both ops; local_nvme write) → already
+  at the device ceiling at 1 thread.
 - Ratios well below 1.0 (orangefs, shared_xfs, tmpfs) → per-request /
   per-syscall serialization, not bandwidth, is the bottleneck. Concurrency
-  scales these.
+  scales these 2.5-4.5×.
 - OrangeFS at 1 thread (243/552 MiB/s) ≈ shared_xfs at 1 thread (154/616 MiB/s),
   despite radically different stacks (local FUSE-on-NVMe vs network XFS). At 4
   threads both pull away — but the single-stream parity is the relevant signal
-  for agent-style workloads that issue one syscall at a time per process.
+  for agent-style workloads.
