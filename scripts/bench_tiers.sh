@@ -18,6 +18,9 @@
 #   local_ssd   /mnt/ssd/$USER/bench_tiers          (per-node SATA SSD)
 #   shared_xfs  /mnt/common/$USER/bench_tiers       (network-mounted XFS)
 #   orangefs    /mnt/ssd/$USER/orangefs/bench_tiers (FUSE; deployed by this script)
+#   s3          /tmp/s3-noaa-goes16                 (mountpoint-s3; read-only;
+#                                                    same setup as path0_s3_run.sh
+#                                                    for comparable numbers)
 #
 # Cold-cache discipline:
 #   - Every tier (except tmpfs) opens with O_DIRECT, bypassing the kernel page
@@ -57,6 +60,15 @@
 #   TCP_PORT      orangefs server port        (default: 3334)
 #   TEARDOWN      1 to terminate orangefs     (default: 0; leaves it up)
 #   REBUILD_CONF  1 to regen orangefs.conf    (default: 0)
+#   S3_BUCKET     s3 bucket (no-sign-request) (default: noaa-goes16)
+#   S3_REGION     s3 region                   (default: us-east-1)
+#   S3_PREFIX     prefix under bucket          (default: ABI-L2-CMIPC/2024/122/00)
+#   S3_MOUNT      mountpoint-s3 mount path    (default: /tmp/s3-noaa-goes16)
+#   S3_FILE_GLOB glob for sample files       (default: OR_ABI-L2-CMIPC-M6C08_G16_*.nc)
+#   S3_N_FILES    files to read per rep       (default: 5; matches path0_s3.py)
+#   S3_REPS       s3 read reps                (default: IOR_REPS)
+#   S3_TEARDOWN   1 to umount s3 on exit      (default: 0; leaves mount up)
+#   MOUNT_S3_BIN  mount-s3 binary path        (default: ~/.local/bin/mount-s3)
 
 set -uo pipefail
 
@@ -116,15 +128,28 @@ fi
 IOR_XFER="${IOR_XFER:-1m}"
 DD_COUNT="${DD_COUNT:-2048}"   # MiB blocks; default 2 GiB per dd
 
+# S3 config (matches scripts/microbench/path0_s3_run.sh)
+S3_BUCKET="${S3_BUCKET:-noaa-goes16}"
+S3_REGION="${S3_REGION:-us-east-1}"
+S3_PREFIX="${S3_PREFIX:-ABI-L2-CMIPC/2024/122/00}"
+S3_MOUNT="${S3_MOUNT:-/tmp/s3-noaa-goes16}"
+S3_FILE_GLOB="${S3_FILE_GLOB:-OR_ABI-L2-CMIPC-M6C08_G16_*.nc}"
+S3_N_FILES="${S3_N_FILES:-5}"
+S3_REPS="${S3_REPS:-$IOR_REPS}"
+S3_TEARDOWN="${S3_TEARDOWN:-0}"
+MOUNT_S3_BIN="${MOUNT_S3_BIN:-$HOME/.local/bin/mount-s3}"
+
 # Tier list: name:path:supports_odirect_default
+# s3 is special-cased: read-only mount, no write/IOR, dd-read existing files.
 ALL_TIERS=(
   "tmpfs:/dev/shm/$USER/bench_tiers:0"
   "local_nvme:/mnt/nvme/$USER/bench_tiers:1"
   "local_ssd:/mnt/ssd/$USER/bench_tiers:1"
   "shared_xfs:/mnt/common/$USER/bench_tiers:1"
   "orangefs:$ORANGEFS_MOUNT/bench_tiers:1"
+  "s3:$S3_MOUNT:0"
 )
-TIERS="${TIERS:-tmpfs local_nvme local_ssd shared_xfs orangefs}"
+TIERS="${TIERS:-tmpfs local_nvme local_ssd shared_xfs orangefs s3}"
 
 # ---------------------------------------------------------------------------
 # Logging helpers
@@ -204,8 +229,10 @@ fi
 log "mode: $([ "$RIGOROUS" = "1" ] && echo rigorous || echo default)  reps=$IOR_REPS  block=$IOR_BLOCK  xfer=$IOR_XFER  tasks=$IOR_TASKS  dd_reps=$DD_REPS"
 
 NEED_ORANGEFS=0
+NEED_S3=0
 for t in $TIERS; do
   [ "$t" = "orangefs" ] && NEED_ORANGEFS=1
+  [ "$t" = "s3" ]       && NEED_S3=1
 done
 
 if [ "$NEED_ORANGEFS" = "1" ]; then
@@ -213,6 +240,14 @@ if [ "$NEED_ORANGEFS" = "1" ]; then
   command -v ares-orangefs-deploy >/dev/null || fail "ares-orangefs-deploy not in PATH; \`module load orangefs\` first"
   ok "pvfs2-genconfig:      $(command -v pvfs2-genconfig)"
   ok "ares-orangefs-deploy: $(command -v ares-orangefs-deploy)"
+fi
+
+if [ "$NEED_S3" = "1" ]; then
+  if [ -x "$MOUNT_S3_BIN" ]; then
+    ok "mount-s3: $MOUNT_S3_BIN"
+  else
+    fail "mount-s3 not found at $MOUNT_S3_BIN; download from https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.tar.gz"
+  fi
 fi
 
 HOSTNAME_SHORT="$(hostname -s)"
@@ -320,10 +355,45 @@ teardown() {
       warn "ares-orangefs-terminate not in PATH; leaving mount up"
     fi
   fi
+  if [ "$NEED_S3" = "1" ] && [ "$S3_TEARDOWN" = "1" ] && mountpoint -q "$S3_MOUNT" 2>/dev/null; then
+    phase "Teardown S3"
+    fusermount -u "$S3_MOUNT" >>"$LOG_FILE" 2>&1 \
+      || warn "fusermount -u $S3_MOUNT failed"
+  fi
   log "exit rc=$rc; results: $RESULTS_DIR"
   exit $rc
 }
 trap teardown EXIT INT TERM
+
+# ---------------------------------------------------------------------------
+# Phase 1.5: Mount S3 (idempotent)
+# ---------------------------------------------------------------------------
+if [ "$NEED_S3" = "1" ]; then
+  phase "Phase 1.5: mountpoint-s3"
+  if mountpoint -q "$S3_MOUNT" 2>/dev/null; then
+    ok "s3 already mounted at $S3_MOUNT (reusing)"
+  else
+    mkdir -p "$S3_MOUNT"
+    log "mounting s3://$S3_BUCKET (region=$S3_REGION) at $S3_MOUNT"
+    if "$MOUNT_S3_BIN" --no-sign-request --read-only --region "$S3_REGION" \
+        "$S3_BUCKET" "$S3_MOUNT" >>"$LOG_FILE" 2>&1; then
+      sleep 1
+      if mountpoint -q "$S3_MOUNT" 2>/dev/null; then
+        ok "mounted: $S3_MOUNT"
+      else
+        fail "mount-s3 returned 0 but $S3_MOUNT is not a mountpoint"
+      fi
+    else
+      fail "mount-s3 failed; see $LOG_FILE"
+    fi
+  fi
+  # Verify the prefix is reachable
+  if [ -d "$S3_MOUNT/$S3_PREFIX" ]; then
+    ok "prefix visible: $S3_MOUNT/$S3_PREFIX"
+  else
+    fail "$S3_MOUNT/$S3_PREFIX not visible; check S3_PREFIX or bucket access"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # Phase 2: Per-tier prep + O_DIRECT probe
@@ -348,6 +418,17 @@ ACTIVE_TIERS=()
 for spec in "${ALL_TIERS[@]}"; do
   IFS=':' read -r name path default_od <<< "$spec"
   case " $TIERS " in *" $name "*) ;; *) continue ;; esac
+
+  # s3 is read-only; skip mkdir + writability + O_DIRECT probe.
+  if [ "$name" = "s3" ]; then
+    if mountpoint -q "$path" 2>/dev/null; then
+      ok "$name: $path  (read-only; mountpoint-s3; no O_DIRECT)"
+      ACTIVE_TIERS+=("$name|$path|0")
+    else
+      warn "$name: $path not mounted (skipping)"
+    fi
+    continue
+  fi
 
   if ! mkdir -p "$path" 2>/dev/null; then
     warn "$name: cannot mkdir $path (skipping)"
@@ -522,8 +603,67 @@ run_ior_tier() {
   ' "$out" >> "$SUMMARY_CSV"
 }
 
+run_s3_read_tier() {
+  # Read $S3_N_FILES distinct files from $S3_MOUNT/$S3_PREFIX with dd,
+  # $S3_REPS times. Each open() triggers a fresh S3 GET (mountpoint-s3
+  # doesn't cache data by default), so reps are independent cold reads.
+  local name="$1" path="$2"
+  local prefix_dir="$path/$S3_PREFIX"
+
+  if [ ! -d "$prefix_dir" ]; then
+    warn "  $name: $prefix_dir not visible; skipping"
+    return 0
+  fi
+
+  # Sample S3_N_FILES files matching the glob.
+  mapfile -t s3_files < <(find "$prefix_dir" -maxdepth 1 -name "$S3_FILE_GLOB" 2>/dev/null | shuf -n "$S3_N_FILES")
+  if [ "${#s3_files[@]}" -eq 0 ]; then
+    warn "  $name: no files matching $S3_FILE_GLOB under $prefix_dir; skipping"
+    return 0
+  fi
+  log "  s3 sample: ${#s3_files[@]} files from $S3_PREFIX (matching $S3_FILE_GLOB)"
+
+  local reads_mibps=()
+  for ((rep=1; rep<=S3_REPS; rep++)); do
+    local total_bytes=0 t0 t1 elapsed_s mibps
+    t0=$(date +%s.%N)
+    for f in "${s3_files[@]}"; do
+      # dd with iflag=nocache asks the kernel not to retain pages, though FUSE
+      # bypasses page cache anyway for mountpoint-s3 data.
+      local out
+      out=$(dd if="$f" of=/dev/null bs=1M iflag=nocache 2>&1 || true)
+      # Sum file sizes for an aggregate MiB/s number.
+      local sz
+      sz=$(stat -c %s "$f" 2>/dev/null || echo 0)
+      total_bytes=$((total_bytes + sz))
+    done
+    t1=$(date +%s.%N)
+    elapsed_s=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.3f", b-a}')
+    mibps=$(awk -v b="$total_bytes" -v s="$elapsed_s" 'BEGIN{printf "%.2f", (b/1048576)/s}')
+    reads_mibps+=("$mibps")
+    log "    rep $rep: $((total_bytes/1024/1024)) MiB in ${elapsed_s}s = $mibps MiB/s"
+  done
+
+  # Aggregate (mean/min/max/stdev) and write CSV row.
+  printf '%s\n' "${reads_mibps[@]}" | awk -v tier="$name" -v tf="$prefix_dir" -v reps="$S3_REPS" -v nfiles="${#s3_files[@]}" '
+    { v[NR]=$1; s+=$1; if (NR==1||$1>max) max=$1; if (NR==1||$1<min) min=$1 }
+    END {
+      n=NR; mean=s/n; sd=0
+      for (i=1;i<=n;i++) sd += (v[i]-mean)*(v[i]-mean)
+      sd = (n>1) ? sqrt(sd/(n-1)) : 0
+      printf "%s,dd,read,0,1,%d,-,%d_files,%.2f,%.2f,%.2f,%.2f,-,%s\n",
+        tier, reps, nfiles, max, min, mean, sd, tf
+    }
+  ' >> "$SUMMARY_CSV"
+}
+
 for entry in "${ACTIVE_TIERS[@]}"; do
   IFS='|' read -r name path use_od <<< "$entry"
+  if [ "$name" = "s3" ]; then
+    log "tier=$name  s3 read-only baseline (n_files=$S3_N_FILES, reps=$S3_REPS)"
+    run_s3_read_tier "$name" "$path"
+    continue
+  fi
   if [ "$DD_REPS" -gt 0 ]; then
     log "tier=$name  dd baseline (reps=$DD_REPS, count=${DD_COUNT}M)"
     run_dd_tier "$name" "$path" "$use_od"

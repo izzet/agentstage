@@ -37,8 +37,19 @@ Output lands in `outputs/bench_tiers/<timestamp>/`:
 | `local_ssd` | `/mnt/ssd/$USER/bench_tiers` | per-node SATA SSD | yes |
 | `shared_xfs` | `/mnt/common/$USER/bench_tiers` | network XFS export | yes |
 | `orangefs` | `/mnt/ssd/$USER/orangefs/bench_tiers` | OrangeFS (FUSE) over `/mnt/nvme` | probed |
+| `s3` | `/tmp/s3-noaa-goes16` | mountpoint-s3, public NOAA GOES-16 bucket | no (FUSE) |
 
 Subset via `TIERS="local_nvme orangefs" bash scripts/bench_tiers.sh`.
+
+**S3 tier is read-only** (public NOAA bucket, `--no-sign-request`). Same mount
+conventions as `scripts/microbench/path0_s3_run.sh` for comparable numbers:
+bucket `noaa-goes16`, region `us-east-1`, prefix `ABI-L2-CMIPC/2024/122/00`,
+glob `OR_ABI-L2-CMIPC-M6C08_G16_*.nc`. Skips write phase + IOR; does dd-read
+aggregation over `S3_N_FILES` sample files for `S3_REPS` reps. Numbers are
+small-file-latency-bound, not bandwidth-bound, by construction.
+
+Requires `mount-s3` at `~/.local/bin/mount-s3` (download from
+<https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.tar.gz>).
 
 ## Cold-cache discipline
 
