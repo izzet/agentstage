@@ -13,6 +13,9 @@ results/
 external/datasets/*
 !external/datasets/.gitkeep
 
+# IOR source tree (cloned on demand by scripts/build_ior.sh)
+external/libs/ior/
+
 # uv / Python build artifacts
 .venv/
 __pycache__/
