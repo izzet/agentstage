@@ -36,10 +36,15 @@
 # force config regeneration.
 #
 # Modes:
-#   default      3 reps, 2 GiB block, 1 task, no dd baseline (~2 min)
-#   --rigorous   5 reps, 4 GiB block, 4 MPI tasks, dd baseline x3 per tier
-#                (~15-25 min). Tighter stats + cross-tool validation. Pass via
-#                CLI flag or set RIGOROUS=1.
+#   default        3 reps, 2 GiB block, 1 task, no dd baseline (~2 min)
+#   --rigorous     5 reps, 4 GiB block, 4 MPI tasks, dd baseline x3 per tier
+#                  (~15-25 min). Tighter stats + cross-tool validation.
+#   --small-files  10 reps, 4 MiB block, 4 MiB xfer, 1 task (agent-scale).
+#                  dd baseline x10 over 4 MiB files. Measures per-file
+#                  bandwidth/latency for the agent access pattern (open small
+#                  file, single-read, close) — different from rigorous's
+#                  steady-state ceiling.
+#   Pass via CLI flag or set RIGOROUS=1 / SMALL_FILES=1.
 #
 # Tuning (env vars, all optional — most overridden by --rigorous):
 #   IOR_BLOCK     per-process block size      (default: 2g; rigorous: 4g)
@@ -76,16 +81,23 @@ set -uo pipefail
 # CLI flag parsing (--rigorous)
 # ---------------------------------------------------------------------------
 RIGOROUS="${RIGOROUS:-0}"
+SMALL_FILES="${SMALL_FILES:-0}"
 for arg in "$@"; do
   case "$arg" in
     --rigorous|-r) RIGOROUS=1 ;;
+    --small-files|-s) SMALL_FILES=1 ;;
     -h|--help)
-      sed -n '2,55p' "$0"
+      sed -n '2,65p' "$0"
       exit 0
       ;;
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
+
+if [ "$RIGOROUS" = "1" ] && [ "$SMALL_FILES" = "1" ]; then
+  echo "error: --rigorous and --small-files are mutually exclusive" >&2
+  exit 2
+fi
 
 # ---------------------------------------------------------------------------
 # Resolve repo root + config
@@ -113,20 +125,30 @@ NET_SUFFIX="${NET_SUFFIX--40g}"
 TEARDOWN="${TEARDOWN:-0}"
 REBUILD_CONF="${REBUILD_CONF:-0}"
 
-# IOR + dd config (rigorous mode bumps reps/block/tasks and enables dd)
-if [ "$RIGOROUS" = "1" ]; then
+# IOR + dd config (mode bumps reps/block/tasks/xfer accordingly)
+if [ "$SMALL_FILES" = "1" ]; then
+  # Agent-scale: 4 MiB files, single read per file, 1 task, 10 reps.
+  IOR_BLOCK="${IOR_BLOCK:-4m}"
+  IOR_XFER="${IOR_XFER:-4m}"
+  IOR_REPS="${IOR_REPS:-10}"
+  IOR_TASKS="${IOR_TASKS:-1}"
+  DD_REPS="${DD_REPS:-10}"
+  DD_COUNT="${DD_COUNT:-4}"     # 4 MiB total per dd
+elif [ "$RIGOROUS" = "1" ]; then
   IOR_BLOCK="${IOR_BLOCK:-4g}"
+  IOR_XFER="${IOR_XFER:-1m}"
   IOR_REPS="${IOR_REPS:-5}"
   IOR_TASKS="${IOR_TASKS:-4}"
   DD_REPS="${DD_REPS:-3}"
+  DD_COUNT="${DD_COUNT:-2048}"  # 2 GiB total per dd
 else
   IOR_BLOCK="${IOR_BLOCK:-2g}"
+  IOR_XFER="${IOR_XFER:-1m}"
   IOR_REPS="${IOR_REPS:-3}"
   IOR_TASKS="${IOR_TASKS:-1}"
   DD_REPS="${DD_REPS:-0}"
+  DD_COUNT="${DD_COUNT:-2048}"
 fi
-IOR_XFER="${IOR_XFER:-1m}"
-DD_COUNT="${DD_COUNT:-2048}"   # MiB blocks; default 2 GiB per dd
 
 # S3 config (matches scripts/microbench/path0_s3_run.sh)
 S3_BUCKET="${S3_BUCKET:-noaa-goes16}"
@@ -226,7 +248,11 @@ if [ "$IOR_TASKS" -gt 1 ]; then
   ok "mpirun: $(command -v mpirun)"
 fi
 
-log "mode: $([ "$RIGOROUS" = "1" ] && echo rigorous || echo default)  reps=$IOR_REPS  block=$IOR_BLOCK  xfer=$IOR_XFER  tasks=$IOR_TASKS  dd_reps=$DD_REPS"
+if [ "$SMALL_FILES" = "1" ]; then mode_label="small-files"
+elif [ "$RIGOROUS" = "1" ]; then mode_label="rigorous"
+else mode_label="default"
+fi
+log "mode: $mode_label  reps=$IOR_REPS  block=$IOR_BLOCK  xfer=$IOR_XFER  tasks=$IOR_TASKS  dd_reps=$DD_REPS  dd_count=${DD_COUNT}M"
 
 NEED_ORANGEFS=0
 NEED_S3=0
@@ -368,20 +394,33 @@ trap teardown EXIT INT TERM
 # ---------------------------------------------------------------------------
 # Phase 1.5: Mount S3 (idempotent)
 # ---------------------------------------------------------------------------
+s3_mount_alive() {
+  # Returns 0 iff the mount is up AND responding to a directory listing
+  # (mount-s3 daemons die with their salloc; the mountpoint entry survives but
+  # listings return "Transport endpoint is not connected").
+  mountpoint -q "$S3_MOUNT" 2>/dev/null || return 1
+  ls "$S3_MOUNT" >/dev/null 2>&1
+}
+
 if [ "$NEED_S3" = "1" ]; then
   phase "Phase 1.5: mountpoint-s3"
-  if mountpoint -q "$S3_MOUNT" 2>/dev/null; then
+  if s3_mount_alive; then
     ok "s3 already mounted at $S3_MOUNT (reusing)"
   else
+    if mountpoint -q "$S3_MOUNT" 2>/dev/null; then
+      warn "stale s3 mount at $S3_MOUNT (dead daemon); fusermount -u and remounting"
+      fusermount -u "$S3_MOUNT" >>"$LOG_FILE" 2>&1 \
+        || fail "fusermount -u $S3_MOUNT failed; clear manually and retry"
+    fi
     mkdir -p "$S3_MOUNT"
     log "mounting s3://$S3_BUCKET (region=$S3_REGION) at $S3_MOUNT"
     if "$MOUNT_S3_BIN" --no-sign-request --read-only --region "$S3_REGION" \
         "$S3_BUCKET" "$S3_MOUNT" >>"$LOG_FILE" 2>&1; then
       sleep 1
-      if mountpoint -q "$S3_MOUNT" 2>/dev/null; then
+      if s3_mount_alive; then
         ok "mounted: $S3_MOUNT"
       else
-        fail "mount-s3 returned 0 but $S3_MOUNT is not a mountpoint"
+        fail "mount-s3 returned 0 but $S3_MOUNT is not responding"
       fi
     else
       fail "mount-s3 failed; see $LOG_FILE"
@@ -471,8 +510,8 @@ drop_caches() {
   return 1
 }
 
-# CSV schema (rev 2: adds tool column to distinguish dd vs ior, tasks column).
-echo "tier,tool,op,odirect,tasks,n_reps,xfer,block,max_mibps,min_mibps,mean_mibps,stdev_mibps,mean_s,test_file" > "$SUMMARY_CSV"
+# CSV schema (rev 3: adds ms_per_4mib derived column for agent-scale interpretation).
+echo "tier,tool,op,odirect,tasks,n_reps,xfer,block,max_mibps,min_mibps,mean_mibps,stdev_mibps,mean_s,ms_per_4mib,test_file" > "$SUMMARY_CSV"
 
 # Aggregate dd reps with awk (mean/min/max/stdev).
 dd_summary_csv_row() {
@@ -484,8 +523,9 @@ dd_summary_csv_row() {
       n=NR; mean=s/n; sd=0
       for (i=1;i<=n;i++) sd += (v[i]-mean)*(v[i]-mean)
       sd = (n>1) ? sqrt(sd/(n-1)) : 0
-      printf "%s,dd,%s,%s,%d,%d,%s,%sM,%.2f,%.2f,%.2f,%.2f,-,%s\n",
-        tier, op, od, tasks, reps, xfer, blk, max, min, mean, sd, tf
+      ms4 = (mean>0) ? 4000.0/mean : 0
+      printf "%s,dd,%s,%s,%d,%d,%s,%sM,%.2f,%.2f,%.2f,%.2f,-,%.2f,%s\n",
+        tier, op, od, tasks, reps, xfer, blk, max, min, mean, sd, ms4, tf
     }
   '
 }
@@ -597,8 +637,9 @@ run_ior_tier() {
     /^Summary of all tests:/ { in_sum=1; next }
     in_sum && /^(write|read) / {
       op=$1; max=$2; min=$3; mean=$4; sd=$5; meanS=$10
-      printf "%s,ior,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-        tier, op, od, tasks, reps, xfer, blk, max, min, mean, sd, meanS, tf
+      ms4 = (mean+0 > 0) ? 4000.0/(mean+0) : 0
+      printf "%s,ior,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%.2f,%s\n",
+        tier, op, od, tasks, reps, xfer, blk, max, min, mean, sd, meanS, ms4, tf
     }
   ' "$out" >> "$SUMMARY_CSV"
 }
@@ -651,8 +692,9 @@ run_s3_read_tier() {
       n=NR; mean=s/n; sd=0
       for (i=1;i<=n;i++) sd += (v[i]-mean)*(v[i]-mean)
       sd = (n>1) ? sqrt(sd/(n-1)) : 0
-      printf "%s,dd,read,0,1,%d,-,%d_files,%.2f,%.2f,%.2f,%.2f,-,%s\n",
-        tier, reps, nfiles, max, min, mean, sd, tf
+      ms4 = (mean>0) ? 4000.0/mean : 0
+      printf "%s,dd,read,0,1,%d,-,%d_files,%.2f,%.2f,%.2f,%.2f,-,%.2f,%s\n",
+        tier, reps, nfiles, max, min, mean, sd, ms4, tf
     }
   ' >> "$SUMMARY_CSV"
 }
@@ -681,23 +723,24 @@ echo "" | tee -a "$LOG_FILE"
 column -s, -t < "$SUMMARY_CSV" | tee -a "$LOG_FILE"
 echo "" | tee -a "$LOG_FILE"
 
-# Compact wide-form table: tier | tool | write mean MiB/s | read mean MiB/s | odirect
-log "compact (mean MiB/s):"
+# Compact wide-form table: tier | tool | write mean MiB/s | read mean MiB/s |
+# read ms per 4 MiB (agent-scale latency) | odirect
+log "compact (mean MiB/s; read_ms_4MiB = ms to read a 4 MiB file at this bandwidth):"
 {
-  printf "  %-12s %-5s %-12s %-12s %-7s\n" "tier" "tool" "write_MiB/s" "read_MiB/s" "odirect"
+  printf "  %-12s %-5s %-12s %-12s %-12s %-7s\n" "tier" "tool" "write_MiB/s" "read_MiB/s" "read_ms_4MiB" "odirect"
   awk -F, '
     NR==1 { next }
     {
-      # Columns: tier,tool,op,odirect,tasks,n_reps,xfer,block,max,min,mean,stdev,mean_s,test_file
+      # Columns: tier,tool,op,odirect,tasks,n_reps,xfer,block,max,min,mean,stdev,mean_s,ms_per_4mib,test_file
       key=$1"|"$2
       seen[key]=1
       tier[key]=$1; tool[key]=$2
       if ($3=="write") { w[key]=$11; w_od[key]=$4 }
-      if ($3=="read")  { r[key]=$11; r_od[key]=$4 }
+      if ($3=="read")  { r[key]=$11; r_ms[key]=$14; r_od[key]=$4 }
     }
     END {
       for (k in seen)
-        printf "  %-12s %-5s %-12.2f %-12.2f %-7s\n", tier[k], tool[k], w[k]+0, r[k]+0, (w_od[k]+0 ? "yes" : "no")
+        printf "  %-12s %-5s %-12.2f %-12.2f %-12.2f %-7s\n", tier[k], tool[k], w[k]+0, r[k]+0, r_ms[k]+0, (w_od[k]+0 ? "yes" : "no")
     }
   ' "$SUMMARY_CSV" | sort -k1,1 -k2,2
 } | tee -a "$LOG_FILE"
