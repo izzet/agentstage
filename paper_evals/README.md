@@ -30,23 +30,34 @@ uv run pytest paper_evals/ \
 | `--outputs-root` | `outputs` | Root for all campaign run outputs (PoC corpus at outputs/poc/ if present, plus new trace + end-to-end runs) |
 | `--io-report-root` | _none_ | Historical io_report.json files for empirical GT (e.g. $SCIIOBENCH_ROOT/outputs) |
 | `--min-seeds` | `3` | Min seeds per (task, model, prompt) cell to include |
-| `--rule-library-version` | _none_ | Expected frozen rule version (H6/H7 assert match) |
+| `--rule-library-version` | _none_ | Expected frozen rule version (H7 asserts match) |
 | `--report-dir` | `paper_evals/.results` | Where `report.json` is written |
 
 ## Hypotheses → claims map
 
+Every paper claim must have a hypothesis test here. The test STRUCTURE has to exist even if the data hasn't caught up yet — failing/skipping tests are fine, missing tests are not. When a paper section commits to a new quantitative claim, add (or extend) the corresponding `test_h<N>_*.py` first, then write the prose.
+
 | File | Hypothesis | Serves | Where claim originates |
 |---|---|---|---|
-| `test_h1_slack.py` | Reasoning slack windows are large and reliable | C1, C6 | §3, §6.1 |
-| `test_h2_intent.py` | Streaming thinking reveals file-access intent | C2, C5 | §3, §6.5 |
-| `test_h3_predictability.py` | Tiered detector achieves ≥0.85 byte recall, ≤1.5× overfetch | C2, C3 (headline) | §3, §6.2 |
-| `test_h4_tiering.py` | Tiering survives the worst-case workload (6042 files) | C2/C3 case | §6.3 |
-| `test_h5_planning_prompts.py` | Planning prompts give 2–10× slack multiplier | C6 | §6, §7.1 |
-| `test_h6_frozen_rules_crosscorpus.py` | Frozen rules transfer to SAB + SWE-bench Lite | L2 genericity (E9, E10) | §11.6 |
-| `test_h7_leave_one_out.py` | Frozen rules transfer to held-out AgentIOBench workload | L1 genericity (E3) | §11.6 |
-| `test_h8_staging_effectiveness.py` | End-to-end staging reduces per-tool first-read P95 | C8, E5 | §11.5 |
-| `test_h9_bandwidth_sensitivity.py` | Speedup is monotone in cold-tier bandwidth | E6 | §11.5 |
-| `test_h10_proxy_overhead.py` | Proxy overhead ≤1% p99; no-thinking case is baseline-identical | E4, E7 | §11.5 |
+| `test_h1_slack.py` | Reasoning slack windows are large and reliable; cross-provider consistency | C1, C6 | §3, §6.1 |
+| `test_h2_intent.py` | Thinking reveals file-access intent; HOT high-precision low-recall; semantic rules carry the load | C2, C5 | §3, §6.5 |
+| `test_h3_predictability.py` | Tiered detector ≥0.85 byte recall, ≤1.5× overfetch; cross-provider consistency (HEADLINE) | C2, C3 | §3, §6.2 |
+| `test_h4_tiering.py` | aiob_107 GOES collapse 6078× → ≤1.5×; tiering load-bearing on high-fanout workloads | C2/C3 case | §6.3 |
+| `test_h5_planning_prompts.py` | Planning prompts give paired ≥2× slack multiplier; never regress; PP doesn't loosen tier-1 overfetch | C6 | §6, §7.1 |
+| `test_h7_leave_one_out.py` | No single rule load-bearing; min-recall-after-drop ≥ 0.80 | L1 genericity (E3) | §11.6 |
+| `test_h8_staging_effectiveness.py` | E2E speedup aiob_110 (s3 ≥1.3×, local ≥1.0×); decompression-staging ≥ plain; per-benchmark median ≥1.1×, max ≥1.5× on DSBench + MLE-bench (the result trio alongside AIOB); speedup attributable to staging | C8, E5 | §11.5 |
+| `test_h9_bandwidth_sensitivity.py` | Speedup monotone in cold-tier BW; figure_bytes_moveable_per_backend spans ≥50× for Fig 1b | E6 | §11.5 |
+| `test_h10_proxy_overhead.py` | Proxy p99 overhead ≤1%; auto-rule p95 ≤1ms; no-thinking pathway baseline-identical; passthrough byte-identical when detector disabled | E4, E7 | §11.5 |
+| `test_h11_first_tool_prior.py` | First tool is filesystem probe (`list_dir`) on ≥90% of runs (96.1% per E-033); per-model ≥60% | C2 (subset selection) | §1 P3, §4 predictor |
+| `test_h12_pathful_prompt_fails.py` | Pathful prompts do not improve HOT or tier-1 recall paired; justifies auto-rules | C1 (path extraction) | §1 P4, §4 auto-rules |
+
+## Adding a new claim
+
+1. Find the hypothesis the claim belongs to. If it doesn't fit any, add `test_h<N+1>_*.py` and register the marker in `pytest.ini`.
+2. Pick the existing test in that file structurally closest to the new claim. Copy its skeleton (fixture imports, `pytest.skip` if-data-missing pattern, `report.record` / `report.append` calls).
+3. The assertion threshold must match what the paper text says — verbatim. If the paper claims "≥85%", the assertion is `>= 0.85`. No fuzzing.
+4. Run `uv run pytest paper_evals/ --outputs-root outputs/`. Skipping is fine; failing is information ("we haven't run enough yet" vs "the claim is false").
+5. Update this README's hypotheses table.
 
 ## Report output
 

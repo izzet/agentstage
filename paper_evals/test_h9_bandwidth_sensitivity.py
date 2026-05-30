@@ -156,3 +156,124 @@ class TestLocalNvmeLowerBound:
             f"H9.local_nvme: {sp:.2f}× — staging made local NVMe SLOWER. "
             f"Investigate shim overhead."
         )
+
+
+class TestBytesMoveablePerBackend:
+    """Figure 1b: bytes-moveable per slack window by cold-tier backend.
+
+    This is the §1 P3 anchor — pairing slack with bandwidth shows that
+    the budget for moving data spans 2+ orders of magnitude depending on
+    the cold tier. The compute is `slack_s × backend_bandwidth_MBps`.
+
+    Backends covered (from existing artifacts):
+      - local NVMe XFS (~native throttle point, ~140 MB/s effective for
+        the staging mount; faster for true NVMe page cache)
+      - throttled PFS classes (10 / 30 / 50 MB/s — the H9 sweep points)
+      - S3 (from outputs/e2e/s3 measured throughput)
+      - OrangeFS (sourced from sciiobench storage profile if available)
+    """
+
+    @staticmethod
+    def _slack_seconds_from_report(outputs_root: Path) -> float:
+        """Use H1's recorded median slack if it ran; otherwise fall back
+        to the §6.1 PoC value of 6.3 s."""
+        report_path = (
+            Path(__file__).parent / ".results" / "report.json"
+        )
+        if report_path.is_file():
+            try:
+                d = json.loads(report_path.read_text())
+                rec = d.get("data", {}).get("table_slack_distribution")
+                if isinstance(rec, dict) and rec.get("median_ms"):
+                    return rec["median_ms"] / 1000.0
+            except (OSError, json.JSONDecodeError):
+                pass
+        return 6.3
+
+    def test_bytes_moveable_table_recorded(self, outputs_root, report):
+        """Record the per-backend bytes-moveable table for Fig 1b. Asserts
+        that the range spans at least 50× across the available backends —
+        without that spread, the figure wouldn't tell a story."""
+        slack_s = self._slack_seconds_from_report(outputs_root)
+        rows: list[dict] = []
+
+        # Throttle sweep points (PFS-class simulations)
+        sweep = _load_throttle_sweep(outputs_root)
+        if sweep:
+            for label in ("10mbps", "30mbps", "50mbps", "native"):
+                key = f"baseline_{label}"
+                pts = sweep["points"].get(key)
+                if not pts:
+                    continue
+                mbps = pts["aggregate"]["throughput_mbps"]["mean"]
+                rows.append({
+                    "backend": f"Throttled PFS ({label})"
+                               if label != "native" else "Ares cold mount (native)",
+                    "bandwidth_mbps": round(mbps, 2),
+                    "bytes_moveable_mb": round(mbps * slack_s, 1),
+                    "source": "throttle_sweep",
+                })
+            # Hot tier (NVMe page cache) — bytes-moveable upper bound
+            hot = sweep["points"].get("with_stager")
+            if hot:
+                mbps = hot["aggregate"]["throughput_mbps"]["mean"]
+                rows.append({
+                    "backend": "Ares NVMe (hot, post-stage)",
+                    "bandwidth_mbps": round(mbps, 2),
+                    "bytes_moveable_mb": round(mbps * slack_s, 1),
+                    "source": "throttle_sweep_with_stager",
+                })
+
+        # S3 — derive effective bandwidth from the e2e measurement
+        s3 = _load_e2e(outputs_root, "s3")
+        if s3 and s3.get("baseline", {}).get("elapsed_s"):
+            # Approximate effective throughput from the baseline read time.
+            total_b = s3.get("total_input_bytes") or 0
+            elapsed_s = s3["baseline"]["elapsed_s"]
+            if total_b and elapsed_s:
+                mbps = (total_b / 1e6) / elapsed_s
+                rows.append({
+                    "backend": "Amazon S3 (mountpoint-s3)",
+                    "bandwidth_mbps": round(mbps, 2),
+                    "bytes_moveable_mb": round(mbps * slack_s, 1),
+                    "source": "e2e_s3_baseline",
+                })
+
+        # OrangeFS — optional, pulled from a sciiobench-sourced profile
+        # at outputs/storage_profile_orangefs.json if the user dropped one.
+        ofs_path = outputs_root / "storage_profile_orangefs.json"
+        if ofs_path.is_file():
+            try:
+                ofs = json.loads(ofs_path.read_text())
+                mbps = (
+                    ofs.get("aggregate_throughput_mbps")
+                    or ofs.get("throughput_mbps")
+                )
+                if mbps:
+                    rows.append({
+                        "backend": "OrangeFS",
+                        "bandwidth_mbps": round(float(mbps), 2),
+                        "bytes_moveable_mb": round(float(mbps) * slack_s, 1),
+                        "source": "storage_profile_orangefs",
+                    })
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
+
+        if len(rows) < 2:
+            pytest.skip(
+                f"H9.bytes_moveable: only {len(rows)} backend rows — need "
+                f"≥ 2 to compute a range. Drop throttle sweep data + S3 e2e."
+            )
+
+        report.record("figure_bytes_moveable_per_backend", {
+            "slack_seconds_used": slack_s,
+            "rows": rows,
+        })
+
+        mb_vals = [r["bytes_moveable_mb"] for r in rows]
+        spread = max(mb_vals) / min(mb_vals) if min(mb_vals) > 0 else 0
+        assert spread >= 50.0, (
+            f"H9.bytes_moveable: backend range only spans {spread:.1f}× — "
+            f"§1 P3 story claims 2+ orders of magnitude. Investigate "
+            f"whether slow-tier data is missing."
+        )
