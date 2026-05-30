@@ -125,11 +125,39 @@ class RunResult:
 
     @cached_property
     def thinking_chars(self) -> int:
-        return sum(
+        n = sum(
             int(b.get("text_len") or 0)
             for b in self.blocks
             if b.get("type") == "thinking"
         )
+        if n == 0:
+            # Multiturn agentic runs record no `blocks`; their reasoning lives
+            # in turns/turn_NN/thinking.jsonl as streamed {'delta': ...} chunks.
+            # Without this fallback thinking_chars is structurally 0 on every
+            # multiturn run, which silently makes paired token tests vacuous.
+            n = self._turns_thinking_chars()
+        return n
+
+    def _turns_thinking_chars(self) -> int:
+        turns = self.run_dir / "turns"
+        if not turns.is_dir():
+            return 0
+        total = 0
+        for tdir in turns.glob("turn_*"):
+            p = tdir / "thinking.jsonl"
+            if not p.is_file():
+                continue
+            for line in p.read_text(errors="replace").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(d, dict) and "delta" in d:
+                    total += len(str(d["delta"]))
+        return total
 
     @cached_property
     def is_well_defined(self) -> bool:

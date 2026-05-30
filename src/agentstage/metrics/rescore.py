@@ -29,11 +29,97 @@ from pathlib import Path
 from agentstage.metrics.byte_metrics import ByteScore, byte_score
 from agentstage.detector.engine import (
     Detection,
+    StreamBlock,
     parse_stream,
     run_detector,
 )
 from agentstage.detector.rules import RULE_LIBRARY_HASH, RULE_LIBRARY_VERSION, get_ruleset
 from agentstage.workloads import Workload, get_workload
+
+
+# ---------------------------------------------------------------------------
+# Multi-turn (turns/) format support
+#
+# The PoC single-turn runs record a live SSE `stream.jsonl`. The agentic
+# multiturn runs (scripts/microbench/aiob_multiturn*.py) instead record a
+# `turns/turn_NN/{thinking,text,tool_use,tool_result}.jsonl` tree and have
+# no stream.jsonl. This builder reconstructs the same `StreamBlock`s the
+# detector scans (thinking + text + tool_result) from that tree so the
+# identical `run_detector` / `_score_all_tiers` pipeline applies. Recall
+# depends only on the detected *set*, so synthesized per-turn timings (as
+# in engine.blocks_from_messages) are sufficient.
+# ---------------------------------------------------------------------------
+
+def _read_deltas(path: Path) -> str:
+    """Concatenate streamed {'delta': ...} chunks from a turns/*.jsonl."""
+    if not path.is_file():
+        return ""
+    out: list[str] = []
+    for line in path.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(d, dict) and "delta" in d:
+            out.append(str(d["delta"]))
+    return "".join(out)
+
+
+def _read_tool_results(path: Path) -> str:
+    """Concatenate tool_result `content` (the listings/outputs the model
+    sees on the next turn — they carry literal paths the HOT scan needs)."""
+    if not path.is_file():
+        return ""
+    parts: list[str] = []
+    for line in path.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(d, dict):
+            continue
+        c = d.get("content")
+        if isinstance(c, list):
+            parts.append("\n".join(
+                str(s.get("text", "")) for s in c
+                if isinstance(s, dict) and s.get("type") == "text"))
+        elif c is not None:
+            parts.append(str(c))
+    return "\n".join(p for p in parts if p)
+
+
+def blocks_from_turns(turns_dir: Path, per_turn_ms: float = 1000.0) -> list[StreamBlock]:
+    """Build detector-scannable StreamBlocks from a turns/ directory.
+
+    Per turn N: a thinking block and a text block at t∈[N, N+1)*per_turn_ms,
+    and a tool_result block at the back half of the turn (so it precedes the
+    next turn's reasoning in stream order). tool_use blocks are not emitted
+    because the detector does not scan them (`_SCANNABLE_BLOCK_TYPES`)."""
+    blocks: list[StreamBlock] = []
+    for tdir in sorted(turns_dir.glob("turn_*")):
+        try:
+            turn = int(tdir.name.split("_", 1)[1])
+        except (ValueError, IndexError):
+            turn = 0
+        tf = turn * per_turn_ms
+        ts = (turn + 1) * per_turn_ms
+        thinking = _read_deltas(tdir / "thinking.jsonl")
+        text = _read_deltas(tdir / "text.jsonl")
+        tool_result = _read_tool_results(tdir / "tool_result.jsonl")
+        if thinking:
+            blocks.append(StreamBlock("thinking", tf, ts, thinking, 1, turn=turn))
+        if text:
+            blocks.append(StreamBlock("text", tf, ts, text, 1, turn=turn))
+        if tool_result:
+            blocks.append(StreamBlock(
+                "tool_result", tf + 0.5 * per_turn_ms, ts, tool_result, 1, turn=turn))
+    return blocks
 
 
 def _score_all_tiers(
@@ -98,12 +184,22 @@ def rescore_run(run_dir: Path, force: bool = False) -> Path | None:
         return out_metrics
 
     stream_path = run_dir / "stream.jsonl"
-    if not stream_path.is_file():
+    turns_dir = run_dir / "turns"
+    if stream_path.is_file():
+        provider = summary.get("provider")
+        blocks = parse_stream(stream_path, provider=provider)
+        per_char = True
+    elif turns_dir.is_dir():
+        # Multiturn agentic run (no live stream) — reconstruct blocks from
+        # the turns/ tree and score through the identical pipeline. Atomic
+        # thinking scan (per_char=False): identical detected set, avoids the
+        # O(n²) per-char loop degenerating on long transcripts.
+        blocks = blocks_from_turns(turns_dir)
+        per_char = False
+    else:
         return None
 
-    provider = summary.get("provider")
-    blocks = parse_stream(stream_path, provider=provider)
-    detection = run_detector(blocks, workload.workspace_prior, ruleset)
+    detection = run_detector(blocks, workload.workspace_prior, ruleset, per_char=per_char)
     metrics = _score_all_tiers(detection, workload)
 
     out_metrics.write_text(json.dumps(metrics, indent=2, default=float))

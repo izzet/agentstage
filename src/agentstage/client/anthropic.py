@@ -26,13 +26,14 @@ and input; the caller decides what to do (execute, log, abort).
 from __future__ import annotations
 
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 import anthropic
 
-from agentstage.detector.engine import StreamBlock, run_detector
+from agentstage.detector.engine import StreamBlock
 from agentstage.detector.rules import RuleSet
 from agentstage.stager import DataHint, Stager, now_ms
 
@@ -97,12 +98,19 @@ class AnthropicClient:
         stager: Stager | None = None,
         workspace_prior: dict[str, tuple[str, ...] | list[str]] | None = None,
         ruleset: RuleSet | None = None,
+        detector_enabled: bool | None = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url
         self._stager = stager
         self._workspace_prior = workspace_prior
         self._ruleset = ruleset
+        # When the detector is disabled the proxy is a pure SSE pass-through:
+        # events are forwarded unchanged with zero per-event work. Explicit
+        # arg wins; otherwise honour AGENTSTAGE_DETECTOR_DISABLED=1.
+        if detector_enabled is None:
+            detector_enabled = os.environ.get("AGENTSTAGE_DETECTOR_DISABLED", "") not in ("1", "true", "True")
+        self._detector_enabled = detector_enabled
 
         # The anthropic SDK uses Authorization: Bearer for non-anthropic.com
         # endpoints when constructed with base_url. For Azure Foundry it
@@ -145,7 +153,11 @@ class AnthropicClient:
             stager=self._stager,
         )
         sdk_stream = self._sdk.messages.create(**body)
-        return StreamingResponse(sdk_stream=sdk_stream, session=session)
+        return StreamingResponse(
+            sdk_stream=sdk_stream,
+            session=session,
+            detector_enabled=self._detector_enabled,
+        )
 
 
 class StreamingResponse:
@@ -156,16 +168,31 @@ class StreamingResponse:
     when new detector rules fire.
     """
 
-    def __init__(self, *, sdk_stream: Any, session: StreamSession) -> None:
+    def __init__(
+        self,
+        *,
+        sdk_stream: Any,
+        session: StreamSession,
+        detector_enabled: bool = True,
+    ) -> None:
         self._sdk_stream = sdk_stream
         self.session = session
+        self._detector_enabled = detector_enabled
         # Block-index → (StreamBlock, ToolCall|None) so we can update on deltas
         self._block_kind: dict[int, str] = {}
         self._block_first_chunk_ms: dict[int, float] = {}
         self._tool_calls_by_idx: dict[int, ToolCall] = {}
         self._thinking_text_by_idx: dict[int, list[str]] = {}
+        # Rule regexes compiled once per stream (lazily, on first thinking
+        # chunk) so the live per-chunk scan stays cheap.
+        self._compiled: list[tuple[Any, "re.Pattern[str]"]] | None = None
 
     def events(self) -> Iterator[Any]:
+        if not self._detector_enabled:
+            # Pure pass-through: forward every event unchanged, no parsing,
+            # no detector, no stager. The proxy is byte-transparent here.
+            yield from self._sdk_stream
+            return
         for event in self._sdk_stream:
             t = (now_ms() - self.session.started_at_ms)
             self._on_event(event, t)
@@ -215,32 +242,42 @@ class StreamingResponse:
                 pass
 
     def _maybe_fire_rules(self, block_idx: int, t_ms: float) -> None:
-        """Re-run the detector on the accumulated text for `block_idx`
-        and dispatch any newly-fired rules to the stager."""
+        """Incrementally scan the accumulated thinking text for `block_idx`
+        and dispatch any newly-fired rules to the stager.
+
+        Detection-equivalent to `engine.run_detector` — a rule fires iff its
+        regex matches the accumulated thinking text — but O(N·M) per chunk
+        instead of O(N²·M): we run a single `regex.search` over the
+        accumulated text per not-yet-fired rule, with no per-character offset
+        interpolation. (The offline engine re-evaluates every character
+        prefix to compute an interpolated activation timestamp; on the live
+        path we don't need that — the activation time IS the chunk's arrival
+        time `t_ms`, i.e. the moment we learned the file is needed.) Re-running
+        the offline engine per chunk made the proxy quadratic in thinking
+        length and blew past the sub-1% LLM-critical-path budget (H10/E4).
+        """
         if self.session.ruleset is None or self.session.stager is None:
             return
         accumulated = "".join(self._thinking_text_by_idx.get(block_idx, []))
         if not accumulated:
             return
-        t_first = self._block_first_chunk_ms.get(block_idx, t_ms)
-        block = StreamBlock(
-            type="thinking",
-            t_first=t_first,
-            t_stop=t_ms,
-            text=accumulated,
-            chunks=1,
-        )
-        pred = run_detector(
-            blocks=[block],
-            prior=self.session.workspace_prior,
-            ruleset=self.session.ruleset,
-        )
-        for act in pred.activations:
-            if act.rule_name in self.session.fired_rule_names:
+        if self._compiled is None:
+            self._compiled = [
+                (r, re.compile(r.pattern, flags=re.IGNORECASE))
+                for r in self.session.ruleset.rules
+            ]
+        for rule, regex in self._compiled:
+            if rule.name in self.session.fired_rule_names:
                 continue
-            self.session.fired_rule_names.add(act.rule_name)
-            n_files = len(act.detected_files)
-            tier = _tier_for_size(n_files)
+            if regex.search(accumulated) is None:
+                continue
+            self.session.fired_rule_names.add(rule.name)
+            detected = tuple(
+                p
+                for k in rule.target_keys
+                for p in self.session.workspace_prior.get(k, ())
+            )
+            tier = _tier_for_size(len(detected))
             # Only auto-dispatch tier-1 (≤10 files). Tier-2/3 record the
             # activation but skip prefetch — broad rules can dispatch
             # thousands of files and starve the streaming loop. Tier-2/3
@@ -249,10 +286,10 @@ class StreamingResponse:
             if tier > 1:
                 continue
             hint = DataHint(
-                detected_files=tuple(act.detected_files),
+                detected_files=detected,
                 tier=tier,
-                fired_at_ms=act.fired_at_ms or t_ms,
-                rule_id=act.rule_name,
+                fired_at_ms=t_ms,
+                rule_id=rule.name,
                 byte_estimate=0,
             )
             self.session.stager.prefetch(hint)

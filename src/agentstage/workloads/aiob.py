@@ -30,12 +30,83 @@ Ported from `poc/probe_reasoning_slack.py` on 2026-05-19.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import yaml
 
 from agentstage.detector.rules import AIOB_104_SAMPLES, AIOB_110_SUBJECTS
+
+# ---------------------------------------------------------------------------
+# Curated task instructions (AgentStage-authored bulk-read tasks on AIOB data)
+# ---------------------------------------------------------------------------
+# We pair upstream AIOB datasets with our own task descriptions that target
+# standard scientific workflows (cohort-wide coverage QC, diurnal-cycle
+# climatology, population PSTH) — each naturally requires bulk reads of
+# the underlying data without index-aware slicing shortcuts.
+
+_CURATED_TASK_INST: dict[str, str] = {
+    "aiob_104": (
+        "Compute the per-base read-depth histogram for chromosome 20 across all "
+        "50 GBR samples in the IGSR Phase 3 exome subset.\n\n"
+        "For each sample's chr20-restricted BAM, tabulate read coverage at every "
+        "position on chromosome 20 and aggregate into a histogram with bins "
+        "[0, 1, 2, ..., 99, >=100].\n\n"
+        "Save:\n"
+        "1. result/chr20_coverage_histogram.parquet — one row per (sample_id, "
+        "coverage_bin) with columns sample_id, coverage_bin (int 0-100 where 100 "
+        "means >=100), n_bases.\n"
+        "2. result/per_sample_summary.parquet — one row per sample with columns "
+        "sample_id, mean_coverage, median_coverage, n_bases_at_min_1x, "
+        "n_bases_at_min_20x, chr20_length_bp.\n"
+        "3. result/report.md — cohort, method, total positions analyzed, "
+        "aggregate coverage statistics.\n"
+    ),
+    "aiob_107": (
+        "Compute the global hourly diurnal cycle of brightness temperature for "
+        "each band across the GOES-16 ABI-L2-CMIPC 7-day bundle "
+        "(2024-05-01 through 2024-05-07 UTC, bands 08, 09, 10).\n\n"
+        "For each NetCDF file: read the CMI (brightness temperature) and DQF "
+        "(data quality flag) arrays, mask pixels where DQF != 0, and compute "
+        "the spatial mean over valid CONUS pixels. Parse band and UTC timestamp "
+        "from the filename (GOES ABI standard naming). Aggregate by "
+        "(band, hour-of-day) across the full 7-day record.\n\n"
+        "Save:\n"
+        "1. result/goes_global_hourly.parquet — band, hour_utc, "
+        "mean_brightness_temp_K, std_brightness_temp_K, n_files, "
+        "n_total_valid_pixels.\n"
+        "2. result/goes_global_hourly_diurnal.png — multi-panel figure showing "
+        "the diurnal cycle per band.\n"
+        "3. result/report.md — bands, file count per band, quality-filter "
+        "statistics, method.\n"
+    ),
+    "aiob_110": (
+        "Compute the population peri-stimulus time histogram (PSTH) across all "
+        "spike-sorted units in all 39 sessions of the Steinmetz Neuropixels "
+        "dataset (DANDI 000017).\n\n"
+        "For each session, for each unit, bin its spike_times at 10 ms "
+        "resolution in a [-0.5 s, +1.5 s] window around each trial's stimulus "
+        "onset and average across trials to obtain a unit-level PSTH. Map units "
+        "to brain regions via the electrodes table (each unit's peak_channel "
+        "links to an electrode with a location field).\n\n"
+        "Save:\n"
+        "1. result/population_psth.parquet — session_path, subject, unit_idx, "
+        "brain_region, time_bin_ms (-500..1490 in 10 ms steps), mean_rate_hz "
+        "(trial-averaged).\n"
+        "2. result/session_summary.parquet — session_path, subject, "
+        "n_units_total, n_trials, total_spike_count, recording_duration_s, "
+        "unique_brain_regions (semicolon-joined).\n"
+        "3. result/report.md — sessions processed, unit/trial counts, brain "
+        "region coverage, method.\n"
+    ),
+}
+
+
+def _curate_task(task: "TaskConfig", task_id: str) -> "TaskConfig":
+    """Override task_inst with the curated bulk-read instruction if defined."""
+    if task_id not in _CURATED_TASK_INST:
+        return task
+    return replace(task, task_inst=_CURATED_TASK_INST[task_id])
 
 # ---------------------------------------------------------------------------
 # Paths and env
@@ -156,11 +227,85 @@ def load_aiob_101() -> Workload:
 
 
 # ---------------------------------------------------------------------------
+# aiob_103 — Sentinel-2 NDVI mosaics (16 scenes × 5 GeoTIFFs each)
+# ---------------------------------------------------------------------------
+# I/O profile: every band TIF is fully read by rasterio (libgdal C backend),
+# tests the LD_PRELOAD shim across a C subprocess code path. Compute is
+# vectorized numpy on float32 arrays.
+
+_AIOB_103_BANDS: tuple[str, ...] = ("B02", "B03", "B04", "B08", "SCL")
+
+
+def _aiob_103_month(scene_name: str) -> str:
+    """Extract YYYY-MM from scene name like S2A_T10SFG_20240612T185531_L2A."""
+    parts = scene_name.split("_")
+    for p in parts:
+        if len(p) >= 8 and p[:8].isdigit():
+            return f"{p[:4]}-{p[4:6]}"
+    return "unknown"
+
+
+def load_aiob_103() -> Workload:
+    task = _curate_task(TaskConfig.from_yaml(_task_yaml("aiob_103")), "aiob_103")
+    real_base = data_root() / task.dataset_subdir / "raw"
+    logical_base = "/data/sentinel2_ndvi/raw"
+
+    scenes: list[str] = []
+    per_scene: dict[str, list[str]] = {}
+    per_band: dict[str, list[str]] = {f"band_{b.lower()}": [] for b in _AIOB_103_BANDS}
+    per_month: dict[str, list[str]] = {}
+    all_files: list[str] = []
+
+    if real_base.is_dir():
+        for scene_dir in sorted(real_base.iterdir()):
+            if not scene_dir.is_dir():
+                continue
+            scene_name = scene_dir.name
+            scenes.append(scene_name)
+            triplet: list[str] = []
+            for f in sorted(scene_dir.iterdir()):
+                if f.suffix.lower() not in (".tif", ".tiff"):
+                    continue
+                logical = f"{logical_base}/{scene_name}/{f.name}"
+                triplet.append(logical)
+                all_files.append(logical)
+                for b in _AIOB_103_BANDS:
+                    if f.name.startswith(b):
+                        per_band[f"band_{b.lower()}"].append(logical)
+                        break
+            per_scene[f"scene_{scene_name}"] = triplet
+            mkey = _aiob_103_month(scene_name)
+            per_month.setdefault(f"month_{mkey.replace('-', '_')}", []).extend(triplet)
+
+    workspace_prior: dict[str, tuple[str, ...]] = {
+        **{k: tuple(v) for k, v in per_scene.items()},
+        **{k: tuple(v) for k, v in per_band.items()},
+        **{k: tuple(v) for k, v in per_month.items()},
+        "all_scenes": tuple(all_files),
+        "first_scene": tuple(per_scene[f"scene_{scenes[0]}"]) if scenes else (),
+        "output_ndvi_jun": ("/output/result/ndvi_2024_06.tif",),
+        "output_ndvi_jul": ("/output/result/ndvi_2024_07.tif",),
+        "output_ndvi_aug": ("/output/result/ndvi_2024_08.tif",),
+        "output_figure": ("/output/result/sentinel2_monthly_ndvi.png",),
+        "output_report": ("/output/result/report.md",),
+    }
+
+    return Workload(
+        task_id="aiob_103",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=workspace_prior["all_scenes"],
+        ground_truth_first_inspect=workspace_prior["first_scene"],
+        prefix_map=((f"{logical_base}/", f"{real_base}/"),),
+    )
+
+
+# ---------------------------------------------------------------------------
 # aiob_104 — IGSR genomics (50 GBR samples × BAM/BAI/BAS + reference)
 # ---------------------------------------------------------------------------
 
 def load_aiob_104() -> Workload:
-    task = TaskConfig.from_yaml(_task_yaml("aiob_104"))
+    task = _curate_task(TaskConfig.from_yaml(_task_yaml("aiob_104")), "aiob_104")
     real_base = data_root() / task.dataset_subdir / "raw"
     logical_base = "/data/igsr_coverage_qc/raw"
 
@@ -182,9 +327,8 @@ def load_aiob_104() -> Workload:
     workspace_prior["all_samples"] = tuple(
         p for s in AIOB_104_SAMPLES for p in workspace_prior.get(f"sample_{s}", ())
     )
-    workspace_prior["output_coverage"] = ("/output/result/coverage_matrix.parquet",)
-    workspace_prior["output_qc"] = ("/output/result/qc_metrics.parquet",)
-    workspace_prior["output_undercov"] = ("/output/result/undercovered_intervals.parquet",)
+    workspace_prior["output_histogram"] = ("/output/result/chr20_coverage_histogram.parquet",)
+    workspace_prior["output_summary"] = ("/output/result/per_sample_summary.parquet",)
     workspace_prior["output_report"] = ("/output/result/report.md",)
 
     gt_full = workspace_prior["all_samples"] + workspace_prior["reference"]
@@ -247,7 +391,7 @@ def load_aiob_107_s3(
 
 
 def load_aiob_107() -> Workload:
-    task = TaskConfig.from_yaml(_task_yaml("aiob_107"))
+    task = _curate_task(TaskConfig.from_yaml(_task_yaml("aiob_107")), "aiob_107")
     real_base = data_root() / task.dataset_subdir / "raw"
     logical_base = "/data/goes_cmi_composites/raw"
 
@@ -286,8 +430,8 @@ def load_aiob_107() -> Workload:
         "all_files": tuple(all_files),
         "first_file": tuple(sorted(all_files)[:1]),
         "first_hour_all_bands": tuple(f for f in all_files if "/122/00/" in f),
-        "output_csv": ("/output/result/goes_cmi_timeseries.csv",),
-        "output_fig": ("/output/result/goes_cmi_point_timeseries.png",),
+        "output_hourly": ("/output/result/goes_global_hourly.parquet",),
+        "output_diurnal": ("/output/result/goes_global_hourly_diurnal.png",),
         "output_report": ("/output/result/report.md",),
     }
 
@@ -326,7 +470,7 @@ def _nwb_path(subj: str, date: str) -> str:
 
 
 def load_aiob_110() -> Workload:
-    task = TaskConfig.from_yaml(_task_yaml("aiob_110"))
+    task = _curate_task(TaskConfig.from_yaml(_task_yaml("aiob_110")), "aiob_110")
     real_base = data_root() / task.dataset_subdir / "raw"
     logical_base = "/data/steinmetz_neuropixels/raw"
 
@@ -340,7 +484,7 @@ def load_aiob_110() -> Workload:
             for subj, dates in _AIOB_110_SESSIONS.items()
             for d in dates
         ),
-        "output_trial_responses": ("/output/result/trial_responses.parquet",),
+        "output_psth": ("/output/result/population_psth.parquet",),
         "output_session_summary": ("/output/result/session_summary.parquet",),
         "output_report_md": ("/output/result/report.md",),
     }
@@ -366,6 +510,7 @@ def load_aiob_110() -> Workload:
 
 ALL_AIOB_WORKLOADS: dict[str, "callable[[], Workload]"] = {
     "aiob_101": load_aiob_101,
+    "aiob_103": load_aiob_103,
     "aiob_104": load_aiob_104,
     "aiob_107": load_aiob_107,
     "aiob_110": load_aiob_110,

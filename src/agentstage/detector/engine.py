@@ -481,9 +481,19 @@ def run_detector(
     blocks: list[StreamBlock],
     prior: dict[str, tuple[str, ...] | list[str]],
     ruleset: RuleSet,
+    per_char: bool = True,
 ) -> Detection:
     """Replay thinking text + tool_result content through the ruleset;
     emit tiered detection.
+
+    `per_char=True` (default, unchanged PoC behavior) scans thinking blocks
+    character-by-character to interpolate the exact activation timestamp.
+    That loop is O(n²) per block and degenerates on long multi-turn
+    transcripts where `accumulated` carries large tool_result listings.
+    `per_char=False` scans thinking blocks atomically (like text/tool_result),
+    yielding the identical fired-rule SET — only activation *timestamps* lose
+    sub-block precision. Use it when only the detected set matters (e.g.
+    byte-recall scoring of multiturn runs).
 
     For each rule, the FIRST match wins (across all scanned blocks in
     stream order). Activation time:
@@ -511,7 +521,7 @@ def run_detector(
         tf = b.t_first
         ts = b.t_stop
         text = b.text
-        if b.type == "thinking":
+        if per_char and b.type == "thinking":
             # Per-char extension: re-evaluate every character (PoC behavior).
             # For ≤ 2 KB thinking text per block, this is fine.
             for end in range(1, len(text) + 1):
