@@ -249,7 +249,8 @@ def load_backend_bw() -> list[dict]:
 
 
 WORKLOAD_REFS = [
-    ("DSBench Santander", 64),
+    ("DSBench tabular-feb-2022", 30),
+    ("DSBench ventilator", 400),
     ("AIOB-110 NWB", 1311),
     ("MLE NYC", 5401),
     ("AIOB-107 GOES", 18000),
