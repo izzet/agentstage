@@ -1,0 +1,59 @@
+[
+  {
+    "task": "aiob_110",
+    "session_dir": "aiob_mt/_sweep_haiku_20260527T164353_v3/aiob_110_staged_r1",
+    "n_files": 39,
+    "total_bytes": 14682586049,
+    "cold_ms": [
+      19741.335735,
+      19780.852644,
+      19376.7132
+    ],
+    "staged_ms": [
+      16516.671061,
+      4865.915272,
+      4251.012404
+    ],
+    "cold_median_ms": 19741.335735,
+    "staged_median_ms": 4865.915272,
+    "speedup": 4.057065244970011
+  },
+  {
+    "task": "aiob_104",
+    "session_dir": "aiob_mt/_sweep_sonnet_20260526T174525_sonnet/aiob_104_staged_r1",
+    "n_files": 51,
+    "total_bytes": 3377039050,
+    "cold_ms": [
+      5697.258926,
+      5614.505068,
+      5514.157551
+    ],
+    "staged_ms": [
+      1040.444835,
+      1136.877204,
+      985.074959
+    ],
+    "cold_median_ms": 5614.505068,
+    "staged_median_ms": 1040.444835,
+    "speedup": 5.3962544472624545
+  },
+  {
+    "task": "aiob_107",
+    "session_dir": "aiob_mt/_sweep_haiku_20260526T174524_haiku/aiob_107_staged_r1",
+    "n_files": 50,
+    "total_bytes": 150768727,
+    "cold_ms": [
+      1006.482477,
+      927.494859,
+      678.827081
+    ],
+    "staged_ms": [
+      41.965388,
+      33.687451,
+      26.060207
+    ],
+    "cold_median_ms": 927.494859,
+    "staged_median_ms": 33.687451,
+    "speedup": 27.532354970994984
+  }
+]
