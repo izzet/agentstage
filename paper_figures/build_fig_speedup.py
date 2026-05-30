@@ -168,10 +168,10 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
             if not speedups:
                 x_cursor += bar_width
                 continue
-            gm = _gmean(speedups)
+            am = statistics.mean(speedups)
             x = x_cursor + bar_width / 2
             ax.bar(
-                x, gm, width=bar_width * 0.92,
+                x, am, width=bar_width * 0.92,
                 color=_MODEL_COLOR[mk],
                 edgecolor="white", linewidth=0.4, zorder=3,
             )
