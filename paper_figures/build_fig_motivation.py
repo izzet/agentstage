@@ -317,9 +317,9 @@ def _draw_panel_a(ax, per_bench_baseline: dict) -> None:
 
     left = np.zeros(n)
     categories = [
-        ("Tool Exec", _TOOL_COLOR, tool_exec_pct),
-        ("Thinking", _STREAM_COLOR, reasoning_pct),
         ("Harness", _HARNESS_COLOR, harness_pct),
+        ("Thinking", _STREAM_COLOR, reasoning_pct),
+        ("Tool Exec", _TOOL_COLOR, tool_exec_pct),
     ]
     handles: list[mpatches.Patch] = []
     labels: list[str] = []
@@ -342,8 +342,10 @@ def _draw_panel_a(ax, per_bench_baseline: dict) -> None:
     style_axis(ax, xlabel="Share of Session Wall Time (%)")
 
     # Total session time INSIDE the Tool Exec block (right-aligned, white).
-    for i, (te, t) in enumerate(zip(tool_exec_pct, totals)):
-        ax.text(te - 1.5, i, f"{int(t)} s", va="center", ha="right",
+    # Tool Exec is now the rightmost segment, so the label sits at the
+    # right edge of the bar (x=100) with a small padding.
+    for i, t in enumerate(totals):
+        ax.text(98.5, i, f"{int(t)} s", va="center", ha="right",
                 color="white", fontweight="bold")
 
     # Legend below x-axis label (uniform 10pt, inherited from rcParams).
