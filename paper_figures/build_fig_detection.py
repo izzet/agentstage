@@ -258,8 +258,7 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
                    for mk in _MODEL_ORDER}
     ax.set_xticks(list(range(n_models)))
     ax.set_xticklabels(
-        [f"{_MODEL_LABELS[mk]}\n$(n={n_per_model[mk]})$"
-         for mk in _MODEL_ORDER],
+        [_MODEL_LABELS[mk] for mk in _MODEL_ORDER],
         rotation=20, ha="right",
     )
     ax.set_xlim(-0.50, n_models - 1 + 0.50)

@@ -195,7 +195,7 @@ def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
     xs = [0.001] + all_lats + [all_lats[-1] * 1.5]
     ys = [0.0] + [(i + 1) / n for i in range(n)] + [1.0]
     ax.step(xs, ys, where="post", color="black",
-            linewidth=1.6, zorder=5, label=f"All ($n={n}$)")
+            linewidth=1.6, zorder=5, label="All")
 
     # Per-model CDFs
     for mk in _MODEL_ORDER:
@@ -207,7 +207,7 @@ def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
         mys = [0.0] + [(i + 1) / mn for i in range(mn)] + [1.0]
         ax.step(mxs, mys, where="post",
                 color=_MODEL_COLOR[mk], linewidth=1.0, alpha=0.85,
-                zorder=4, label=f"{_MODEL_LABELS[mk]} ($n={mn}$)")
+                zorder=4, label=_MODEL_LABELS[mk])
 
     ax.set_xscale("log")
     ax.set_xlim(0.05, 100.0)
