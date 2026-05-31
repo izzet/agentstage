@@ -95,7 +95,7 @@ def _decompose_session(session_dir: Path) -> dict | None:
                      session-level inter-turn gaps + any residual
 
     Tool Exec (broad, for Fig 1a) = tool_shell_s + tool_other_s.
-    Fig 1c LLM Floor = total - tool_shell_s = the parallel-copyable window.
+    Fig 1c Thinking Phase = total - tool_shell_s = the parallel-copyable window.
     """
     sf = session_dir / "summary.json"
     if not sf.is_file():
@@ -530,7 +530,7 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
 
     handles = [
         mpatches.Patch(facecolor=_COMM_COLOR, edgecolor="black",
-                       linewidth=0.4, label="LLM Floor"),
+                       linewidth=0.4, label="Thinking Phase"),
         mpatches.Patch(facecolor=_TOOL_COLOR, edgecolor="black",
                        linewidth=0.4, label="Tool Exec"),
         mpatches.Patch(facecolor=_COPY_COLOR, edgecolor="black",
@@ -593,7 +593,7 @@ def main() -> int:
         b: d for (b, mode), d in by.items() if mode == "staged"
     }
     def _floor(d: dict) -> float:
-        # Fig 1c "LLM Floor" = parallel-copyable window = everything
+        # Fig 1c "Thinking Phase" = parallel-copyable window = everything
         # except strict shell execution. Includes Reasoning + Comm +
         # Harness + non-shell tool ops.
         return float(d["total_s"]) - float(d["tool_shell_s"])
@@ -627,7 +627,7 @@ def main() -> int:
     prefetch_window_s = float(statistics.median(
         [_floor(d) for d in per_bench_baseline.values()]
     ))
-    print(f"\nMedian prefetch window (LLM Floor, across baseline benches): "
+    print(f"\nMedian prefetch window (thinking phase, across baseline benches): "
           f"{prefetch_window_s:.1f} s")
 
     # Fig 1c source data: AIOB representative (largest tool dominance)

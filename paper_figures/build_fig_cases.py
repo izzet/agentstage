@@ -179,7 +179,7 @@ def build(cases: list[dict], out_name: str = "fig_cases") -> Path:
     handles = [
         mpatches.Patch(facecolor=_COLOR_FLOOR, alpha=0.55,
                        edgecolor="white", linewidth=0.4,
-                       label="LLM Floor"),
+                       label="Thinking Phase"),
         mpatches.Patch(facecolor=_COLOR_TOOL, alpha=0.45,
                        edgecolor="white", linewidth=0.4,
                        label="Tool Exec"),
