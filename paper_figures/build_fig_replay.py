@@ -87,12 +87,13 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
                           facecolor="white", edgecolor="#888888",
                           linewidth=0.4, alpha=0.95))
 
-    # Annotation: numeric times INSIDE each bar (top edge, white bold).
+    # Annotation: numeric times INSIDE each bar (just below the top
+    # edge, white bold). Padding via /1.10 on the log scale.
     for i, (cv, sv) in enumerate(zip(cold_meds, staged_meds)):
-        ax.text(x[i] - bar_w / 2, cv,
+        ax.text(x[i] - bar_w / 2, cv / 1.10,
                 f"{cv:.2f} s", ha="center", va="top", fontsize=8,
                 color="white", fontweight="bold")
-        ax.text(x[i] + bar_w / 2, sv,
+        ax.text(x[i] + bar_w / 2, sv / 1.10,
                 f"{sv:.2f} s", ha="center", va="top", fontsize=8,
                 color="white", fontweight="bold")
 
