@@ -249,10 +249,10 @@ def load_backend_bw() -> list[dict]:
 
 
 WORKLOAD_REFS = [
-    ("DSBench/tabular-feb-2022", 30),
+    ("DSBench/tabular", 30),
     ("DSBench/ventilator", 400),
     ("MLE/nyc-taxi", 5401),
-    ("AIOB/aiob_107", 18000),
+    ("AIOB/107", 18000),
 ]
 
 
@@ -326,9 +326,9 @@ def _draw_panel_a(ax, per_bench_baseline: dict) -> None:
     for label, color, vals_list in categories:
         vals = np.array(vals_list)
         ax.barh(y, vals, left=left, height=0.62, color=color,
-                edgecolor="white", linewidth=0.4)
+                edgecolor="black", linewidth=0.4)
         left += vals
-        handles.append(mpatches.Patch(facecolor=color, edgecolor="white",
+        handles.append(mpatches.Patch(facecolor=color, edgecolor="black",
                                        linewidth=0.4))
         labels.append(label)
     ax._legend_handles = (handles, labels)  # type: ignore
@@ -438,7 +438,7 @@ def build_fig_b(backends: list[dict], prefetch_window_s: float,
                 out_name: str = "fig_motivation_b") -> Path:
     # Same plot-box height as Fig 1a; double the width per the 1:2:1
     # row layout. Legend floats below — no tight_layout compression.
-    fig, ax = plt.subplots(1, 1, figsize=(3.70, 1.85))
+    fig, ax = plt.subplots(1, 1, figsize=(4.40, 1.85))
     _draw_panel_b(ax, backends, prefetch_window_s)
     _save_floating(fig, out_name)
     return FIG_DIR / f"{out_name}.pdf"
