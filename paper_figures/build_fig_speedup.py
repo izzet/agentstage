@@ -39,7 +39,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 _BENCH_ORDER = ["aiob", "dsbench", "mlebench"]
 _BENCH_LABELS = {
-    "aiob": "AIOB",
+    "aiob": "Curated",
     "dsbench": "DSBench",
     "mlebench": "MLE-bench",
 }

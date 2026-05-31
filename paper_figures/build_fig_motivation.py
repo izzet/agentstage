@@ -153,13 +153,13 @@ def _decompose_session(session_dir: Path) -> dict | None:
 
 
 _BENCH_SWEEP_GLOBS = {
-    "AIOB": ["outputs/aiob_mt/_sweep_*_curated*"],
+    "Curated": ["outputs/aiob_mt/_sweep_*_curated*"],
     "DSBench": [
         "outputs/dsbench_mt/_sweep_haiku_*",
         "outputs/dsbench_mt/_sweep_sonnet_*",
         "outputs/dsbench_mt/_sweep_gemini_*",
     ],
-    "MLE-bench": [
+    "MLE": [
         "outputs/mlebench_mt/_sweep_haiku_*",
         "outputs/mlebench_mt/_sweep_sonnet_*",
         "outputs/mlebench_mt/_sweep_gemini_*",
@@ -252,7 +252,7 @@ WORKLOAD_REFS = [
     ("DSBench/tabular", 30),
     ("DSBench/ventilator", 400),
     ("MLE/nyc-taxi", 5401),
-    ("AIOB/107", 18000),
+    ("Curated/goes-r", 18000),
 ]
 
 
@@ -650,8 +650,8 @@ def main() -> int:
           f"{prefetch_window_s:.1f} s")
 
     # Fig 1c source data: AIOB representative (largest tool dominance)
-    aiob_baseline = per_bench_baseline.get("AIOB")
-    aiob_staged = per_bench_staged.get("AIOB")
+    aiob_baseline = per_bench_baseline.get("Curated")
+    aiob_staged = per_bench_staged.get("Curated")
     if aiob_baseline is None or aiob_staged is None:
         print("WARNING: AIOB staged or baseline missing — using illustrative numbers")
         c_args = (200.0, 50.0, 100.0, 50.0)

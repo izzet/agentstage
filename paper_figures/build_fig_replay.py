@@ -64,7 +64,7 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
     bars_s = ax.bar(x + bar_w / 2, staged_meds, width=bar_w,
                      color=_STAGED_COLOR, alpha=0.85,
                      edgecolor="white", linewidth=0.4, zorder=3,
-                     label="Staged (Local NVMe)")
+                     label="Staged (tmpfs)")
 
     # Overlay individual reps as small dots
     for i, reps in enumerate(cold_reps):
@@ -99,10 +99,16 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
                 color=_STAGED_COLOR)
 
     # x-axis labels (matplotlib doesn't interpret LaTeX escapes; use plain)
+    _TASK_SLUG = {
+        "aiob_104": "igsr-cov-qc",
+        "aiob_107": "goes-r",
+        "aiob_110": "steinmetz-nwb",
+    }
     def _ctx(r: dict) -> str:
         gb = r["total_bytes"] / 1e9
         size_str = f"{gb:.2f} GB" if gb >= 0.1 else f"{int(r['total_bytes']/1e6)} MB"
-        return f"{r['task']}\n({r['n_files']} files, {size_str})"
+        task_label = _TASK_SLUG.get(r["task"], r["task"])
+        return f"{task_label}\n({r['n_files']} files, {size_str})"
 
     ax.set_xticks(x)
     ax.set_xticklabels([_ctx(r) for r in results])
