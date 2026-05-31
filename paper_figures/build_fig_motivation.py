@@ -249,10 +249,10 @@ def load_backend_bw() -> list[dict]:
 
 
 WORKLOAD_REFS = [
-    ("DSBench / tabular-feb-2022", 30),
-    ("DSBench / ventilator", 400),
-    ("MLE / nyc-taxi", 5401),
-    ("AIOB / aiob_107", 18000),
+    ("DSBench/tabular-feb-2022", 30),
+    ("DSBench/ventilator", 400),
+    ("MLE/nyc-taxi", 5401),
+    ("AIOB/aiob_107", 18000),
 ]
 
 
@@ -418,14 +418,14 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
 
     # Bar-end value annotation
     for i, v in enumerate(mb):
-        label = f"{v/1000:.1f} GB" if v >= 1000 else f"{v:.0f} MB"
+        label = f"{v/1000:.0f} GB" if v >= 1000 else f"{v:.0f} MB"
         ax.text(v * 1.20, i, label, va="center", ha="left")
 
     handles = [
         mpatches.Patch(facecolor=_COLD_COLOR, edgecolor="black",
-                       linewidth=0.4, label="Backend bandwidth"),
+                       linewidth=0.4, label="Backend Bandwidth"),
         plt.Line2D([0], [0], color=_REF_COLOR, linestyle="--", linewidth=0.7,
-                   label="Workload dataset size"),
+                   label="Workload Dataset Size"),
     ]
     ax._legend_handles = (handles, [h.get_label() for h in handles])  # type: ignore
 
@@ -530,7 +530,7 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
         mpatches.Patch(facecolor=_TOOL_COLOR, edgecolor="black",
                        linewidth=0.4, label="Tool Exec"),
         mpatches.Patch(facecolor=_COPY_COLOR, edgecolor="black",
-                       linewidth=0.3, hatch="///", label="Copy"),
+                       linewidth=0.3, hatch="///", label="Stage"),
     ]
     ax._legend_handles = (handles, [h.get_label() for h in handles])  # type: ignore
 
