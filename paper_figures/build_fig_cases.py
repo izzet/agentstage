@@ -41,7 +41,7 @@ _CASES = [
         "subdir": "outputs/aiob_mt",
         "task": "aiob_110",
         "model_substr": "claude-haiku-4-5",
-        "context": "Steinmetz NWB, 1.3 GB",
+        "context": "Steinmetz NWB, 14.7 GB",
     },
     {
         "label": "AIOB / aiob_104 / Sonnet 4.5",
