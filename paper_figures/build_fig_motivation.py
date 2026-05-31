@@ -268,7 +268,7 @@ _HARNESS_COLOR = "#bcbcbc"
 _HOT_COLOR = "#2ca02c"
 _COLD_COLOR = "#5b5b5b"
 _REF_COLOR = "#a83232"
-_COPY_COLOR = "#9ecae1"
+_COPY_COLOR = "#a1d99b"   # pale green (Stage bar in Fig 1c)
 
 
 # ---------------------------------------------------------------------------
@@ -403,8 +403,8 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
     ax.set_xscale("log")
     ax.set_xlim(10, 300_000)
     ax.set_xticks([10, 100, 1000, 10_000, 100_000])
-    ax.set_xticklabels(["10", "100", "1G", "10G", "100G"])
-    ax.set_xlabel("Bytes-Moveable in the Thinking Phase (MB)")
+    ax.set_xticklabels(["10 MB", "100 MB", "1 GB", "10 GB", "100 GB"])
+    ax.set_xlabel("Bytes-Moveable in the Thinking Phase")
     style_axis(ax)
 
     # Dataset reference verticals + rotated labels inside plot
@@ -472,13 +472,13 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
 
     # Naive row
     ax.barh(y_naive, naive_floor, height=bar_h, left=0,
-            color=_COMM_COLOR, edgecolor="black", linewidth=0.4)
+            color=_STREAM_COLOR, edgecolor="black", linewidth=0.4)
     ax.barh(y_naive, naive_tool, height=bar_h, left=naive_floor,
             color=_TOOL_COLOR, edgecolor="black", linewidth=0.4)
 
     # AgentStage row
     ax.barh(y_agent, staged_floor, height=bar_h, left=0,
-            color=_COMM_COLOR, edgecolor="black", linewidth=0.4)
+            color=_STREAM_COLOR, edgecolor="black", linewidth=0.4)
     ax.barh(y_agent, staged_tool, height=bar_h, left=staged_floor,
             color=_TOOL_COLOR, edgecolor="black", linewidth=0.4)
 
@@ -525,7 +525,7 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
     ax.set_ylim(copy_y - 0.20, y_naive + bar_h / 2 + 0.15)
 
     handles = [
-        mpatches.Patch(facecolor=_COMM_COLOR, edgecolor="black",
+        mpatches.Patch(facecolor=_STREAM_COLOR, edgecolor="black",
                        linewidth=0.4, label="Thinking"),
         mpatches.Patch(facecolor=_TOOL_COLOR, edgecolor="black",
                        linewidth=0.4, label="Tool Exec"),
