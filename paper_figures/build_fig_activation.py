@@ -216,7 +216,8 @@ def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
     ax.set_xlabel("Time From Reasoning Start to First Correct Fire (s, log)")
     ax.set_ylim(0.0, 1.05)
     ax.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])
-    style_axis(ax, ylabel="Cumulative Fraction of Sessions")
+    ax.set_yticklabels(["0", "25", "50", "75", "100"])
+    style_axis(ax, ylabel="Cumulative % of Sessions")
 
     ax.axvline(1.0, color="#444444", linestyle="--",
                linewidth=0.6, alpha=0.7, zorder=2)
