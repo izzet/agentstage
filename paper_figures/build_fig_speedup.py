@@ -197,12 +197,6 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
 
     ax.axhline(1.0, color="#444444", linewidth=0.6,
                linestyle="-", zorder=2, alpha=0.6)
-    ax.axhline(1.5, color="#888888", linewidth=0.6,
-               linestyle="--", zorder=2, alpha=0.7)
-    ax.text(x_cursor - group_pad - 0.05, 1.5, r"1.5$\times$",
-            va="center", ha="right", color="#444444",
-            bbox=dict(boxstyle="round,pad=0.12",
-                      facecolor="white", edgecolor="none", alpha=0.9))
 
     y_max = max([c["speedup"] for c in cells]) * 1.10
     ax.set_ylim(0.0, y_max)
