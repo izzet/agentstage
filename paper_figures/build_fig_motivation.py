@@ -387,9 +387,11 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
     bw = np.array([c["bw_mibps"] for c in cold])
     mb = bw * prefetch_window_s
 
-    # All backends share one color — we no longer mark Local NVMe as the
-    # exclusive "hot" tier in this figure (the actual staging target is
-    # tmpfs/dev/shm; all four are bandwidth measurements).
+    # All backends share one color — the figure shows bandwidth
+    # measurements. AgentStage's hot tier is actually tiered: tmpfs
+    # (/dev/shm) primary + Local NVMe fallback; cold tiers (SSD/XFS/
+    # OrangeFS) bound the staging-source rate, and Local NVMe shows the
+    # hot-fallback capacity per session.
     ax.barh(y, mb, height=0.55, color=_COLD_COLOR,
             edgecolor="black", linewidth=0.4)
 
