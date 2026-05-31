@@ -205,7 +205,7 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
 
     ax.legend(handles, labels, loc="upper left",
               bbox_to_anchor=(0.02, 0.98), ncol=2,
-              frameon=True, facecolor="white", framealpha=0.85,
+              frameon=True, facecolor="white", framealpha=0.7,
               edgecolor="none",
               handlelength=0.9, columnspacing=0.7, handletextpad=0.3)
 

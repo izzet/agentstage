@@ -87,16 +87,14 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
                           facecolor="white", edgecolor="#888888",
                           linewidth=0.4, alpha=0.95))
 
-    # Annotation: numeric times on each bar
+    # Annotation: numeric times INSIDE each bar (top edge, white bold).
     for i, (cv, sv) in enumerate(zip(cold_meds, staged_meds)):
-        # Cold time label
-        ax.text(x[i] - bar_w / 2, cv * 1.10,
-                f"{cv:.2f} s", ha="center", va="bottom", fontsize=8,
-                color=_COLD_COLOR)
-        # Staged time label
-        ax.text(x[i] + bar_w / 2, sv * 1.10,
-                f"{sv:.2f} s", ha="center", va="bottom", fontsize=8,
-                color=_STAGED_COLOR)
+        ax.text(x[i] - bar_w / 2, cv,
+                f"{cv:.2f} s", ha="center", va="top", fontsize=8,
+                color="white", fontweight="bold")
+        ax.text(x[i] + bar_w / 2, sv,
+                f"{sv:.2f} s", ha="center", va="top", fontsize=8,
+                color="white", fontweight="bold")
 
     # x-axis labels (matplotlib doesn't interpret LaTeX escapes; use plain)
     _TASK_SLUG = {
@@ -117,7 +115,7 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
     # Legend in lower-left (clear of bars in steinmetz column which
     # are all above y=4) — keeps the plot clean and the xlabel free.
     ax.legend(loc="lower left", frameon=True, facecolor="white",
-              framealpha=0.85, edgecolor="none",
+              framealpha=0.7, edgecolor="none",
               handlelength=1.0, handletextpad=0.4, fontsize=9)
 
     fig.tight_layout(pad=0.3)
