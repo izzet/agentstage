@@ -344,7 +344,7 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
         ax.set_yscale("log")
     if ylim is not None:
         ax.set_ylim(*ylim)
-    style_axis(ax, ylabel=ylabel)
+    style_axis(ax, xlabel="Model", ylabel=ylabel)
 
 
 # ---------------------------------------------------------------------------
