@@ -90,10 +90,10 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
     # Annotation: numeric times INSIDE each bar (just below the top
     # edge, white bold). Padding via /1.10 on the log scale.
     for i, (cv, sv) in enumerate(zip(cold_meds, staged_meds)):
-        ax.text(x[i] - bar_w / 2, cv / 1.10,
+        ax.text(x[i] - bar_w / 2, cv / 1.20,
                 f"{cv:.2f} s", ha="center", va="top", fontsize=8,
                 color="white", fontweight="bold")
-        ax.text(x[i] + bar_w / 2, sv / 1.10,
+        ax.text(x[i] + bar_w / 2, sv / 1.20,
                 f"{sv:.2f} s", ha="center", va="top", fontsize=8,
                 color="white", fontweight="bold")
 
