@@ -116,7 +116,8 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
 
     # Legend in lower-left (clear of bars in steinmetz column which
     # are all above y=4) — keeps the plot clean and the xlabel free.
-    ax.legend(loc="lower left", frameon=False,
+    ax.legend(loc="lower left", frameon=True, facecolor="white",
+              framealpha=0.85, edgecolor="none",
               handlelength=1.0, handletextpad=0.4, fontsize=9)
 
     fig.tight_layout(pad=0.3)

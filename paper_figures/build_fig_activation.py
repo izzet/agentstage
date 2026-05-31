@@ -225,7 +225,8 @@ def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
             bbox=dict(boxstyle="round,pad=0.10", facecolor="white",
                       edgecolor="none", alpha=0.9))
 
-    ax.legend(loc="lower right", frameon=False, ncol=2,
+    ax.legend(loc="lower right", frameon=True, facecolor="white",
+              framealpha=0.85, edgecolor="none", ncol=2,
               handlelength=1.4, columnspacing=0.6, handletextpad=0.4)
 
     fig.tight_layout(pad=0.3)
