@@ -173,7 +173,7 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
             ax.bar(
                 x, am, width=bar_width * 0.92,
                 color=_MODEL_COLOR[mk],
-                edgecolor="white", linewidth=0.4, zorder=3,
+                edgecolor="black", linewidth=0.4, zorder=3,
             )
             for s in speedups:
                 ax.scatter(x, s, s=9, color="black",
@@ -184,7 +184,7 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
             if bi == 0:
                 handles.append(mpatches.Patch(
                     facecolor=_MODEL_COLOR[mk],
-                    edgecolor="white", linewidth=0.4,
+                    edgecolor="black", linewidth=0.4,
                     label=_MODEL_LABELS[mk],
                 ))
                 labels.append(_MODEL_LABELS[mk])
@@ -206,10 +206,11 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
 
     y_max = max([c["speedup"] for c in cells]) * 1.10
     ax.set_ylim(0.0, y_max)
-    style_axis(ax, ylabel=r"Session Speedup ($\times$)")
+    style_axis(ax, xlabel="Benchmark",
+               ylabel=r"Session Speedup ($\times$)")
 
     ax.legend(handles, labels, loc="upper left",
-              bbox_to_anchor=(0.0, 1.04), ncol=4, frameon=False,
+              bbox_to_anchor=(0.02, 0.98), ncol=2, frameon=False,
               handlelength=0.9, columnspacing=0.7, handletextpad=0.3)
 
     fig.tight_layout(pad=0.3)
