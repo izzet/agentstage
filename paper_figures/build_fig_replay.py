@@ -80,7 +80,7 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
     for i, r in enumerate(results):
         speedup = r["speedup"]
         ymax = max(cold_meds[i], staged_meds[i])
-        ax.text(x[i], ymax * 1.4, f"{speedup:.1f}$\\times$",
+        ax.text(x[i], ymax * 3.0, f"{speedup:.1f}$\\times$",
                 ha="center", va="bottom", fontsize=10,
                 fontweight="bold",
                 bbox=dict(boxstyle="round,pad=0.18",
@@ -104,22 +104,19 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
         "aiob_107": "goes-r",
         "aiob_110": "steinmetz-nwb",
     }
-    def _ctx(r: dict) -> str:
-        gb = r["total_bytes"] / 1e9
-        size_str = f"{gb:.2f} GB" if gb >= 0.1 else f"{int(r['total_bytes']/1e6)} MB"
-        task_label = _TASK_SLUG.get(r["task"], r["task"])
-        return f"{task_label}\n({r['n_files']} files, {size_str})"
-
     ax.set_xticks(x)
-    ax.set_xticklabels([_ctx(r) for r in results])
+    ax.set_xticklabels(
+        [_TASK_SLUG.get(r["task"], r["task"]) for r in results]
+    )
     ax.set_xlim(-0.5, n - 0.5)
 
     ax.set_yscale("log")
     ax.set_ylim(0.01, 80.0)
-    style_axis(ax, ylabel="Cumulative Read Time (s, log)")
+    style_axis(ax, xlabel="Workload", ylabel="Read Time (s, log)")
 
-    # Legend below x-axis labels
-    ax.legend(loc="upper right", frameon=False,
+    # Legend in lower-left (clear of bars in steinmetz column which
+    # are all above y=4) — keeps the plot clean and the xlabel free.
+    ax.legend(loc="lower left", frameon=False,
               handlelength=1.0, handletextpad=0.4, fontsize=9)
 
     fig.tight_layout(pad=0.3)
