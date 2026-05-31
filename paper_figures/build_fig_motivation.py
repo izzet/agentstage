@@ -249,11 +249,11 @@ def load_backend_bw() -> list[dict]:
 
 
 WORKLOAD_REFS = [
-    ("DSBench tabular-feb-2022", 30),
-    ("DSBench ventilator", 400),
-    ("AIOB-110 NWB", 1311),
-    ("MLE NYC", 5401),
-    ("AIOB-107 GOES", 18000),
+    ("tabular-feb-2022", 30),
+    ("ventilator", 400),
+    ("nyc-taxi", 5401),
+    ("aiob_110", 14700),
+    ("aiob_107", 18000),
 ]
 
 
@@ -319,7 +319,7 @@ def _draw_panel_a(ax, per_bench_baseline: dict) -> None:
     left = np.zeros(n)
     categories = [
         ("Tool Exec", _TOOL_COLOR, tool_exec_pct),
-        ("Reasoning", _STREAM_COLOR, reasoning_pct),
+        ("Thinking Phase", _STREAM_COLOR, reasoning_pct),
         ("Harness", _HARNESS_COLOR, harness_pct),
     ]
     handles: list[mpatches.Patch] = []
@@ -508,7 +508,7 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
 
     # y-axis: categorical
     ax.set_yticks([y_agent, y_naive])
-    ax.set_yticklabels(["AgentStage", "Naive"])
+    ax.set_yticklabels(["AgentStage", "Baseline"])
 
     # x-axis: time in seconds — pick a tick step that keeps the labels
     # readable at uniform 10pt within a 1.85" panel (typically 3 ticks).
@@ -560,11 +560,11 @@ def build_combined(per_bench_baseline: dict, backends: list[dict],
                    prefetch_window_s: float,
                    c_args: tuple,
                    out_name: str = "fig_motivation") -> Path:
-    # Combined preview matches the standalone plot-box height of 1.85";
-    # each panel's legend floats below via the same _save_floating path.
-    fig = plt.figure(figsize=(7.40, 1.85))
+    # Combined preview: extra bottom margin for the shared legend (one row
+    # of swatches) so the bbox_inches="tight" save does not clip it.
+    fig = plt.figure(figsize=(7.40, 2.40))
     gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 2.0, 1.0],
-                          wspace=0.65)
+                          wspace=0.65, bottom=0.32, top=0.96)
 
     ax_a = fig.add_subplot(gs[0, 0])
     _draw_panel_a(ax_a, per_bench_baseline)
@@ -574,6 +574,25 @@ def build_combined(per_bench_baseline: dict, backends: list[dict],
 
     ax_c = fig.add_subplot(gs[0, 2])
     _draw_panel_c(ax_c, *c_args)
+
+    # Strip per-panel legends in the combined preview (they overlap when
+    # panels sit side by side) and place one shared legend below the figure.
+    all_handles: list = []
+    seen_labels: set[str] = set()
+    for ax in (ax_a, ax_b, ax_c):
+        leg = ax.get_legend()
+        if leg is not None:
+            leg.remove()
+        for h, lbl in zip(*getattr(ax, "_legend_handles", ((), ()))):
+            if lbl not in seen_labels:
+                all_handles.append(h)
+                seen_labels.add(lbl)
+    fig.legend(
+        all_handles, [h.get_label() for h in all_handles],
+        loc="lower center", bbox_to_anchor=(0.5, 0.02),
+        ncol=min(len(all_handles), 4), frameon=False,
+        handlelength=1.0, columnspacing=0.8, handletextpad=0.3,
+    )
 
     _save_floating(fig, out_name)
     return FIG_DIR / f"{out_name}.pdf"
