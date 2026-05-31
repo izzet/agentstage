@@ -213,7 +213,7 @@ def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
     ax.set_xlim(0.05, 100.0)
     ax.set_xticks([0.1, 1.0, 10.0, 100.0])
     ax.set_xticklabels(["0.1", "1", "10", "100"])
-    ax.set_xlabel("Time From Reasoning Start to First Correct Detection (s, log)")
+    ax.set_xlabel("Time From Reasoning Start to First Detection (s, log)")
     ax.set_ylim(0.0, 1.05)
     ax.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])
     ax.set_yticklabels(["0", "25", "50", "75", "100"])
