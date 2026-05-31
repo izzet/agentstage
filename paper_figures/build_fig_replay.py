@@ -59,11 +59,11 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
 
     bars_c = ax.bar(x - bar_w / 2, cold_meds, width=bar_w,
                      color=_COLD_COLOR, alpha=0.85,
-                     edgecolor="white", linewidth=0.4, zorder=3,
+                     edgecolor="black", linewidth=0.4, zorder=3,
                      label="Cold-baseline")
     bars_s = ax.bar(x + bar_w / 2, staged_meds, width=bar_w,
                      color=_STAGED_COLOR, alpha=0.85,
-                     edgecolor="white", linewidth=0.4, zorder=3,
+                     edgecolor="black", linewidth=0.4, zorder=3,
                      label="Staged (tmpfs)")
 
     # Overlay individual reps as small dots
