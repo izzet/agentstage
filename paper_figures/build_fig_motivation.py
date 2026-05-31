@@ -406,7 +406,7 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
     ax.set_xlim(10, 300_000)
     ax.set_xticks([10, 100, 1000, 10_000, 100_000])
     ax.set_xticklabels(["10", "100", "1G", "10G", "100G"])
-    ax.set_xlabel(f"Bytes-Moveable in {prefetch_window_s:.0f} s Floor (MB)")
+    ax.set_xlabel("Bytes-Moveable in the Thinking Phase (MB)")
     style_axis(ax)
 
     # Dataset reference verticals + rotated labels inside plot
