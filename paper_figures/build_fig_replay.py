@@ -51,17 +51,20 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
 
     n = len(results)
     x = np.arange(n)
-    bar_w = 0.36
+    bar_w = 0.32
+    # Center offset is wider than bar_w / 2 so the two bars don't
+    # share an edge — gives a clean visual gap between cold and staged.
+    bar_offset = 0.18
     cold_meds = [r["cold_median_ms"] / 1000.0 for r in results]
     staged_meds = [r["staged_median_ms"] / 1000.0 for r in results]
     cold_reps = [[v / 1000.0 for v in r["cold_ms"]] for r in results]
     staged_reps = [[v / 1000.0 for v in r["staged_ms"]] for r in results]
 
-    bars_c = ax.bar(x - bar_w / 2, cold_meds, width=bar_w,
+    bars_c = ax.bar(x - bar_offset, cold_meds, width=bar_w,
                      color=_COLD_COLOR, alpha=0.85,
                      edgecolor="black", linewidth=0.4, zorder=3,
                      label="Cold-baseline")
-    bars_s = ax.bar(x + bar_w / 2, staged_meds, width=bar_w,
+    bars_s = ax.bar(x + bar_offset, staged_meds, width=bar_w,
                      color=_STAGED_COLOR, alpha=0.85,
                      edgecolor="black", linewidth=0.4, zorder=3,
                      label="Staged (tmpfs)")
@@ -69,11 +72,11 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
     # Overlay individual reps as small dots
     for i, reps in enumerate(cold_reps):
         for v in reps:
-            ax.scatter(x[i] - bar_w / 2, v, color="black", s=6,
+            ax.scatter(x[i] - bar_offset, v, color="black", s=6,
                         alpha=0.6, zorder=4, edgecolors="none")
     for i, reps in enumerate(staged_reps):
         for v in reps:
-            ax.scatter(x[i] + bar_w / 2, v, color="black", s=6,
+            ax.scatter(x[i] + bar_offset, v, color="black", s=6,
                         alpha=0.6, zorder=4, edgecolors="none")
 
     # Speedup annotation above each pair
@@ -90,10 +93,10 @@ def build(results: list[dict], out_name: str = "fig_replay") -> Path:
     # Annotation: numeric times INSIDE each bar (just below the top
     # edge, white bold). Padding via /1.10 on the log scale.
     for i, (cv, sv) in enumerate(zip(cold_meds, staged_meds)):
-        ax.text(x[i] - bar_w / 2, cv / 1.30,
+        ax.text(x[i] - bar_offset, cv / 1.30,
                 f"{cv:.2f} s", ha="center", va="top", fontsize=8,
                 color="white", fontweight="bold")
-        ax.text(x[i] + bar_w / 2, sv / 1.30,
+        ax.text(x[i] + bar_offset, sv / 1.30,
                 f"{sv:.2f} s", ha="center", va="top", fontsize=8,
                 color="white", fontweight="bold")
 
