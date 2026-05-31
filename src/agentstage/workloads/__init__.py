@@ -22,21 +22,43 @@ from agentstage.workloads.aiob import (
     load_aiob_110,
 )
 from agentstage.workloads.code_repo import code_repo_root, load_code_repo
+from agentstage.workloads.dsbench import load_dsbench_task
+from agentstage.workloads.mlebench import load_mle_competition
 
 ALL_WORKLOADS: dict[str, "callable[[], Workload]"] = {
     **ALL_AIOB_WORKLOADS,
     "code_repo": load_code_repo,
 }
 
+# Result-trio DSBench + MLE-bench tasks. Loaded via parameterized factories
+# rather than hardcoded ALL_WORKLOADS entries because the loaders walk
+# on-disk dataset trees that vary per host.
+_DSBENCH_TASKS = frozenset({
+    "lmsys-chatbot-arena",
+    "ventilator-pressure-prediction",
+    "tabular-playground-series-may-2022",
+})
+_MLEBENCH_TASKS = frozenset({
+    "dogs-vs-cats-redux-kernels-edition",
+    "new-york-city-taxi-fare-prediction",
+    "histopathologic-cancer-detection",
+    "aerial-cactus-identification",
+})
+
 
 def get_workload(task_id: str) -> Workload:
     """Load a Workload by task_id. Walks the filesystem (workspace priors
     are built lazily from on-disk dataset trees)."""
-    if task_id not in ALL_WORKLOADS:
-        raise KeyError(
-            f"Unknown workload {task_id!r}. Known: {sorted(ALL_WORKLOADS)}"
-        )
-    return ALL_WORKLOADS[task_id]()
+    if task_id in ALL_WORKLOADS:
+        return ALL_WORKLOADS[task_id]()
+    if task_id in _DSBENCH_TASKS:
+        return load_dsbench_task(task_id)
+    if task_id in _MLEBENCH_TASKS:
+        return load_mle_competition(task_id)
+    raise KeyError(
+        f"Unknown workload {task_id!r}. Known: "
+        f"{sorted(ALL_WORKLOADS) + sorted(_DSBENCH_TASKS) + sorted(_MLEBENCH_TASKS)}"
+    )
 
 
 __all__ = [

@@ -48,11 +48,42 @@ from _style import (  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
+from agentstage.detector.auto_rules import AutoRuleGenerator  # noqa: E402
 from agentstage.detector.engine import parse_stream, run_detector  # noqa: E402
-from agentstage.detector.rules import get_ruleset  # noqa: E402
 from agentstage.metrics.byte_metrics import byte_score  # noqa: E402
 from agentstage.metrics.rescore import blocks_from_turns  # noqa: E402
 from agentstage.workloads import get_workload  # noqa: E402
+
+# Result-trio task allowlist. Detection scoring is restricted to the same
+# (benchmark × task × model) cells §IV.D reports speedups on, so §IV.B and
+# §IV.D characterize the same campaign.
+_RESULT_TRIO = frozenset({
+    # AIOB
+    "aiob_104", "aiob_107", "aiob_110",
+    # DSBench
+    "lmsys-chatbot-arena",
+    "ventilator-pressure-prediction",
+    "tabular-playground-series-may-2022",
+    # MLE-bench
+    "dogs-vs-cats-redux-kernels-edition",
+    "new-york-city-taxi-fare-prediction",
+    "histopathologic-cancer-detection",
+})
+
+_TASK_BENCH = {
+    **{t: "aiob" for t in ("aiob_104", "aiob_107", "aiob_110")},
+    **{t: "dsbench" for t in (
+        "lmsys-chatbot-arena", "ventilator-pressure-prediction",
+        "tabular-playground-series-may-2022")},
+    **{t: "mle" for t in (
+        "dogs-vs-cats-redux-kernels-edition",
+        "new-york-city-taxi-fare-prediction",
+        "histopathologic-cancer-detection")},
+}
+
+# Path-fragment exclusions — drop PoC-era runs, surgical campaigns, and
+# H12 pathful-prompt sweeps that aren't part of the §IV.D 36-cell matrix.
+_PATH_EXCLUDE_FRAGMENTS = ("poc/", "surgical_", "_sweep_pathful", "_smoke")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
@@ -94,13 +125,16 @@ def _model_key(model: str) -> str | None:
 # Load data — live-detector scoring, scope = thinking + text only
 # ---------------------------------------------------------------------------
 def _score_predictor_floor(blocks, workload, ruleset) -> dict | None:
-    """Run the v1 detector against thinking + text blocks (no tool_result)
-    and score tier_1.detected_files against ground_truth_first_inspect.
+    """Run the detector against the signals available before a tool fires:
+    thinking + visible text from the current turn plus tool_result blocks
+    from prior turns (the agent's own list_dir feedback, per §III.C). This
+    matches what the live SessionDetector actually sees at decision time.
 
     Returns {byte_recall, byte_overfetch, n_predicted, n_ground_truth,
     bytes_predicted, bytes_ground_truth} or None if there is nothing to
-    score (no thinking/text content, or empty ground truth)."""
-    scan_blocks = [b for b in blocks if b.type in ("thinking", "text")]
+    score (no scannable content, or empty ground truth)."""
+    scan_blocks = [b for b in blocks
+                   if b.type in ("thinking", "text", "tool_result")]
     if not scan_blocks:
         return None
     detection = run_detector(
@@ -135,17 +169,29 @@ def _blocks_for_run(run_dir: Path, summary: dict):
     return None
 
 
+REPS_PER_CELL = 3   # latest N reps per (task, model_key) cell
+
+
 def load_seed_records() -> list[dict]:
-    """Walk outputs/**/summary.json (skipping _archive_models). For each
-    active-campaign session with a scannable stream/turns source, score
-    tier_1_first against thinking+text blocks and emit a row."""
+    """Walk outputs/**/summary.json. For each result-trio multiturn session,
+    auto-generate its rule set from workload metadata, score tier_1_first
+    against thinking+text blocks, and emit a row.
+
+    Returns at most REPS_PER_CELL rows per (task, model_key) cell, taking
+    the lexicographically-last paths (timestamps in directory names sort
+    correctly, so this picks the most recent reps)."""
     rows: list[dict] = []
     skipped_no_blocks = 0
     skipped_unknown_task = 0
-    skipped_aiob_101 = 0
+    skipped_out_of_trio = 0
+    skipped_path_excluded = 0
     skipped_no_predict = 0
     for sf in (REPO / "outputs").rglob("summary.json"):
         if "_archive" in sf.parts:
+            continue
+        rel_path = str(sf.relative_to(REPO / "outputs"))
+        if any(frag in rel_path for frag in _PATH_EXCLUDE_FRAGMENTS):
+            skipped_path_excluded += 1
             continue
         try:
             s = json.loads(sf.read_text())
@@ -158,15 +204,23 @@ def load_seed_records() -> list[dict]:
         task_id = s.get("task")
         if not task_id:
             continue
-        if task_id == "aiob_101":
-            # H3's well_defined_only denominator: aiob_101 is a structural
-            # edge case (multiple valid first files), excluded from headline.
-            skipped_aiob_101 += 1
+        if task_id not in _RESULT_TRIO:
+            skipped_out_of_trio += 1
             continue
         try:
             workload = get_workload(task_id)
-            ruleset = get_ruleset(task_id)
-        except KeyError:
+        except (KeyError, FileNotFoundError):
+            skipped_unknown_task += 1
+            continue
+        # Auto-generate the rule set from workload metadata (no model traces
+        # or evaluation outputs are consumed — see §IV.B leakage guard).
+        try:
+            ruleset = AutoRuleGenerator(
+                workload_id=task_id,
+                task_instruction=workload.task.task_inst,
+                workspace_prior_keys=tuple(workload.workspace_prior.keys()),
+            ).generate()
+        except Exception:  # noqa: BLE001
             skipped_unknown_task += 1
             continue
         blocks = _blocks_for_run(rd, s)
@@ -189,16 +243,38 @@ def load_seed_records() -> list[dict]:
             "model": s.get("model"),
             "model_key": model_key,
             "task": task_id,
+            "bench": _TASK_BENCH[task_id],
             "byte_recall": scored["byte_recall"],
             "byte_overfetch": scored["byte_overfetch"],
             "n_predicted": scored["n_predicted"],
             "n_ground_truth": scored["n_ground_truth"],
         })
-    print(f"  filtered: aiob_101={skipped_aiob_101}, "
+    print(f"  filtered: out_of_trio={skipped_out_of_trio}, "
+          f"path_excluded={skipped_path_excluded}, "
           f"unknown_task={skipped_unknown_task}, "
           f"no_blocks={skipped_no_blocks}, "
           f"no_predict={skipped_no_predict}")
-    return rows
+
+    # Cap at REPS_PER_CELL latest reps per (task, model_key) cell so §IV.B
+    # aligns with §IV.D's 36-cell matrix (3 benchmarks × 3 tasks × 4 models
+    # × REPS_PER_CELL reps).
+    from collections import defaultdict
+    by_cell: dict[tuple, list[dict]] = defaultdict(list)
+    for r in rows:
+        by_cell[(r["task"], r["model_key"])].append(r)
+    capped: list[dict] = []
+    dropped_excess = 0
+    for cell, cell_rows in by_cell.items():
+        # Lexicographic sort on rel_dir — directory names contain timestamps
+        # like ...T174525... so the last N entries are the most recent.
+        cell_rows.sort(key=lambda r: r["rel_dir"])
+        kept = cell_rows[-REPS_PER_CELL:]
+        capped.extend(kept)
+        dropped_excess += max(0, len(cell_rows) - REPS_PER_CELL)
+    print(f"  capped to latest {REPS_PER_CELL} reps per cell: "
+          f"kept={len(capped)}, dropped_excess={dropped_excess}, "
+          f"cells_seen={len(by_cell)}")
+    return capped
 
 
 # ---------------------------------------------------------------------------
