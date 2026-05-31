@@ -47,7 +47,7 @@ def load_results() -> list[dict]:
 
 
 def build(results: list[dict], out_name: str = "fig_replay") -> Path:
-    fig, ax = plt.subplots(figsize=(FULL_COL_W, 2.0))
+    fig, ax = plt.subplots(figsize=(FULL_COL_W, 1.8))
 
     n = len(results)
     x = np.arange(n)

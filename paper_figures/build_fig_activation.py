@@ -187,7 +187,7 @@ def load_latencies() -> list[dict]:
 
 
 def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
-    fig, ax = plt.subplots(figsize=(FULL_COL_W, 2.0))
+    fig, ax = plt.subplots(figsize=(FULL_COL_W, 1.8))
 
     # Pooled CDF (black)
     all_lats = sorted(r["latency_s"] for r in rows)
