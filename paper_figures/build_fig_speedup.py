@@ -149,7 +149,7 @@ def build(cells: list[dict], out_name: str = "fig_speedup") -> Path:
     for c in cells:
         by_bm[(c["bench"], c["model"])].append(c)
 
-    fig, ax = plt.subplots(figsize=(FULL_COL_W, 2.4))
+    fig, ax = plt.subplots(figsize=(FULL_COL_W, 2.0))
 
     n_benches = len(_BENCH_ORDER)
     n_models = len(_MODEL_ORDER)
