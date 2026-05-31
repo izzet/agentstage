@@ -249,11 +249,10 @@ def load_backend_bw() -> list[dict]:
 
 
 WORKLOAD_REFS = [
-    ("tabular-feb-2022", 30),
-    ("ventilator", 400),
-    ("nyc-taxi", 5401),
-    ("aiob_110", 14700),
-    ("aiob_107", 18000),
+    ("DSBench / tabular-feb-2022", 30),
+    ("DSBench / ventilator", 400),
+    ("MLE / nyc-taxi", 5401),
+    ("AIOB / aiob_107", 18000),
 ]
 
 
@@ -319,7 +318,7 @@ def _draw_panel_a(ax, per_bench_baseline: dict) -> None:
     left = np.zeros(n)
     categories = [
         ("Tool Exec", _TOOL_COLOR, tool_exec_pct),
-        ("Thinking Phase", _STREAM_COLOR, reasoning_pct),
+        ("Thinking", _STREAM_COLOR, reasoning_pct),
         ("Harness", _HARNESS_COLOR, harness_pct),
     ]
     handles: list[mpatches.Patch] = []
@@ -386,11 +385,10 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
     bw = np.array([c["bw_mibps"] for c in cold])
     mb = bw * prefetch_window_s
 
-    HOT_TIERS = {"local_nvme"}
-    colors = [_HOT_COLOR if c["tier"] in HOT_TIERS else _COLD_COLOR
-              for c in cold]
-
-    ax.barh(y, mb, height=0.55, color=colors,
+    # All backends share one color — we no longer mark Local NVMe as the
+    # exclusive "hot" tier in this figure (the actual staging target is
+    # tmpfs/dev/shm; all four are bandwidth measurements).
+    ax.barh(y, mb, height=0.55, color=_COLD_COLOR,
             edgecolor="black", linewidth=0.4)
 
     label_map = {
@@ -424,10 +422,8 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
         ax.text(v * 1.20, i, label, va="center", ha="left")
 
     handles = [
-        mpatches.Patch(facecolor=_HOT_COLOR, edgecolor="black",
-                       linewidth=0.4, label="Hot tier (stage target)"),
         mpatches.Patch(facecolor=_COLD_COLOR, edgecolor="black",
-                       linewidth=0.4, label="Cold tier (stage source)"),
+                       linewidth=0.4, label="Backend bandwidth"),
         plt.Line2D([0], [0], color=_REF_COLOR, linestyle="--", linewidth=0.7,
                    label="Workload dataset size"),
     ]
@@ -530,7 +526,7 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
 
     handles = [
         mpatches.Patch(facecolor=_COMM_COLOR, edgecolor="black",
-                       linewidth=0.4, label="Thinking Phase"),
+                       linewidth=0.4, label="Thinking"),
         mpatches.Patch(facecolor=_TOOL_COLOR, edgecolor="black",
                        linewidth=0.4, label="Tool Exec"),
         mpatches.Patch(facecolor=_COPY_COLOR, edgecolor="black",
