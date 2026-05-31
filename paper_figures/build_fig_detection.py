@@ -390,7 +390,7 @@ def build_panel_b(rows: list[dict], out_name: str = "fig_detection_b") -> Path:
         ax, _bucket_by_model(rows, "byte_overfetch", drop_nonfinite=True),
         ylabel=r"Tier-1 Byte Overfetch ($\times$)",
         yref=1.5, yref_label=r"1.5$\times$",
-        ylim=(0.9, 3.0),
+        ylim=(0.9, 100.0),
         log_y=True,
     )
     pdf = FIG_DIR / f"{out_name}.pdf"
@@ -409,7 +409,7 @@ def build_combined(rows: list[dict], out_name: str = "fig_detection") -> Path:
                yref=0.85, yref_label="0.85", ylim=(-0.04, 1.06))
     _strip_box(ax_b, _bucket_by_model(rows, "byte_overfetch", drop_nonfinite=True),
                ylabel=r"Tier-1 Byte Overfetch ($\times$)",
-               yref=1.5, yref_label=r"1.5$\times$", ylim=(0.9, 3.0),
+               yref=1.5, yref_label=r"1.5$\times$", ylim=(0.9, 100.0),
                log_y=True)
     fig.tight_layout(pad=0.3)
     pdf = FIG_DIR / f"{out_name}.pdf"
