@@ -21,6 +21,7 @@ remain in the repo root and are referenced rather than duplicated here.
 6. Hypothesis taxonomy and claim mapping
 7. eScience positioning rationale
 8. Threats to validity and hardening checklist
+9. Stager shim edge cases and gotchas
 
 ---
 
@@ -1090,6 +1091,32 @@ Source: PAPER_DEFENSE.md §1, §2, §3, §6.
 
 ---
 
+## 9. Stager shim edge cases and gotchas
+
+Operational warnings for maintainers of the `LD_PRELOAD` shim
+(`src/agentstage/stager/shim/agentstage_shim.c`). These are corners
+the production tests do not exercise but a maintainer should be aware
+of.
+
+| Case | Behavior | Notes |
+|---|---|---|
+| Cold file modified mid-run | Stale hot copy served | Out of scope: datasets are read-only by assumption. |
+| Symlinks in cold root | Resolved via `realpath()` at stage time and at shim `openat` time | Both shim and stager call `realpath` so they agree on canonical paths. |
+| `O_PATH` opens (descriptor without read) | Redirect to hot if exists | Agents typically `fstatat` through `O_PATH` descriptors and need consistent metadata. |
+| `O_DIRECTORY` opens | Redirect to hot if exists | `os.scandir(/cold/dir)` should see the hot directory if mirrored. |
+| `/proc`, `/sys`, `/dev` paths | Never redirect | Outside `AGENTSTAGE_COLD_ROOTS` by construction. |
+| Hot file owned by stage process, agent runs as different user | Fail-open with `ENOENT`, falls through to cold | Both run as same user in our setup; document the assumption. |
+| Relative path + `AT_FDCWD` | Resolve to absolute via `realpath` | Standard glibc behavior. |
+| Relative path + real dirfd | `_real_fstatat(dirfd, "")` to get the directory's absolute path, then concat | Less common but legal. |
+| Agent uses raw `syscall(SYS_openat, ...)` | Bypasses shim | Known limitation; none of our benchmarks do this. |
+| `mmap` of staged file then `madvise(MADV_DONTNEED)` | Drops hot pages from page cache | Fine: next read repopulates from hot file. |
+| Shim crashes mid-`openat` | Process aborts (no signal handler) | Acceptable for a research artifact; document for production hardening. |
+| Capacity full + stager OOM + agent opens unstaged file | Falls through to cold with retry-spin penalty | The 20 ms retry-spin is the worst-case overhead from stager failure. |
+
+Source: STAGER_DESIGN.md §8.
+
+---
+
 ## Cross-reference
 
 Topic-to-source map for future readers (source files removed from
@@ -1110,8 +1137,9 @@ working tree but preserved in git history):
   §3.
 * §7 (eScience positioning): compass_artifact_wf-...md (entire doc).
 * §8 (threats to validity, hardening): PAPER_DEFENSE.md §1-§3, §6.
+* §9 (stager shim edge cases): STAGER_DESIGN.md §8.
 
 Operational documents (kept in repo root and not duplicated here):
-README.md, CAMPAIGN.md, EXPERIMENTS.md, STAGER_DESIGN.md,
-STAGER_VERIFICATION.md, STAGER_WALKTHROUGH.md, DIAGRAMS.md,
-AIOB_INTEGRATION.md.
+README.md, CAMPAIGN.md, EXPERIMENTS.md, DIAGRAMS.md. The stager
+itself is documented by the code under `src/agentstage/stager/` and
+its tests under `tests/test_stager.py` + `tests/test_shim.py`.
