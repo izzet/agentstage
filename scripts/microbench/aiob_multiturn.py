@@ -226,6 +226,15 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
         return out
 
     def _resolve(path: str) -> tuple[str, bool]:
+        # Auto-fix: treat relative paths (no leading /) as workspace-relative.
+        # Agents otherwise burn a turn learning "use absolute /workspace/X" the
+        # hard way (the harness used to reject relative paths with
+        # 'can only write to /workspace/', wasting an entire LLM streaming
+        # cycle on the retry). The `data/<dataset>/raw/...` symlinks placed
+        # under workspace_dir mean naturally-relative paths land on the
+        # right file via the same _resolve below.
+        if path and not path.startswith("/"):
+            path = "/workspace/" + path
         if path.startswith("/data/") or path == "/data":
             phys = resolve_logical(path, prefix_map)
             if phys.startswith(data_phys_root):
@@ -631,8 +640,11 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
                         tool_use_stream_log.write(json.dumps({
                             "t_ms": round(t_ms, 1), "block": idx,
                             "delta": piece}) + "\n")
+            _t_after_stream_loop = time.monotonic()
             final = stream.get_final_message()
+            _t_after_final = time.monotonic()
 
+        _t_after_stream_ctx = time.monotonic()
         assistant_blocks: list[dict] = []
         if final and getattr(final, "content", None):
             for b in final.content:
@@ -713,6 +725,7 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
         tool_use_log.close(); tool_result_log.close()
         tool_use_stream_log.close()
 
+        _t_after_close = time.monotonic()
         turn_elapsed = time.monotonic() - turn_start
         per_turn.append({
             "turn": turn, "duration_s": round(turn_elapsed, 3),
@@ -722,6 +735,14 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
                             if b["type"] == "tool_use"],
             "fired_rules": fired_rules_this_turn,
             "dispatched_prefetches": dispatched_this_turn,
+            # NEW: phase timing (each in seconds, relative to turn_start)
+            "phase_ms": {
+                "stream_loop_end": round((_t_after_stream_loop - turn_start)*1000, 1),
+                "get_final_end":   round((_t_after_final - turn_start)*1000, 1),
+                "stream_ctx_end":  round((_t_after_stream_ctx - turn_start)*1000, 1),
+                "log_close_end":   round((_t_after_close - turn_start)*1000, 1),
+                "turn_end":        round(turn_elapsed*1000, 1),
+            },
         })
 
         if tool_results:
