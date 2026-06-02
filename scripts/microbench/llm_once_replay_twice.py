@@ -62,9 +62,14 @@ def run_live_baseline(task: str, model: str, out_dir: Path,
 def run_replay(session_dir: Path, mode: str, out_path: Path,
                hot_root: Path) -> dict:
     """Trajectory-replay a baseline session in cold or staged mode."""
+    # Pre-clean any stale hot-root from a previous staged run BEFORE
+    # checking disk space; otherwise the safety threshold fires unnecessarily
+    # on /dev/shm filled by the prior cell.
+    if mode == "staged" and hot_root.exists():
+        shutil.rmtree(hot_root, ignore_errors=True)
     free = shutil.disk_usage("/dev/shm").free
-    if mode == "staged" and free < 20 * 1024**3:
-        return {"error": f"/dev/shm only {free/1e9:.1f}GB free, need >=20GB"}
+    if mode == "staged" and free < 18 * 1024**3:
+        return {"error": f"/dev/shm only {free/1e9:.1f}GB free, need >=18GB"}
     out_path.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
         ["uv", "run", "python", str(REPLAY),

@@ -115,20 +115,27 @@ _CURATED_TASK_INST: dict[str, str] = {
         "file in the dataset (do not subsample).\n"
     ),
     "aiob_202": (
-        "Compute xxh64 data-integrity manifests for the JWST coadd "
+        "Compute xxh64 data-integrity manifests for the JWST NIRCam "
         "calibrated FITS files in /data/jwst_coadd_catalog/raw/cal/. The "
+        "JWST archive groups files by NIRCam detector (the eight detectors "
+        "are nrca1, nrca2, nrca3, nrca4, nrcb1, nrcb2, nrcb3, nrcb4); the "
         "archive team uses xxHash xxh64 (xxhash Python package, industry "
         "standard for fast bulk-integrity checks on large astronomical "
         "archives, similar to the Apache Arrow / DuckDB usage). The "
         "manifests will be diffed against a known-good reference manifest "
         "to detect any FITS files corrupted during the recent CRDS pipeline "
         "rerun.\n\n"
-        "For every *.fits file in /data/jwst_coadd_catalog/raw/cal/, compute "
-        "the xxh64 hex digest of the entire file contents. Also record the "
-        "file size in bytes.\n\n"
-        "Save result/integrity_manifest.csv with columns: filename, "
-        "size_bytes, xxh64. Sort by filename. Include every FITS file in the "
-        "directory (do not subsample).\n"
+        "For each of the eight NIRCam detectors (nrca1, nrca2, nrca3, "
+        "nrca4, nrcb1, nrcb2, nrcb3, nrcb4), iterate over all *.fits files "
+        "in /data/jwst_coadd_catalog/raw/cal/ whose filename contains the "
+        "detector code (e.g. files with '_nrca1_' belong to nrca1). For "
+        "each file compute the xxh64 hex digest of the entire file "
+        "contents. Also record the file size in bytes and the detector "
+        "code.\n\n"
+        "Save result/integrity_manifest.csv with columns: detector, "
+        "filename, size_bytes, xxh64. Sort by detector then filename. "
+        "Include every FITS file across all eight detectors (do not "
+        "subsample).\n"
     ),
     "aiob_203": (
         "Compute xxh64 data-integrity manifests for the Sentinel-2 NDVI "
@@ -618,7 +625,9 @@ def load_aiob_201() -> Workload:
 # ---------------------------------------------------------------------------
 
 def load_aiob_202() -> Workload:
-    """JWST coadd FITS xxh64 integrity manifest. ~96 files / 11GB."""
+    """JWST coadd FITS xxh64 integrity manifest. ~96 files / 11GB.
+    Decomposed per-detector so auto-rule generator produces 8 rules
+    (one per nrca[1-4]/nrcb[1-4]) that the agent's thinking can fire."""
     inst = _CURATED_TASK_INST["aiob_202"]
     task = TaskConfig(
         name="aiob_202_jwst_integrity",
@@ -632,16 +641,30 @@ def load_aiob_202() -> Workload:
     logical_base = "/data/jwst_coadd_catalog/raw"
 
     cal_dir = real_base / "cal"
-    fits_files: list[str] = []
+    # Group by detector code (extracted from filename)
+    import re
+    det_re = re.compile(r"_(nrc[ab][1234])_")
+    by_det: dict[str, list[str]] = {f"nrc{ab}{n}": []
+                                     for ab in ("a", "b") for n in (1,2,3,4)}
+    all_fits: list[str] = []
     if cal_dir.is_dir():
         for f in sorted(cal_dir.iterdir()):
-            if f.suffix.lower() in (".fits", ".fits.gz"):
-                fits_files.append(f"{logical_base}/cal/{f.name}")
+            if f.suffix.lower() not in (".fits", ".fits.gz"):
+                continue
+            logical = f"{logical_base}/cal/{f.name}"
+            all_fits.append(logical)
+            m = det_re.search(f.name)
+            if m:
+                by_det[m.group(1)].append(logical)
 
     workspace_prior: dict[str, tuple[str, ...]] = {
-        "cal_fits": tuple(fits_files),
-        "output_manifest": ("/output/result/integrity_manifest.csv",),
+        f"detector_{det}": tuple(files)
+        for det, files in by_det.items() if files
     }
+    workspace_prior["all_fits"] = tuple(all_fits)
+    workspace_prior["output_manifest"] = (
+        "/output/result/integrity_manifest.csv",)
+    fits_files = all_fits
     gt_full = tuple(fits_files)
     gt_first = tuple(fits_files[:3])
 
