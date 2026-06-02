@@ -66,7 +66,8 @@ from agentstage.detector.engine import StreamBlock  # noqa: E402
 from agentstage.detector.session import SessionDetector  # noqa: E402
 from agentstage.stager import DataHint, Stager  # noqa: E402
 from agentstage.workloads.aiob import (  # noqa: E402
-    Workload, load_aiob_104, load_aiob_107, load_aiob_110,
+    Workload, load_aiob_103, load_aiob_104, load_aiob_107, load_aiob_110,
+    load_aiob_201, load_aiob_202, load_aiob_203,
 )
 
 REPO = Path(__file__).resolve().parents[2]
@@ -78,10 +79,42 @@ SHIM = (REPO / "src" / "agentstage" / "stager" / "shim"
 # reasoning slack. Same policy as path_b_multiturn.py.
 STAGER_BUCKET_CAP = 200
 
+
+def _aggregate_io(shell_io_log: "list[dict]") -> dict:
+    """Sum per-call /proc/[pid]/io counters into per-session totals.
+
+    The interesting fields:
+      rchar      — bytes the agent's script asked for via read()
+      read_bytes — bytes physically fetched from block storage (cold-NVMe)
+      wchar / write_bytes / syscr / syscw — symmetric
+
+    Baseline sessions hit cold NVMe → read_bytes ≈ rchar.
+    Staged sessions hit /dev/shm tmpfs → read_bytes ≈ 0, rchar still big.
+    (baseline.read_bytes - staged.read_bytes) / NVMe_bandwidth ≈ wall I/O
+    time the shim eliminated.
+    """
+    keys = ("rchar", "read_bytes", "wchar", "write_bytes", "syscr", "syscw")
+    agg = {k: 0 for k in keys}
+    n = 0
+    elapsed_total_s = 0.0
+    for entry in shell_io_log:
+        n += 1
+        elapsed_total_s += entry.get("elapsed_s", 0.0)
+        for k in keys:
+            agg[k] += entry.get(k, 0) or 0
+    agg["n_shell_calls"] = n
+    agg["shell_elapsed_total_s"] = round(elapsed_total_s, 3)
+    return agg
+
+
 TASK_LOADERS = {
+    "aiob_103": load_aiob_103,
     "aiob_104": load_aiob_104,
     "aiob_107": load_aiob_107,
     "aiob_110": load_aiob_110,
+    "aiob_201": load_aiob_201,
+    "aiob_202": load_aiob_202,
+    "aiob_203": load_aiob_203,
 }
 
 
@@ -160,11 +193,37 @@ TOOLS_SCHEMA = [
 
 
 def make_tool_executor(workload: Workload, workspace_dir: Path,
-                       *, mode: str, hot_root: Path, cold_root: str):
+                       *, mode: str, hot_root: Path, cold_root: str,
+                       shell_timeout: int = 300,
+                       io_log: "list[dict] | None" = None):
+    """Returns execute(name, args).
+
+    If `io_log` is provided, every run_shell_command invocation appends a
+    dict with /proc/[pid]/io counters (rchar / read_bytes / wchar /
+    write_bytes / syscr / syscw / elapsed_s / rc). The dispatcher uses
+    these to attribute cold-NVMe bytes to each subprocess and aggregate
+    per-session.
+    """
+    import threading
     prefix_map = workload.prefix_map
     data_phys_root = prefix_map[0][1].rstrip("/")
     log_root = prefix_map[0][0].rstrip("/")
     workspace_dir.mkdir(parents=True, exist_ok=True)
+
+    def _capture_proc_io(pid: int) -> dict:
+        """Read /proc/[pid]/io into a dict. Returns {} on failure."""
+        out: dict = {}
+        try:
+            with open(f"/proc/{pid}/io") as f:
+                for line in f:
+                    k, _, v = line.partition(":")
+                    try:
+                        out[k.strip()] = int(v.strip())
+                    except ValueError:
+                        pass
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            pass
+        return out
 
     def _resolve(path: str) -> tuple[str, bool]:
         if path.startswith("/data/") or path == "/data":
@@ -250,7 +309,7 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
                 env["LD_PRELOAD"] = str(SHIM)
                 env["AGENTSTAGE_HOT_ROOT"] = str(hot_root)
                 env["AGENTSTAGE_COLD_ROOTS"] = cold_root
-                env["AGENTSTAGE_RETRY_SPIN_MS"] = "20"
+                env["AGENTSTAGE_RETRY_SPIN_MS"] = "0"
             else:
                 env.pop("LD_PRELOAD", None)
                 env["AGENTSTAGE_SHIM_DISABLE"] = "1"
@@ -266,24 +325,56 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
                 except FileExistsError:
                     pass
             t0 = time.monotonic()
+            # Popen + polling thread reads /proc/[pid]/io until the process
+            # exits, so we capture cumulative cold-NVMe read_bytes etc. for
+            # this shell invocation. The thread terminates as soon as the
+            # main path calls communicate()/kill().
+            proc = subprocess.Popen(
+                ["/bin/bash", "-c", cmd],
+                cwd=str(workspace_dir), env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True,
+            )
+            last_io: dict = {}
+            stop = threading.Event()
+
+            def _poll_io():
+                while not stop.is_set():
+                    snapshot = _capture_proc_io(proc.pid)
+                    if snapshot:
+                        last_io.clear()
+                        last_io.update(snapshot)
+                    time.sleep(0.05)
+            poller = threading.Thread(target=_poll_io, daemon=True)
+            poller.start()
             try:
-                r = subprocess.run(["/bin/bash", "-c", cmd],
-                                   cwd=str(workspace_dir), env=env,
-                                   capture_output=True, text=True,
-                                   timeout=180)
-                rc = r.returncode
-                stdout = r.stdout or ""
-                stderr = r.stderr or ""
-            except subprocess.TimeoutExpired as te:
+                stdout, stderr = proc.communicate(timeout=shell_timeout)
+                rc = proc.returncode
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                stdout, stderr = proc.communicate()
                 rc = -9
-                stdout = (te.stdout.decode("utf-8", errors="replace")
-                          if te.stdout else "")
-                stderr = ((te.stderr.decode("utf-8", errors="replace")
-                           if te.stderr else "")
-                          + "\n[TIMEOUT after 180s — solution too slow]")
+                stderr = (stderr or "") + (
+                    f"\n[TIMEOUT after {shell_timeout}s — solution too slow]"
+                )
+            finally:
+                stop.set()
+                poller.join(timeout=1)
             elapsed = time.monotonic() - t0
-            out = stdout[-3000:]
-            err = stderr[-1000:]
+            if io_log is not None:
+                io_log.append({
+                    "cmd": cmd[:200],
+                    "elapsed_s": round(elapsed, 3),
+                    "rc": rc,
+                    "rchar": last_io.get("rchar", 0),
+                    "read_bytes": last_io.get("read_bytes", 0),
+                    "wchar": last_io.get("wchar", 0),
+                    "write_bytes": last_io.get("write_bytes", 0),
+                    "syscr": last_io.get("syscr", 0),
+                    "syscw": last_io.get("syscw", 0),
+                })
+            out = (stdout or "")[-3000:]
+            err = (stderr or "")[-1000:]
             return (f"# run_shell_command (rc={rc}, {elapsed:.2f}s):\n"
                     f"## stdout:\n{out}\n"
                     f"## stderr:\n{err}\n")
@@ -292,10 +383,19 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
     return execute
 
 
-def _build_prompts(workload: Workload, prompt_mode: str) -> tuple[str, str]:
+def _build_prompts(workload: Workload, prompt_mode: str,
+                   shell_timeout: int = 300) -> tuple[str, str]:
     """Returns (user_msg, system_msg). AIOB task descriptions are long and
     detailed; we pass them through verbatim (no rephrasing — preserves
-    benchmark integrity)."""
+    benchmark integrity).
+
+    IMPORTANT prompt conventions (do not change without checking past bugs):
+      - All paths in scripts must be RELATIVE (no leading /). 'data/' is a
+        symlink we plant under the agent's CWD. /data/ and /workspace/ are
+        LOGICAL labels that only the list_dir/open_file tools accept.
+      - Always invoke 'python3' (the system interpreter). Plain 'python'
+        is not on PATH after our venv-strip.
+    """
     log_root = workload.prefix_map[0][0].rstrip("/")
     ds_name = log_root[len("/data/"):]
     tid = workload.task_id
@@ -304,29 +404,53 @@ def _build_prompts(workload: Workload, prompt_mode: str) -> tuple[str, str]:
         user_msg = (
             f"Task: {tid}\n\n"
             f"{workload.task.task_inst}\n\n"
-            f"The dataset lives at /data/{ds_name}/. Use list_dir / open_file "
-            f"to inspect; write your Python solution to /workspace/solution.py "
-            f"and run it with run_shell_command. Any output artifacts go to "
-            f"/workspace/."
+            f"The dataset is accessible under the relative path "
+            f"'data/{ds_name}/' from your CWD (a symlink we set up for you).\n"
+            f"Use list_dir / open_file to inspect; write your Python "
+            f"solution to a CWD-relative path like 'solution.py' and run "
+            f"it with run_shell_command 'python3 solution.py'. Any output "
+            f"artifacts also go to CWD-relative paths.\n\n"
+            f"DO NOT use absolute paths like /data/ or /workspace/ in your "
+            f"Python scripts — those are LOGICAL labels only the list_dir / "
+            f"open_file tools understand. Always use relative paths in scripts."
         )
     else:
         user_msg = (
             f"Task: {tid}\n\n"
             f"{workload.task.task_inst}\n\n"
-            f"Use list_dir to discover data layout under /data/. "
-            f"Working directory is /workspace/."
+            f"Use list_dir to discover data layout under '/data/'. "
+            f"In your scripts, access the data via the relative path "
+            f"'data/<dataset>/'."
         )
 
     system_msg = (
-        "You are a scientific-data agent solving an AgentIOBench task. "
-        f"Workspace: data/{ds_name}/ for inputs (read-only), CWD is "
-        f"/workspace/. Tools: list_dir, open_file, read_file, write_file, "
-        f"run_shell_command. Pre-installed: pandas, numpy, scipy, sklearn, "
-        f"lightgbm, openpyxl, h5py, netCDF4, pynwb, pyarrow, matplotlib. "
-        f"Shell commands time out at 180s — prefer fast operations "
-        f"(read a sample, simple stats, avoid full-dataset training). "
-        f"For a quick-and-correct first pass, do summary statistics on a "
-        f"subset, then iterate."
+        "You are a scientific-data agent solving an AgentIOBench task.\n"
+        "\n"
+        "Workspace conventions (IMPORTANT — read carefully):\n"
+        f"  • Tools (list_dir, open_file, read_file) accept the LOGICAL form\n"
+        f"      /data/{ds_name}/<subpath>\n"
+        f"  • Your Python scripts must use the CWD-RELATIVE form\n"
+        f"      data/{ds_name}/<subpath>\n"
+        f"    There is a symlink data/{ds_name}/ in your CWD pointing at the real data.\n"
+        "  • Output artifacts: write to CWD-relative paths (e.g. 'result/output.parquet'),\n"
+        "    NOT to '/workspace/...'. Your CWD is already the workspace.\n"
+        "  • Always invoke 'python3' (NOT 'python' — not on PATH).\n"
+        "  • run_shell_command starts in the workspace CWD — DO NOT 'cd /workspace'.\n"
+        "\n"
+        "Python libraries available (verified installed; DO NOT pip install):\n"
+        "  pandas, numpy, scipy, sklearn, lightgbm, xgboost, openpyxl,\n"
+        "  h5py, netCDF4, pynwb, pysam, pyarrow, polars, PIL, matplotlib,\n"
+        "  rasterio, affine, pyproj, fiona, shapely\n"
+        "\n"
+        "Workflow:\n"
+        "  1. list_dir / open_file to inspect a small slice of the data\n"
+        "  2. write_file 'solution.py' with your processing script\n"
+        "  3. run_shell_command 'python3 solution.py' to execute\n"
+        "  4. Iterate as needed\n"
+        "\n"
+        f"Solution-speed budget (shell commands time out at {shell_timeout}s):\n"
+        "  Prefer FAST first passes — sample a subset, do summary stats, then\n"
+        "  iterate. Avoid full-dataset training in the first script."
     )
     return user_msg, system_msg
 
@@ -369,25 +493,37 @@ def _dispatch_prefetches(*, new_acts, stager, prefix_map, turn: int,
 def run_session(*, workload: Workload, model: str, mode: str,
                 prompt_mode: str, out_dir: Path,
                 hot_root: Path, max_turns: int = 12,
-                thinking_budget: int = 4096) -> dict:
+                thinking_budget: int = 4096,
+                shell_timeout: int = 300) -> dict:
     if model.lower().startswith("gemini"):
         return _run_session_gemini(
             workload=workload, model=model, mode=mode,
             prompt_mode=prompt_mode, out_dir=out_dir,
             hot_root=hot_root, max_turns=max_turns,
+            shell_timeout=shell_timeout,
+        )
+    if model.lower().startswith("qwen") or model.lower().startswith("oss-") \
+            or model.lower().startswith("openai/") or "/" in model:
+        return _run_session_oss(
+            workload=workload, model=model, mode=mode,
+            prompt_mode=prompt_mode, out_dir=out_dir,
+            hot_root=hot_root, max_turns=max_turns,
+            shell_timeout=shell_timeout,
         )
     return _run_session_anthropic(
         workload=workload, model=model, mode=mode,
         prompt_mode=prompt_mode, out_dir=out_dir,
         hot_root=hot_root, max_turns=max_turns,
         thinking_budget=thinking_budget,
+        shell_timeout=shell_timeout,
     )
 
 
 def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
                             prompt_mode: str, out_dir: Path,
                             hot_root: Path, max_turns: int = 12,
-                            thinking_budget: int = 4096) -> dict:
+                            thinking_budget: int = 4096,
+                            shell_timeout: int = 300) -> dict:
     import anthropic
     azure_key = os.environ.get("AZURE_FOUNDRY_KEY", "")
     direct_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -428,12 +564,15 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
         )
 
     workspace_dir = out_dir / "agent_workspace"
+    shell_io_log: list[dict] = []
     execute = make_tool_executor(workload, workspace_dir,
                                   mode=mode, hot_root=hot_root,
-                                  cold_root=cold_root_anc)
+                                  cold_root=cold_root_anc,
+                                  shell_timeout=shell_timeout,
+                                  io_log=shell_io_log)
 
     turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
-    user_msg, system_msg = _build_prompts(workload, prompt_mode)
+    user_msg, system_msg = _build_prompts(workload, prompt_mode, shell_timeout)
 
     messages: list[dict] = [{"role": "user", "content": user_msg}]
     session_start = time.monotonic()
@@ -597,12 +736,15 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
         "n_workspace_outputs": n_outputs,
         "n_prefetched_files": n_prefetched_holder[0],
         "per_turn": per_turn,
+        "shell_io": _aggregate_io(shell_io_log),
+        "shell_io_per_call": shell_io_log,
     }
 
 
 def _run_session_gemini(*, workload: Workload, model: str, mode: str,
                          prompt_mode: str, out_dir: Path,
-                         hot_root: Path, max_turns: int = 12) -> dict:
+                         hot_root: Path, max_turns: int = 12,
+                         shell_timeout: int = 300) -> dict:
     from google import genai
     from google.genai import types
     api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "")
@@ -634,11 +776,14 @@ def _run_session_gemini(*, workload: Workload, model: str, mode: str,
         )
 
     workspace_dir = out_dir / "agent_workspace"
+    shell_io_log: list[dict] = []
     execute = make_tool_executor(workload, workspace_dir,
                                   mode=mode, hot_root=hot_root,
-                                  cold_root=cold_root_anc)
+                                  cold_root=cold_root_anc,
+                                  shell_timeout=shell_timeout,
+                                  io_log=shell_io_log)
     turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
-    user_msg, system_msg = _build_prompts(workload, prompt_mode)
+    user_msg, system_msg = _build_prompts(workload, prompt_mode, shell_timeout)
 
     fn_decls = []
     for ts in TOOLS_SCHEMA:
@@ -804,6 +949,267 @@ def _run_session_gemini(*, workload: Workload, model: str, mode: str,
         "n_workspace_outputs": n_outputs,
         "n_prefetched_files": n_prefetched_holder[0],
         "per_turn": per_turn,
+        "shell_io": _aggregate_io(shell_io_log),
+        "shell_io_per_call": shell_io_log,
+    }
+
+
+# ============================================================================
+# OSS (vLLM / OpenAI-compatible) dispatcher
+# ============================================================================
+# Mirrors _run_session_gemini but uses the OpenAI-compatible chat-completions
+# streaming API. Reasoning is emitted as `delta.reasoning` (Qwen3 style) or
+# `delta.reasoning_content` (older vLLM); both are routed to thinking.jsonl.
+# Tool calls stream OpenAI-format: function.name appears first, then function.
+# arguments accumulate over multiple chunks for the same tool_call index.
+
+def _run_session_oss(*, workload: Workload, model: str, mode: str,
+                     prompt_mode: str, out_dir: Path,
+                     hot_root: Path, max_turns: int = 12,
+                     shell_timeout: int = 300) -> dict:
+    from openai import OpenAI
+
+    base_url = os.environ.get("OSS_MODEL_BASE_URL", "http://localhost:8002/v1")
+    api_key = os.environ.get("OSS_MODEL_API_KEY", "EMPTY")
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=600)
+
+    prefix_map = workload.prefix_map
+    data_phys_root = prefix_map[0][1].rstrip("/")
+    cold_root_anc = str(Path(data_phys_root).parent.parent)
+
+    auto_rs = AutoRuleGenerator(
+        workload_id=workload.task_id,
+        task_instruction=workload.task.task_inst,
+        workspace_prior_keys=tuple(workload.workspace_prior.keys()),
+    ).generate()
+    session_detector = SessionDetector(
+        prior=workload.workspace_prior, ruleset=auto_rs,
+    )
+
+    stager = None
+    if mode == "staged":
+        if hot_root.exists():
+            shutil.rmtree(hot_root)
+        hot_root.mkdir(parents=True, exist_ok=True)
+        stager = Stager(
+            hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
+            max_workers=4, capacity_bytes=64 * 1024**3,
+        )
+
+    workspace_dir = out_dir / "agent_workspace"
+    shell_io_log: list[dict] = []
+    execute = make_tool_executor(workload, workspace_dir,
+                                  mode=mode, hot_root=hot_root,
+                                  cold_root=cold_root_anc,
+                                  shell_timeout=shell_timeout,
+                                  io_log=shell_io_log)
+    turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
+    user_msg, system_msg = _build_prompts(workload, prompt_mode, shell_timeout)
+
+    tools = [
+        {"type": "function",
+         "function": {"name": ts["name"],
+                      "description": ts["description"],
+                      "parameters": ts["input_schema"]}}
+        for ts in TOOLS_SCHEMA
+    ]
+
+    messages: list[dict] = []
+    if system_msg:
+        messages.append({"role": "system", "content": system_msg})
+    messages.append({"role": "user", "content": user_msg})
+
+    session_start = time.monotonic()
+    tool_use_count = 0
+    files_opened: list[str] = []
+    n_prefetched_holder = [0]
+    per_turn: list[dict] = []
+
+    for turn in range(max_turns):
+        turn_dir = turns_dir / f"turn_{turn:02d}"
+        turn_dir.mkdir(parents=True, exist_ok=True)
+        thinking_log = (turn_dir / "thinking.jsonl").open("w")
+        text_log = (turn_dir / "text.jsonl").open("w")
+        tool_use_log = (turn_dir / "tool_use.jsonl").open("w")
+        tool_result_log = (turn_dir / "tool_result.jsonl").open("w")
+        turn_start = time.monotonic()
+        stream_started_ms = turn_start * 1000
+
+        # Per-tool-call accumulators (OpenAI streams arguments piece-by-piece).
+        pending_calls: dict[int, dict] = {}  # tool_call index -> {id,name,arguments}
+        thinking_buf: list[str] = []
+        text_buf: list[str] = []
+
+        # Qwen3 thinking-mode officially recommended sampling params
+        # (per Qwen3 model card on Hugging Face).
+        stream = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            stream=True,
+            max_tokens=8192,
+            temperature=0.6,
+            top_p=0.95,
+            presence_penalty=1.5,
+            extra_body={"top_k": 20},
+        )
+
+        for chunk in stream:
+            t_ms = time.monotonic() * 1000 - stream_started_ms
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            delta = choice.delta
+            # Reasoning deltas (Qwen3 thinking)
+            reasoning = (getattr(delta, "reasoning", None)
+                         or getattr(delta, "reasoning_content", None))
+            if reasoning:
+                thinking_log.write(json.dumps({
+                    "t_ms": round(t_ms, 1), "block": 0,
+                    "delta": reasoning}) + "\n")
+                thinking_buf.append(reasoning)
+            # Visible content deltas
+            content = getattr(delta, "content", None)
+            if content:
+                text_log.write(json.dumps({
+                    "t_ms": round(t_ms, 1), "block": 0,
+                    "delta": content}) + "\n")
+                text_buf.append(content)
+            # Streamed tool calls (function.name once, arguments in pieces)
+            tcs = getattr(delta, "tool_calls", None) or []
+            for tc in tcs:
+                idx = getattr(tc, "index", 0)
+                slot = pending_calls.setdefault(idx, {
+                    "id": "", "name": "", "arguments": ""})
+                tc_id = getattr(tc, "id", None)
+                if tc_id:
+                    slot["id"] = tc_id
+                fn = getattr(tc, "function", None)
+                if fn is not None:
+                    if getattr(fn, "name", None):
+                        slot["name"] = fn.name
+                    if getattr(fn, "arguments", None):
+                        slot["arguments"] += fn.arguments
+
+        # Parse accumulated tool calls into structured form
+        fn_calls: list[dict] = []
+        for idx in sorted(pending_calls):
+            slot = pending_calls[idx]
+            try:
+                args = json.loads(slot["arguments"] or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            fn_calls.append({
+                "id": slot["id"] or f"oss_{turn}_{idx}",
+                "name": slot["name"], "args": args})
+
+        # Record the assistant message back to the conversation. We send a
+        # single combined `content` (final answer only — reasoning is
+        # consumed-only by the API) plus structured tool_calls.
+        asst_msg: dict = {"role": "assistant"}
+        if text_buf:
+            asst_msg["content"] = "".join(text_buf)
+        else:
+            asst_msg["content"] = None
+        if fn_calls:
+            asst_msg["tool_calls"] = [{
+                "id": fc["id"], "type": "function",
+                "function": {"name": fc["name"],
+                              "arguments": json.dumps(fc["args"])}}
+                for fc in fn_calls]
+        messages.append(asst_msg)
+
+        # Feed detector with thinking + visible text
+        sp_blocks: list[StreamBlock] = []
+        if thinking_buf:
+            sp_blocks.append(StreamBlock(
+                type="thinking", t_first=0, t_stop=0,
+                text="".join(thinking_buf), chunks=1, turn=turn))
+        if text_buf:
+            sp_blocks.append(StreamBlock(
+                type="text", t_first=0, t_stop=0,
+                text="".join(text_buf), chunks=1, turn=turn))
+        new_acts = session_detector.feed_turn(sp_blocks)
+        fired_rules_this_turn = [a.rule_name for a in new_acts]
+        dispatched_this_turn: list[dict] = []
+        if mode == "staged":
+            _dispatch_prefetches(
+                new_acts=new_acts, stager=stager, prefix_map=prefix_map,
+                turn=turn, source="thinking",
+                dispatched=dispatched_this_turn,
+                n_total_holder=n_prefetched_holder,
+            )
+
+        # Execute tool calls + feed results back
+        any_tool = False
+        tool_result_blocks_for_detector: list[StreamBlock] = []
+        for fc in fn_calls:
+            any_tool = True
+            tool_use_count += 1
+            out = execute(fc["name"], fc["args"])
+            tool_use_log.write(json.dumps({
+                "name": fc["name"], "id": fc["id"],
+                "parsed_input": fc["args"]}) + "\n")
+            tool_result_log.write(json.dumps({
+                "tool_use_id": fc["id"], "content": out}) + "\n")
+            if fc["name"] in ("open_file", "read_file"):
+                files_opened.append(fc["args"].get("path", ""))
+            messages.append({
+                "role": "tool", "tool_call_id": fc["id"],
+                "name": fc["name"], "content": out})
+            tool_result_blocks_for_detector.append(StreamBlock(
+                type="tool_result", t_first=0, t_stop=0,
+                text=out, chunks=1, turn=turn))
+
+        if tool_result_blocks_for_detector:
+            tr_acts = session_detector.feed_tool_results(
+                tool_result_blocks_for_detector)
+            for a in tr_acts:
+                fired_rules_this_turn.append(a.rule_name)
+            if mode == "staged" and tr_acts:
+                _dispatch_prefetches(
+                    new_acts=tr_acts, stager=stager, prefix_map=prefix_map,
+                    turn=turn, source="tool_result",
+                    dispatched=dispatched_this_turn,
+                    n_total_holder=n_prefetched_holder,
+                )
+
+        thinking_log.close(); text_log.close()
+        tool_use_log.close(); tool_result_log.close()
+
+        turn_elapsed = time.monotonic() - turn_start
+        per_turn.append({
+            "turn": turn, "duration_s": round(turn_elapsed, 3),
+            "n_tool_uses": len(fn_calls),
+            "tool_names": [fc["name"] for fc in fn_calls],
+            "fired_rules": fired_rules_this_turn,
+            "dispatched_prefetches": dispatched_this_turn,
+        })
+
+        if not any_tool:
+            break
+
+    session_elapsed = time.monotonic() - session_start
+    n_outputs = sum(1 for _ in workspace_dir.rglob("*") if _.is_file()) \
+                if workspace_dir.is_dir() else 0
+    workspace_bytes = sum(p.stat().st_size for p in workspace_dir.rglob("*")
+                         if p.is_file()) if workspace_dir.is_dir() else 0
+
+    if stager is not None:
+        stager.shutdown(wait=True)
+
+    return {
+        "session_elapsed_s": round(session_elapsed, 3),
+        "n_turns": len(per_turn), "n_tool_uses": tool_use_count,
+        "files_opened_logical": files_opened,
+        "submitted": n_outputs > 0,
+        "submission_bytes": workspace_bytes,
+        "n_workspace_outputs": n_outputs,
+        "n_prefetched_files": n_prefetched_holder[0],
+        "per_turn": per_turn,
+        "shell_io": _aggregate_io(shell_io_log),
+        "shell_io_per_call": shell_io_log,
     }
 
 
@@ -817,6 +1223,8 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--hot-root", default="/dev/shm/agentstage_aiobmt")
     parser.add_argument("--max-turns", type=int, default=12)
+    parser.add_argument("--shell-timeout", type=int, default=300,
+                        help="Per-shell-command subprocess timeout in seconds")
     args = parser.parse_args()
 
     if not SHIM.is_file():
@@ -853,6 +1261,7 @@ def main() -> int:
             workload=workload, model=args.model, mode=args.mode,
             prompt_mode=args.prompt_mode, out_dir=args.out,
             hot_root=Path(args.hot_root), max_turns=args.max_turns,
+            shell_timeout=args.shell_timeout,
         )
     except Exception as e:
         import traceback

@@ -147,12 +147,43 @@ TOOLS_SCHEMA = [
 ]
 
 
+def _aggregate_io(shell_io_log: "list[dict]") -> dict:
+    """Sum per-call /proc/[pid]/io counters into per-session totals."""
+    keys = ("rchar", "read_bytes", "wchar", "write_bytes", "syscr", "syscw")
+    agg = {k: 0 for k in keys}
+    n = 0
+    elapsed_total_s = 0.0
+    for entry in shell_io_log:
+        n += 1
+        elapsed_total_s += entry.get("elapsed_s", 0.0)
+        for k in keys:
+            agg[k] += entry.get(k, 0) or 0
+    agg["n_shell_calls"] = n
+    agg["shell_elapsed_total_s"] = round(elapsed_total_s, 3)
+    return agg
+
+
 def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
-                       *, mode: str, hot_root: Path, cold_root: str):
+                       *, mode: str, hot_root: Path, cold_root: str,
+                       shell_timeout: int = 180,
+                       io_log: "list[dict] | None" = None):
+    import threading
     prefix_map = workload.prefix_map
     data_phys_root = prefix_map[0][1].rstrip("/")
     log_root = prefix_map[0][0].rstrip("/")
     workspace_dir.mkdir(parents=True, exist_ok=True)
+
+    def _capture_proc_io(pid: int) -> dict:
+        out: dict = {}
+        try:
+            with open(f"/proc/{pid}/io") as f:
+                for line in f:
+                    k, _, v = line.partition(":")
+                    try: out[k.strip()] = int(v.strip())
+                    except ValueError: pass
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            pass
+        return out
 
     def _resolve(path: str) -> tuple[str, bool]:
         if path.startswith("/data/") or path == "/data":
@@ -240,7 +271,7 @@ def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
                 env["LD_PRELOAD"] = str(SHIM)
                 env["AGENTSTAGE_HOT_ROOT"] = str(hot_root)
                 env["AGENTSTAGE_COLD_ROOTS"] = cold_root
-                env["AGENTSTAGE_RETRY_SPIN_MS"] = "20"
+                env["AGENTSTAGE_RETRY_SPIN_MS"] = "0"
             else:
                 env.pop("LD_PRELOAD", None)
                 env["AGENTSTAGE_SHIM_DISABLE"] = "1"
@@ -253,25 +284,53 @@ def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
                 except FileExistsError:
                     pass
             t0 = time.monotonic()
+            proc = subprocess.Popen(
+                ["/bin/bash", "-c", cmd],
+                cwd=str(agent_cwd), env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True,
+            )
+            last_io: dict = {}
+            stop = threading.Event()
+
+            def _poll_io():
+                while not stop.is_set():
+                    snapshot = _capture_proc_io(proc.pid)
+                    if snapshot:
+                        last_io.clear()
+                        last_io.update(snapshot)
+                    time.sleep(0.05)
+            poller = threading.Thread(target=_poll_io, daemon=True)
+            poller.start()
             try:
-                r = subprocess.run(["/bin/bash", "-c", cmd],
-                                   cwd=str(agent_cwd), env=env,
-                                   capture_output=True, text=True,
-                                   timeout=180)
-                rc = r.returncode
-                stdout = r.stdout or ""
-                stderr = r.stderr or ""
-            except subprocess.TimeoutExpired as te:
+                stdout, stderr = proc.communicate(timeout=shell_timeout)
+                rc = proc.returncode
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                stdout, stderr = proc.communicate()
                 rc = -9
-                stdout = (te.stdout.decode("utf-8", errors="replace")
-                          if te.stdout else "")
-                stderr = ((te.stderr.decode("utf-8", errors="replace")
-                           if te.stderr else "")
-                          + "\n[TIMEOUT after 180s — solution too slow; "
-                          "use a faster baseline]")
+                stderr = (stderr or "") + (
+                    f"\n[TIMEOUT after {shell_timeout}s — solution too slow; "
+                    "use a faster baseline]"
+                )
+            finally:
+                stop.set()
+                poller.join(timeout=1)
             elapsed = time.monotonic() - t0
-            out = stdout[-3000:]
-            err = stderr[-1000:]
+            if io_log is not None:
+                io_log.append({
+                    "cmd": cmd[:200],
+                    "elapsed_s": round(elapsed, 3),
+                    "rc": rc,
+                    "rchar": last_io.get("rchar", 0),
+                    "read_bytes": last_io.get("read_bytes", 0),
+                    "wchar": last_io.get("wchar", 0),
+                    "write_bytes": last_io.get("write_bytes", 0),
+                    "syscr": last_io.get("syscr", 0),
+                    "syscw": last_io.get("syscw", 0),
+                })
+            out = (stdout or "")[-3000:]
+            err = (stderr or "")[-1000:]
             return (f"# run_shell_command (rc={rc}, {elapsed:.2f}s):\n"
                     f"## stdout:\n{out}\n"
                     f"## stderr:\n{err}\n")
@@ -283,26 +342,38 @@ def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
 def run_session(*, workload: MLEWorkload, model: str, mode: str,
                 prompt_mode: str, out_dir: Path,
                 hot_root: Path, max_turns: int = 12,
-                thinking_budget: int = 4096) -> dict:
+                thinking_budget: int = 4096,
+                shell_timeout: int = 180) -> dict:
     """Dispatch to provider-specific session runner based on model name."""
     if model.lower().startswith("gemini"):
         return _run_session_gemini(
             workload=workload, model=model, mode=mode,
             prompt_mode=prompt_mode, out_dir=out_dir,
             hot_root=hot_root, max_turns=max_turns,
+            shell_timeout=shell_timeout,
+        )
+    if model.lower().startswith("qwen") or model.lower().startswith("oss-") \
+            or "/" in model:
+        return _run_session_oss(
+            workload=workload, model=model, mode=mode,
+            prompt_mode=prompt_mode, out_dir=out_dir,
+            hot_root=hot_root, max_turns=max_turns,
+            shell_timeout=shell_timeout,
         )
     return _run_session_anthropic(
         workload=workload, model=model, mode=mode,
         prompt_mode=prompt_mode, out_dir=out_dir,
         hot_root=hot_root, max_turns=max_turns,
         thinking_budget=thinking_budget,
+        shell_timeout=shell_timeout,
     )
 
 
 def _run_session_anthropic(*, workload: MLEWorkload, model: str, mode: str,
                             prompt_mode: str, out_dir: Path,
                             hot_root: Path, max_turns: int = 12,
-                            thinking_budget: int = 4096) -> dict:
+                            thinking_budget: int = 4096,
+                            shell_timeout: int = 180) -> dict:
     import anthropic
     azure_key = os.environ.get("AZURE_FOUNDRY_KEY", "")
     direct_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -345,9 +416,12 @@ def _run_session_anthropic(*, workload: MLEWorkload, model: str, mode: str,
         )
 
     workspace_dir = out_dir / "agent_workspace"
+    shell_io_log: list[dict] = []
     execute = make_tool_executor(workload, workspace_dir,
                                   mode=mode, hot_root=hot_root,
-                                  cold_root=cold_root_anc)
+                                  cold_root=cold_root_anc,
+                                  shell_timeout=shell_timeout,
+                                  io_log=shell_io_log)
 
     turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
     cid = workload.task.competition_id
@@ -627,12 +701,15 @@ def _run_session_anthropic(*, workload: MLEWorkload, model: str, mode: str,
         "submission_bytes": submission_size,
         "n_prefetched_files": n_prefetched_total,
         "per_turn": per_turn,
+        "shell_io": _aggregate_io(shell_io_log),
+        "shell_io_per_call": shell_io_log,
     }
 
 
 def _run_session_gemini(*, workload: MLEWorkload, model: str, mode: str,
                          prompt_mode: str, out_dir: Path,
-                         hot_root: Path, max_turns: int = 12) -> dict:
+                         hot_root: Path, max_turns: int = 12,
+                         shell_timeout: int = 180) -> dict:
     """Gemini-streaming variant. Mirrors _run_session_anthropic detector +
     stager + tool-exec logic but uses the google.genai SDK."""
     from google import genai
@@ -667,9 +744,12 @@ def _run_session_gemini(*, workload: MLEWorkload, model: str, mode: str,
         )
 
     workspace_dir = out_dir / "agent_workspace"
+    shell_io_log: list[dict] = []
     execute = make_tool_executor(workload, workspace_dir,
                                   mode=mode, hot_root=hot_root,
-                                  cold_root=cold_root_anc)
+                                  cold_root=cold_root_anc,
+                                  shell_timeout=shell_timeout,
+                                  io_log=shell_io_log)
 
     turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
     cid = workload.task.competition_id
@@ -919,6 +999,334 @@ def _run_session_gemini(*, workload: MLEWorkload, model: str, mode: str,
         "submission_bytes": submission_size,
         "n_prefetched_files": n_prefetched_total,
         "per_turn": per_turn,
+        "shell_io": _aggregate_io(shell_io_log),
+        "shell_io_per_call": shell_io_log,
+    }
+
+
+# ============================================================================
+# OSS (vLLM / OpenAI-compatible) dispatcher
+# ============================================================================
+
+def _run_session_oss(*, workload: MLEWorkload, model: str, mode: str,
+                     prompt_mode: str, out_dir: Path,
+                     hot_root: Path, max_turns: int = 12,
+                     shell_timeout: int = 180) -> dict:
+    from openai import OpenAI
+
+    base_url = os.environ.get("OSS_MODEL_BASE_URL", "http://localhost:8002/v1")
+    api_key = os.environ.get("OSS_MODEL_API_KEY", "EMPTY")
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=600)
+
+    prefix_map = workload.prefix_map
+    data_phys_root = prefix_map[0][1].rstrip("/")
+    cold_root_anc = str(Path(data_phys_root).parent.parent)
+
+    auto_rs = AutoRuleGenerator(
+        workload_id=workload.task.competition_id,
+        task_instruction=workload.task.task_inst,
+        workspace_prior_keys=tuple(workload.workspace_prior.keys()),
+    ).generate()
+    session_detector = SessionDetector(
+        prior=workload.workspace_prior, ruleset=auto_rs,
+    )
+
+    stager = None
+    if mode == "staged":
+        if hot_root.exists():
+            shutil.rmtree(hot_root)
+        hot_root.mkdir(parents=True, exist_ok=True)
+        stager = Stager(
+            hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
+            max_workers=4, capacity_bytes=64 * 1024**3,
+        )
+
+    workspace_dir = out_dir / "agent_workspace"
+    shell_io_log: list[dict] = []
+    execute = make_tool_executor(workload, workspace_dir,
+                                  mode=mode, hot_root=hot_root,
+                                  cold_root=cold_root_anc,
+                                  shell_timeout=shell_timeout,
+                                  io_log=shell_io_log)
+    turns_dir = out_dir / "turns"; turns_dir.mkdir(parents=True, exist_ok=True)
+
+    cid = workload.task.competition_id
+    paths = list(workload.workspace_prior.get("all_files", ()))[:3] \
+        if "all_files" in workload.workspace_prior else []
+    files_listing = "\n".join(f"  - {p}" for p in paths) if paths else \
+        f"  (use list_dir on /data/{cid}/)"
+    if prompt_mode == "hinted":
+        user_msg = (
+            f"Task: {cid}\n\n{workload.task.task_inst}\n\n"
+            f"Public competition files visible to you:\n{files_listing}\n\n"
+            f"Working directory is /workspace/. Save the final "
+            f"submission to /workspace/submission.csv. "
+            f"Think step-by-step about which files you need to read."
+        )
+    else:
+        user_msg = (
+            f"Task: {cid}\n\n{workload.task.task_inst}\n\n"
+            f"Task data is under /data/. Use list_dir to discover what's "
+            f"available. Save the final submission to /workspace/submission.csv."
+        )
+    system_msg = (
+        "You are a Kaggle competition agent solving an MLE-bench task.\n"
+        "\n"
+        "Path conventions (READ CAREFULLY):\n"
+        f"  • Tools (list_dir, open_file, write_file) take ABSOLUTE LOGICAL paths:\n"
+        f"      /data/{cid}/<file>     (input data; with leading slash)\n"
+        "      /workspace/<file>     (your scratch + output area)\n"
+        f"  • Inside Python scripts, refer to data via the CWD-RELATIVE form\n"
+        f"      data/{cid}/<file>     (NO leading slash). Submission goes to\n"
+        "      'submission.csv' (relative). There is a 'data/' symlink in your CWD.\n"
+        f"  • The shell runs `python solution.py` directly — DO NOT prefix with\n"
+        "      'cd /workspace'. /workspace is logical, not a real shell path.\n"
+        "\n"
+        "Example Python script (saved via write_file to /workspace/solution.py):\n"
+        "  import pandas as pd\n"
+        f"  train = pd.read_csv('data/{cid}/train.csv')\n"
+        "  # ... model ...\n"
+        "  sub.to_csv('submission.csv', index=False)\n"
+        "\n"
+        "Python libraries available (no pip install — no network):\n"
+        "  pandas, numpy, scipy, sklearn, lightgbm, openpyxl, matplotlib,\n"
+        "  PIL, zipfile, io.\n"
+        "\n"
+        "Workflow:\n"
+        f"  1. list_dir('/data/{cid}/')\n"
+        f"  2. open_file('/data/{cid}/<sample>')\n"
+        "  3. write_file('/workspace/solution.py', '<your full script>')\n"
+        "  4. run_shell_command('python solution.py')\n"
+        "  5. Iterate, then stop calling tools when done.\n"
+        f"\nSolution-speed budget (shell commands time out at {shell_timeout}s):\n"
+        "  Prefer FAST baselines (constant predictor, LightGBM<=30 trees,\n"
+        "  small CNN with 1 epoch). Avoid full image training or hyperparam search.\n"
+        "\nThinking style: mention specific filenames you plan to read\n"
+        "  (train.zip, test.zip, sample_submission.csv) — the harness uses\n"
+        "  these mentions to pre-cache files for faster reads."
+    )
+
+    tools = [
+        {"type": "function",
+         "function": {"name": ts["name"],
+                      "description": ts["description"],
+                      "parameters": ts["input_schema"]}}
+        for ts in TOOLS_SCHEMA
+    ]
+
+    messages: list[dict] = []
+    if system_msg:
+        messages.append({"role": "system", "content": system_msg})
+    messages.append({"role": "user", "content": user_msg})
+
+    session_start = time.monotonic()
+    tool_use_count = 0
+    files_opened: list[str] = []
+    n_prefetched_total = 0
+    seen_phys: set[str] = set()
+    per_turn: list[dict] = []
+    submission_size = 0
+    submitted = False
+
+    for turn in range(max_turns):
+        turn_dir = turns_dir / f"turn_{turn:02d}"
+        turn_dir.mkdir(parents=True, exist_ok=True)
+        thinking_log = (turn_dir / "thinking.jsonl").open("w")
+        text_log = (turn_dir / "text.jsonl").open("w")
+        tool_use_log = (turn_dir / "tool_use.jsonl").open("w")
+        tool_result_log = (turn_dir / "tool_result.jsonl").open("w")
+        turn_start = time.monotonic()
+        stream_started_ms = turn_start * 1000
+
+        pending_calls: dict[int, dict] = {}
+        thinking_buf: list[str] = []
+        text_buf: list[str] = []
+
+        # Qwen3 thinking-mode officially recommended sampling params.
+        stream = client.chat.completions.create(
+            model=model, messages=messages, tools=tools,
+            tool_choice="auto", stream=True,
+            max_tokens=8192,
+            temperature=0.6,
+            top_p=0.95,
+            presence_penalty=1.5,
+            extra_body={"top_k": 20},
+        )
+
+        for chunk in stream:
+            t_ms = time.monotonic() * 1000 - stream_started_ms
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            reasoning = (getattr(delta, "reasoning", None)
+                         or getattr(delta, "reasoning_content", None))
+            if reasoning:
+                thinking_log.write(json.dumps({
+                    "t_ms": round(t_ms, 1), "block": 0,
+                    "delta": reasoning}) + "\n")
+                thinking_buf.append(reasoning)
+            content = getattr(delta, "content", None)
+            if content:
+                text_log.write(json.dumps({
+                    "t_ms": round(t_ms, 1), "block": 0,
+                    "delta": content}) + "\n")
+                text_buf.append(content)
+            tcs = getattr(delta, "tool_calls", None) or []
+            for tc in tcs:
+                idx = getattr(tc, "index", 0)
+                slot = pending_calls.setdefault(idx, {
+                    "id": "", "name": "", "arguments": ""})
+                tc_id = getattr(tc, "id", None)
+                if tc_id:
+                    slot["id"] = tc_id
+                fn = getattr(tc, "function", None)
+                if fn is not None:
+                    if getattr(fn, "name", None):
+                        slot["name"] = fn.name
+                    if getattr(fn, "arguments", None):
+                        slot["arguments"] += fn.arguments
+
+        fn_calls: list[dict] = []
+        for idx in sorted(pending_calls):
+            slot = pending_calls[idx]
+            try:
+                args = json.loads(slot["arguments"] or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            fn_calls.append({
+                "id": slot["id"] or f"oss_{turn}_{idx}",
+                "name": slot["name"], "args": args})
+
+        asst_msg: dict = {"role": "assistant"}
+        asst_msg["content"] = "".join(text_buf) if text_buf else None
+        if fn_calls:
+            asst_msg["tool_calls"] = [{
+                "id": fc["id"], "type": "function",
+                "function": {"name": fc["name"],
+                              "arguments": json.dumps(fc["args"])}}
+                for fc in fn_calls]
+        messages.append(asst_msg)
+
+        sp_blocks: list[StreamBlock] = []
+        if thinking_buf:
+            sp_blocks.append(StreamBlock(
+                type="thinking", t_first=0, t_stop=0,
+                text="".join(thinking_buf), chunks=1, turn=turn))
+        if text_buf:
+            sp_blocks.append(StreamBlock(
+                type="text", t_first=0, t_stop=0,
+                text="".join(text_buf), chunks=1, turn=turn))
+        new_acts = session_detector.feed_turn(sp_blocks)
+        fired_rules_this_turn = [a.rule_name for a in new_acts]
+        dispatched_this_turn: list[dict] = []
+        if mode == "staged":
+            for act in new_acts:
+                phys_files = [
+                    resolve_logical(p, prefix_map) for p in act.detected_files
+                ]
+                phys_files = [p for p in phys_files
+                              if Path(p).is_file() and p not in seen_phys]
+                for p in phys_files:
+                    seen_phys.add(p)
+                if not phys_files:
+                    continue
+                hint = DataHint(
+                    detected_files=tuple(phys_files),
+                    tier=1 if len(phys_files) <= 10 else 3,
+                    fired_at_ms=act.fired_at_ms or 0.0,
+                    rule_id=f"turn{turn}:{act.rule_name}",
+                )
+                stager.prefetch(hint)
+                dispatched_this_turn.append({
+                    "rule": act.rule_name, "n_files": len(phys_files)})
+                n_prefetched_total += len(phys_files)
+
+        any_tool = False
+        tool_result_blocks_for_detector: list[StreamBlock] = []
+        for fc in fn_calls:
+            any_tool = True
+            tool_use_count += 1
+            out = execute(fc["name"], fc["args"])
+            tool_use_log.write(json.dumps({
+                "name": fc["name"], "id": fc["id"],
+                "parsed_input": fc["args"]}) + "\n")
+            tool_result_log.write(json.dumps({
+                "tool_use_id": fc["id"], "content": out}) + "\n")
+            if fc["name"] in ("open_file", "read_file"):
+                files_opened.append(fc["args"].get("path", ""))
+            messages.append({
+                "role": "tool", "tool_call_id": fc["id"],
+                "name": fc["name"], "content": out})
+            tool_result_blocks_for_detector.append(StreamBlock(
+                type="tool_result", t_first=0, t_stop=0,
+                text=out, chunks=1, turn=turn))
+
+        if tool_result_blocks_for_detector:
+            tr_acts = session_detector.feed_tool_results(
+                tool_result_blocks_for_detector)
+            for a in tr_acts:
+                fired_rules_this_turn.append(a.rule_name)
+            if mode == "staged" and tr_acts:
+                for act in tr_acts:
+                    phys_files = [
+                        resolve_logical(p, prefix_map) for p in act.detected_files
+                    ]
+                    phys_files = [p for p in phys_files
+                                  if Path(p).is_file() and p not in seen_phys]
+                    for p in phys_files:
+                        seen_phys.add(p)
+                    if not phys_files:
+                        continue
+                    hint = DataHint(
+                        detected_files=tuple(phys_files),
+                        tier=1 if len(phys_files) <= 10 else 3,
+                        fired_at_ms=act.fired_at_ms or 0.0,
+                        rule_id=f"turn{turn}:{act.rule_name}:from_tool_result",
+                    )
+                    stager.prefetch(hint)
+                    dispatched_this_turn.append({
+                        "rule": act.rule_name, "n_files": len(phys_files),
+                        "source": "tool_result"})
+                    n_prefetched_total += len(phys_files)
+
+        thinking_log.close(); text_log.close()
+        tool_use_log.close(); tool_result_log.close()
+
+        turn_elapsed = time.monotonic() - turn_start
+        per_turn.append({
+            "turn": turn, "duration_s": round(turn_elapsed, 3),
+            "n_tool_uses": len(fn_calls),
+            "tool_names": [fc["name"] for fc in fn_calls],
+            "fired_rules": fired_rules_this_turn,
+            "dispatched_prefetches": dispatched_this_turn,
+        })
+
+        sub_path = workspace_dir / "submission.csv"
+        if sub_path.is_file():
+            submitted = True
+            submission_size = sub_path.stat().st_size
+
+        if not any_tool:
+            break
+
+    session_elapsed = time.monotonic() - session_start
+    n_outputs = sum(1 for _ in workspace_dir.rglob("*") if _.is_file()) \
+                if workspace_dir.is_dir() else 0
+
+    if stager is not None:
+        stager.shutdown(wait=True)
+
+    return {
+        "session_elapsed_s": round(session_elapsed, 3),
+        "n_turns": len(per_turn), "n_tool_uses": tool_use_count,
+        "files_opened_logical": files_opened,
+        "submitted": submitted,
+        "submission_bytes": submission_size,
+        "n_workspace_outputs": n_outputs,
+        "n_prefetched_files": n_prefetched_total,
+        "per_turn": per_turn,
+        "shell_io": _aggregate_io(shell_io_log),
+        "shell_io_per_call": shell_io_log,
     }
 
 
@@ -933,6 +1341,8 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--hot-root", default="/dev/shm/agentstage_mlemt")
     parser.add_argument("--max-turns", type=int, default=12)
+    parser.add_argument("--shell-timeout", type=int, default=180,
+                        help="Per-shell-command timeout in seconds")
     args = parser.parse_args()
 
     if not SHIM.is_file():
@@ -971,6 +1381,7 @@ def main() -> int:
             workload=workload, model=args.model, mode=args.mode,
             prompt_mode=args.prompt_mode, out_dir=args.out,
             hot_root=Path(args.hot_root), max_turns=args.max_turns,
+            shell_timeout=args.shell_timeout,
         )
     except Exception as e:
         import traceback

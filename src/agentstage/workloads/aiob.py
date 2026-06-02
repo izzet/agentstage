@@ -99,6 +99,52 @@ _CURATED_TASK_INST: dict[str, str] = {
         "3. result/report.md — sessions processed, unit/trial counts, brain "
         "region coverage, method.\n"
     ),
+    "aiob_201": (
+        "Compute xxh64 data-integrity manifests for the IGSR coverage QC "
+        "dataset. The data team uses xxHash xxh64 (xxhash Python package, "
+        "industry standard adopted by Apache Arrow, DuckDB, and ZSTD for "
+        "fast bulk-integrity checks on large scientific archives). The "
+        "manifests will be diffed against a known-good reference manifest "
+        "to detect any files corrupted during the recent storage migration.\n\n"
+        "For each sample directory under /data/igsr_coverage_qc/raw/data/, "
+        "compute the xxh64 hex digest of every BAM file in that sample's "
+        "exome_alignment/ subdirectory. Also record the file size in bytes "
+        "and the sample identifier.\n\n"
+        "Save result/integrity_manifest.csv with columns: sample, filename, "
+        "size_bytes, xxh64. Sort by sample then filename. Include every BAM "
+        "file in the dataset (do not subsample).\n"
+    ),
+    "aiob_202": (
+        "Compute xxh64 data-integrity manifests for the JWST coadd "
+        "calibrated FITS files in /data/jwst_coadd_catalog/raw/cal/. The "
+        "archive team uses xxHash xxh64 (xxhash Python package, industry "
+        "standard for fast bulk-integrity checks on large astronomical "
+        "archives, similar to the Apache Arrow / DuckDB usage). The "
+        "manifests will be diffed against a known-good reference manifest "
+        "to detect any FITS files corrupted during the recent CRDS pipeline "
+        "rerun.\n\n"
+        "For every *.fits file in /data/jwst_coadd_catalog/raw/cal/, compute "
+        "the xxh64 hex digest of the entire file contents. Also record the "
+        "file size in bytes.\n\n"
+        "Save result/integrity_manifest.csv with columns: filename, "
+        "size_bytes, xxh64. Sort by filename. Include every FITS file in the "
+        "directory (do not subsample).\n"
+    ),
+    "aiob_203": (
+        "Compute xxh64 data-integrity manifests for the Sentinel-2 NDVI "
+        "Level-2A scene archive in /data/sentinel2_ndvi/raw/. The data "
+        "engineering team uses xxHash xxh64 (xxhash Python package, "
+        "industry standard for fast bulk-integrity checks on large "
+        "Earth-observation archives) to verify scene GeoTIFFs after the "
+        "recent ESA mirror sync.\n\n"
+        "For each scene directory under /data/sentinel2_ndvi/raw/, compute "
+        "the xxh64 hex digest of every *.tif file in that scene. Also "
+        "record the file size in bytes and the scene identifier (the parent "
+        "directory name).\n\n"
+        "Save result/integrity_manifest.csv with columns: scene, filename, "
+        "size_bytes, xxh64. Sort by scene then filename. Include every "
+        "GeoTIFF in the archive (do not subsample).\n"
+    ),
 }
 
 
@@ -505,6 +551,162 @@ def load_aiob_110() -> Workload:
 
 
 # ---------------------------------------------------------------------------
+# aiob_201 — IGSR SHA256 integrity manifest (I/O-bound by construction)
+# ---------------------------------------------------------------------------
+# Reuses the aiob_104 IGSR dataset (50 chr20 BAM samples + reference) but
+# changes the task to data-integrity verification. The natural Python
+# solution (`hashlib.sha256()` streaming reads of every BAM) is dominated by
+# byte-level I/O rather than per-record decode/iterate. Measured I/O share
+# under cold cache on the reference solution: 29.6%, max Amdahl mechanism
+# speedup 1.33×. By contrast, aiob_104's per-base coverage histogram task
+# is compute-bound (pysam iteration: 5.7% I/O share, 1.05× max).
+
+def load_aiob_201() -> Workload:
+    """IGSR SHA256 integrity manifest task (Curated). Reuses aiob_104 data."""
+    # Build the TaskConfig directly (no upstream YAML for Curated additions).
+    inst = _CURATED_TASK_INST["aiob_201"]
+    task = TaskConfig(
+        name="aiob_201_igsr_integrity",
+        instance_id=201,
+        domain="genomics",
+        dataset_subdir="igsr_coverage_qc",
+        task_inst=inst,
+        output_fname="integrity_manifest.csv",
+    )
+    real_base = data_root() / task.dataset_subdir / "raw"
+    logical_base = "/data/igsr_coverage_qc/raw"
+
+    workspace_prior: dict[str, tuple[str, ...]] = {
+        "reference": (
+            f"{logical_base}/reference/20130108.exome.targets.bed",
+            f"{logical_base}/reference/human_g1k_v37.fasta.fai",
+            f"{logical_base}/reference/README.human_g1k_v37.fasta.txt",
+        ),
+    }
+    for s in AIOB_104_SAMPLES:
+        d = real_base / "data" / s / "exome_alignment"
+        triplet: list[str] = []
+        if d.is_dir():
+            for f in sorted(p.name for p in d.iterdir()):
+                triplet.append(
+                    f"{logical_base}/data/{s}/exome_alignment/{f}")
+        workspace_prior[f"sample_{s}"] = tuple(triplet)
+    workspace_prior["all_samples"] = tuple(
+        p for s in AIOB_104_SAMPLES
+        for p in workspace_prior.get(f"sample_{s}", ())
+    )
+    workspace_prior["output_manifest"] = (
+        "/output/result/integrity_manifest.csv",)
+
+    gt_full = workspace_prior["all_samples"] + workspace_prior["reference"]
+    # Integrity task touches every BAM equally; first-inspect set is just
+    # a small probe (one sample dir listing).
+    gt_first = workspace_prior.get(f"sample_{AIOB_104_SAMPLES[0]}", ())
+
+    return Workload(
+        task_id="aiob_201",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_full,
+        ground_truth_first_inspect=gt_first,
+        prefix_map=((f"{logical_base}/", f"{real_base}/"),),
+    )
+
+
+# ---------------------------------------------------------------------------
+# aiob_202 — JWST FITS xxh64 integrity (I/O-bound by construction)
+# ---------------------------------------------------------------------------
+
+def load_aiob_202() -> Workload:
+    """JWST coadd FITS xxh64 integrity manifest. ~96 files / 11GB."""
+    inst = _CURATED_TASK_INST["aiob_202"]
+    task = TaskConfig(
+        name="aiob_202_jwst_integrity",
+        instance_id=202,
+        domain="astronomy",
+        dataset_subdir="jwst_coadd_catalog",
+        task_inst=inst,
+        output_fname="integrity_manifest.csv",
+    )
+    real_base = data_root() / task.dataset_subdir / "raw"
+    logical_base = "/data/jwst_coadd_catalog/raw"
+
+    cal_dir = real_base / "cal"
+    fits_files: list[str] = []
+    if cal_dir.is_dir():
+        for f in sorted(cal_dir.iterdir()):
+            if f.suffix.lower() in (".fits", ".fits.gz"):
+                fits_files.append(f"{logical_base}/cal/{f.name}")
+
+    workspace_prior: dict[str, tuple[str, ...]] = {
+        "cal_fits": tuple(fits_files),
+        "output_manifest": ("/output/result/integrity_manifest.csv",),
+    }
+    gt_full = tuple(fits_files)
+    gt_first = tuple(fits_files[:3])
+
+    return Workload(
+        task_id="aiob_202",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_full,
+        ground_truth_first_inspect=gt_first,
+        prefix_map=((f"{logical_base}/", f"{real_base}/"),),
+    )
+
+
+# ---------------------------------------------------------------------------
+# aiob_203 — Sentinel-2 NDVI GeoTIFF xxh64 integrity (I/O-bound)
+# ---------------------------------------------------------------------------
+
+def load_aiob_203() -> Workload:
+    """Sentinel-2 NDVI scene GeoTIFF xxh64 integrity manifest.
+    ~16 scenes × 5 bands = 80 files / 14GB."""
+    inst = _CURATED_TASK_INST["aiob_203"]
+    task = TaskConfig(
+        name="aiob_203_sentinel2_integrity",
+        instance_id=203,
+        domain="earth_observation",
+        dataset_subdir="sentinel2_ndvi",
+        task_inst=inst,
+        output_fname="integrity_manifest.csv",
+    )
+    real_base = data_root() / task.dataset_subdir / "raw"
+    logical_base = "/data/sentinel2_ndvi/raw"
+
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    all_files: list[str] = []
+    if real_base.is_dir():
+        for scene_dir in sorted(real_base.iterdir()):
+            if not scene_dir.is_dir():
+                continue
+            scene = scene_dir.name
+            tif_files: list[str] = []
+            for f in sorted(scene_dir.iterdir()):
+                if f.suffix.lower() in (".tif", ".tiff"):
+                    tif_files.append(f"{logical_base}/{scene}/{f.name}")
+            workspace_prior[f"scene_{scene}"] = tuple(tif_files)
+            all_files.extend(tif_files)
+    workspace_prior["all_scenes"] = tuple(all_files)
+    workspace_prior["output_manifest"] = (
+        "/output/result/integrity_manifest.csv",)
+
+    gt_full = tuple(all_files)
+    # First scene as the typical inspect target
+    first_scene_key = next((k for k in workspace_prior if k.startswith("scene_")), None)
+    gt_first = workspace_prior.get(first_scene_key, ()) if first_scene_key else ()
+
+    return Workload(
+        task_id="aiob_203",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_full,
+        ground_truth_first_inspect=gt_first,
+        prefix_map=((f"{logical_base}/", f"{real_base}/"),),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -514,6 +716,9 @@ ALL_AIOB_WORKLOADS: dict[str, "callable[[], Workload]"] = {
     "aiob_104": load_aiob_104,
     "aiob_107": load_aiob_107,
     "aiob_110": load_aiob_110,
+    "aiob_201": load_aiob_201,
+    "aiob_202": load_aiob_202,
+    "aiob_203": load_aiob_203,
 }
 
 

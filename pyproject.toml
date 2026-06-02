@@ -10,6 +10,7 @@ dependencies = [
     "agentiobench",
     "anthropic>=0.103.1",
     "google-genai>=2.5.0",
+    "xxhash>=3.7.0",
 ]
 
 [dependency-groups]
