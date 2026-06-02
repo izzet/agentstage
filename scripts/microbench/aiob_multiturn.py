@@ -587,6 +587,12 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
         thinking_log = (turn_dir / "thinking.jsonl").open("w")
         text_log = (turn_dir / "text.jsonl").open("w")
         tool_use_log = (turn_dir / "tool_use.jsonl").open("w")
+        # New: per-delta log for tool_use streaming (input_json_delta).
+        # Captures the per-token streaming time of tool_use block content
+        # (e.g. write_file content). Previously invisible — appeared as
+        # "harness overhead" in per-turn decomposition but is really LLM
+        # streaming time.
+        tool_use_stream_log = (turn_dir / "tool_use_stream.jsonl").open("w")
         tool_result_log = (turn_dir / "tool_result.jsonl").open("w")
         turn_start = time.monotonic()
         stream_started_ms = turn_start * 1000
@@ -615,6 +621,14 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
                     piece = getattr(d, "text", "")
                     if piece:
                         text_log.write(json.dumps({
+                            "t_ms": round(t_ms, 1), "block": idx,
+                            "delta": piece}) + "\n")
+                elif dt == "input_json_delta":
+                    # Tool_use block input streaming (the partial JSON of
+                    # the tool's input arg, character-by-character).
+                    piece = getattr(d, "partial_json", "")
+                    if piece:
+                        tool_use_stream_log.write(json.dumps({
                             "t_ms": round(t_ms, 1), "block": idx,
                             "delta": piece}) + "\n")
             final = stream.get_final_message()
@@ -697,6 +711,7 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
 
         thinking_log.close(); text_log.close()
         tool_use_log.close(); tool_result_log.close()
+        tool_use_stream_log.close()
 
         turn_elapsed = time.monotonic() - turn_start
         per_turn.append({
