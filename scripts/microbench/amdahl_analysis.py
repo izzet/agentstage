@@ -56,14 +56,41 @@ MODEL_LABEL = {
 }
 
 
-# Paper-grade canonical campaigns (n=3 cells we cite in the paper).
-# Each cell appears in only ONE of these to avoid double-counting.
-PAPER_GRADE_CAMPAIGNS = {
-    "AIOB": ["qwen_v2_aiob", "aiob_haiku_sonnet_fill", "flash_aiob_full",
-             "aiob_full_27cell"],
-    "MLE":  ["qwen_v2_mle", "mle_integrity_3model", "flash_mle_integrity"],
-    "KB":   ["qwen_v2_kb", "kb_full_3model", "flash_kb_inventory"],
-    "DSB":  ["qwen_v2_dsb", "dsbench_tabular_full", "flash_dsb_tabular"],
+# Paper-grade 72-cell canonical mapping: (task, model) -> (campaign, n=3).
+# This is the EXACT set of cells cited in the paper. Each (task, model)
+# pair has exactly one canonical campaign source. The script filters to
+# this set so the Amdahl R^2 / per-bench / per-model numbers reproduce
+# exactly when readers run the analysis against the published artifacts.
+PAPER_GRADE_CELLS = {
+    # ─── Curated AIOB (3 tasks × 4 models × n=3 = 36 cells) ───
+    ("aiob_201", "claude-haiku-4-5"):  ["aiob_haiku_sonnet_fill"],
+    ("aiob_201", "claude-sonnet-4-5"): ["aiob_haiku_sonnet_fill"],
+    ("aiob_201", "gemini-2.5-flash"):  ["flash_aiob_campaign"],
+    ("aiob_201", "Qwen/Qwen3.6-27B"):  ["qwen_v2_aiob"],
+    ("aiob_202", "claude-haiku-4-5"):  ["aiob_haiku_sonnet_fill"],
+    ("aiob_202", "claude-sonnet-4-5"): ["aiob_haiku_sonnet_fill"],
+    ("aiob_202", "gemini-2.5-flash"):  ["flash_aiob_campaign"],
+    ("aiob_202", "Qwen/Qwen3.6-27B"):  ["qwen_v2_aiob"],
+    ("aiob_205", "claude-haiku-4-5"):  ["aiob_205_3x3"],
+    ("aiob_205", "claude-sonnet-4-5"): ["aiob_205_3x3"],
+    ("aiob_205", "gemini-2.5-flash"):  ["flash_aiob_campaign"],
+    ("aiob_205", "Qwen/Qwen3.6-27B"):  ["qwen_v2_aiob"],
+    # ─── Community (3 benchmarks × 1 task × 4 models × n=3 = 36 cells) ───
+    # MLE: dogvscats thumbhash (all 4 models)
+    ("mle_dogsvcats_thumbhash", "claude-haiku-4-5"):  ["haiku_flash_v2_dogvscats_thumbhash"],
+    ("mle_dogsvcats_thumbhash", "claude-sonnet-4-5"): ["sonnet_v2_dogvscats_thumbhash"],
+    ("mle_dogsvcats_thumbhash", "gemini-2.5-flash"):  ["haiku_flash_v2_dogvscats_thumbhash"],
+    ("mle_dogsvcats_thumbhash", "Qwen/Qwen3.6-27B"):  ["qwen_v2_dogvscats_thumbhash"],
+    # KB: astronomy inventory (Haiku reps spread across two OrangeFS campaigns)
+    ("kb_astronomy_inventory", "claude-haiku-4-5"):  ["kb_astronomy_inventory_v2_pilot", "kb_astronomy_rep3"],
+    ("kb_astronomy_inventory", "claude-sonnet-4-5"): ["kb_astronomy_sonnet_x3"],
+    ("kb_astronomy_inventory", "gemini-2.5-flash"):  ["kb_astronomy_flash_x3"],
+    ("kb_astronomy_inventory", "Qwen/Qwen3.6-27B"):  ["qwen_v2_kb"],
+    # DSB: tabular oct-2021 (Haiku reps spread across pilot + rep3)
+    ("tabular-playground-series-oct-2021", "claude-haiku-4-5"):  ["dsb_tabular_oct2021_pilot", "dsb_tabular_oct2021_rep3"],
+    ("tabular-playground-series-oct-2021", "claude-sonnet-4-5"): ["dsb_tabular_sonnet_x3"],
+    ("tabular-playground-series-oct-2021", "gemini-2.5-flash"):  ["dsb_tabular_flash_x3"],
+    ("tabular-playground-series-oct-2021", "Qwen/Qwen3.6-27B"):  ["qwen_v2_dsb"],
 }
 
 
@@ -130,20 +157,105 @@ def main():
         print("No cells found.")
         return
 
-    # Deduplicate: prefer the v2/canonical campaign per (bench,task,model,rep).
-    # Skip exploratory cells with no clean rep numbering.
-    seen = {}
+    # Filter to PAPER_GRADE_CELLS only. For each (task, model_full) pair
+    # in the map, take up to 3 reps from the listed canonical campaigns.
+    # Anything outside this set is exploratory and excluded from the
+    # paper-cited numbers.
+    by_cell = defaultdict(list)
     for r in rows:
-        key = (r["bench"], r["task"], r["model"], r["rep"])
-        # Prefer v2 campaigns or those starting with most-recent
-        priority = (
-            0 if r["campaign"].startswith("qwen_v2_") else
-            1 if "fill" in r["campaign"] or "full" in r["campaign"] else
-            2
-        )
-        if key not in seen or priority < seen[key][0]:
-            seen[key] = (priority, r)
-    canonical = [v[1] for v in seen.values()]
+        # Need full model name (not normalized label) to match PAPER_GRADE_CELLS keys
+        # — find it from the original row
+        pass
+    # Rebuild: re-read raw results.json with full model names so we can match keys
+    canonical = []
+    cells_filled = set()
+    for f in sorted(glob.glob("outputs/replay/*/results.json")):
+        camp = Path(f).parent.name
+        if camp.startswith("_"):
+            continue
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        for r in d:
+            if "cold_elapsed_s" not in r or "staged_elapsed_s" not in r:
+                continue
+            if r.get("staged_elapsed_s") is None or r.get("cold_elapsed_s") is None:
+                continue
+            csh = r.get("cold_shell_elapsed_s")
+            ssh = r.get("staged_shell_elapsed_s")
+            if csh is None or ssh is None:
+                continue
+            key = (r["task"], r["model"])
+            if key not in PAPER_GRADE_CELLS:
+                continue
+            if camp not in PAPER_GRADE_CELLS[key]:
+                continue
+            # Cap at 3 reps per cell
+            n_existing = sum(1 for c in canonical
+                             if (c["task"], c["model_full"]) == key)
+            if n_existing >= 3:
+                continue
+            cold = r["cold_elapsed_s"]
+            stg = r["staged_elapsed_s"]
+            session_sp = cold / stg
+            # Degenerate trajectories where the agent did not invoke any
+            # shell tool (shell time = 0 in both modes) are degenerate
+            # measurements of AgentStage — the session is pure LLM streaming.
+            # Treat as shell_sp=1.0, ceiling=1.0 so the Amdahl framework
+            # trivially predicts session_sp ≈ 1.0 (which is what we observe).
+            degenerate = (csh == 0 and ssh == 0)
+            if degenerate:
+                shell_sp = 1.0
+                shell_share = 0.0
+                io_share = 0.0
+                ceiling = 1.0
+                efficiency = session_sp / 1.0
+            elif ssh > 0:
+                shell_sp = csh / ssh
+                shell_share = csh / cold if cold > 0 else 0.0
+                io_share = max(0.0, 1.0 - 1.0 / shell_sp) if shell_sp > 1 else 0.0
+                denom = (1.0 - shell_share * io_share * (1.0 - 1.0 / shell_sp)
+                         if shell_sp > 1 else 1.0)
+                ceiling = 1.0 / denom if denom > 0 else float("inf")
+                efficiency = (session_sp / ceiling
+                              if ceiling > 0 and not math.isinf(ceiling) else 0.0)
+            else:
+                continue  # ssh=0 but csh>0 is malformed; skip
+            canonical.append({
+                "campaign": camp,
+                "cell": r["cell"],
+                "bench": bench_of(r["task"]),
+                "task": r["task"],
+                "model": MODEL_LABEL.get(r["model"], r["model"][:15]),
+                "model_full": r["model"],
+                "rep": r.get("rep"),
+                "baseline_elapsed_s": r.get("baseline_elapsed_s"),
+                "cold_elapsed_s": cold,
+                "staged_elapsed_s": stg,
+                "cold_shell_elapsed_s": csh,
+                "staged_shell_elapsed_s": ssh,
+                "session_sp": session_sp,
+                "shell_sp": shell_sp,
+                "shell_share": shell_share,
+                "io_share_proxy": io_share,
+                "amdahl_ceiling": ceiling,
+                "efficiency_vs_ceiling": efficiency,
+                "n_prefetched_staged": r.get("n_prefetched_staged", 0),
+            })
+    # Audit coverage
+    coverage = defaultdict(int)
+    for c in canonical:
+        coverage[(c["task"], c["model_full"])] += 1
+    missing = []
+    for key in PAPER_GRADE_CELLS:
+        if coverage.get(key, 0) < 3:
+            missing.append((key, coverage.get(key, 0)))
+    if missing:
+        print(f"⚠ Incomplete paper-grade coverage: {len(missing)} cell(s) below n=3")
+        for (task, model), n in missing:
+            print(f"    {task} × {model}: n={n}")
+        print()
 
     # Print per-cell table
     canonical.sort(key=lambda r: (r["bench"], r["task"], r["model"], r["rep"] or 0))
