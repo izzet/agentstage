@@ -30,26 +30,53 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-MULTITURN = REPO / "scripts" / "microbench" / "aiob_multiturn.py"
 REPLAY = REPO / "scripts" / "microbench" / "replay_session.py"
+MULTITURN_BY_BENCH = {
+    "aiob": REPO / "scripts" / "microbench" / "aiob_multiturn.py",
+    "mlebench": REPO / "scripts" / "microbench" / "mlebench_multiturn.py",
+    "dsbench": REPO / "scripts" / "microbench" / "dsbench_multiturn.py",
+}
+# replay_session.py auto-detects bench from the session path: it looks
+# for a path component matching <bench>_mt. So baselines must be placed
+# under outputs/<bench>_mt/_sweep_<name>/<cell>/ for replay to dispatch
+# to the right make_tool_executor.
+LIVE_ROOT_BY_BENCH = {
+    "aiob": "outputs/aiob_mt",
+    "mlebench": "outputs/mlebench_mt",
+    "dsbench": "outputs/dsbench_mt",
+}
 
 
-def run_live_baseline(task: str, model: str, out_dir: Path,
-                       hot_root: Path) -> dict:
-    """Run a fresh live baseline LLM session."""
+def run_live_baseline(bench: str, task: str, model: str, out_dir: Path,
+                       hot_root: Path, timeout_s: int = 1500) -> dict:
+    """Run a fresh live baseline LLM session via the bench-specific runner.
+
+    `timeout_s` (default 25 min) is a hard subprocess timeout. Without it,
+    a hung LLM stream (e.g. OSS Qwen via vLLM that stalls mid-stream) can
+    block the entire campaign indefinitely. On timeout the subprocess is
+    killed and the cell is marked errored.
+    """
     if out_dir.exists():
         shutil.rmtree(out_dir)
-    proc = subprocess.run(
-        ["uv", "run", "python", str(MULTITURN),
-         "--task", task,
-         "--model", model,
-         "--mode", "baseline",
-         "--out", str(out_dir),
-         "--hot-root", str(hot_root),
-         "--max-turns", "12"],
-        cwd=str(REPO),
-        capture_output=True, text=True,
-    )
+    multiturn = MULTITURN_BY_BENCH[bench]
+    try:
+        proc = subprocess.run(
+            ["uv", "run", "python", str(multiturn),
+             "--task", task,
+             "--model", model,
+             "--mode", "baseline",
+             "--out", str(out_dir),
+             "--hot-root", str(hot_root),
+             "--max-turns", "12"],
+            cwd=str(REPO),
+            capture_output=True, text=True,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired as e:
+        return {"error": f"baseline timeout after {timeout_s}s "
+                          "(likely hung LLM stream)",
+                "stderr_tail": (e.stderr or b"")[-2000:].decode(errors='replace')
+                                if e.stderr else ""}
     if proc.returncode != 0:
         return {"error": "live failed", "rc": proc.returncode,
                 "stderr_tail": proc.stderr[-2000:]}
@@ -71,15 +98,21 @@ def run_replay(session_dir: Path, mode: str, out_path: Path,
     if mode == "staged" and free < 18 * 1024**3:
         return {"error": f"/dev/shm only {free/1e9:.1f}GB free, need >=18GB"}
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
-        ["uv", "run", "python", str(REPLAY),
-         "--session", str(session_dir),
-         "--mode", mode,
-         "--out", str(out_path),
-         "--hot-root", str(hot_root)],
-        cwd=str(REPO),
-        capture_output=True, text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["uv", "run", "python", str(REPLAY),
+             "--session", str(session_dir),
+             "--mode", mode,
+             "--out", str(out_path),
+             "--hot-root", str(hot_root)],
+            cwd=str(REPO),
+            capture_output=True, text=True,
+            timeout=1200,  # 20 min hard cap per replay
+        )
+    except subprocess.TimeoutExpired as e:
+        return {"error": "replay timeout after 1200s",
+                "stderr_tail": (e.stderr or b"")[-2000:].decode(errors='replace')
+                                if e.stderr else ""}
     if proc.returncode != 0 or not out_path.exists():
         return {"error": "replay failed", "rc": proc.returncode,
                 "stderr_tail": proc.stderr[-2000:]}
@@ -90,14 +123,20 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--campaign-name", required=True,
                     help="Subdir name under outputs/replay/")
+    ap.add_argument("--bench", default="aiob",
+                    choices=list(MULTITURN_BY_BENCH.keys()),
+                    help="Which bench's multiturn runner to invoke for "
+                         "live baselines. Replay auto-detects from path.")
     ap.add_argument("--tasks", nargs="+", required=True,
                     help="Task IDs (e.g., aiob_201 aiob_202)")
     ap.add_argument("--models", nargs="+", required=True,
                     help="Model names (e.g., claude-haiku-4-5)")
     ap.add_argument("--reps", type=int, default=2,
                     help="Reps per (task, model) cell")
-    ap.add_argument("--live-out-root", default="outputs/aiob_mt",
-                    help="Root for live baseline sessions")
+    ap.add_argument("--live-out-root", default=None,
+                    help="Root for live baseline sessions (default: "
+                         "auto-pick per --bench so replay_session can "
+                         "auto-detect the bench from session path)")
     ap.add_argument("--replay-out-root", default="outputs/replay",
                     help="Root for replay outputs")
     ap.add_argument("--hot-root-live",
@@ -110,7 +149,10 @@ def main() -> int:
                     help="Reuse existing baseline dirs if present (faster reruns)")
     args = ap.parse_args()
 
-    live_root = Path(args.live_out_root) / f"_sweep_{args.campaign_name}"
+    live_out_root = (args.live_out_root
+                     if args.live_out_root
+                     else LIVE_ROOT_BY_BENCH[args.bench])
+    live_root = Path(live_out_root) / f"_sweep_{args.campaign_name}"
     replay_root = Path(args.replay_out_root) / args.campaign_name
     live_root.mkdir(parents=True, exist_ok=True)
     replay_root.mkdir(parents=True, exist_ok=True)
@@ -142,7 +184,8 @@ def main() -> int:
             print(f"  [baseline] running live LLM session...", flush=True)
             t0 = time.monotonic()
             baseline_summary = run_live_baseline(
-                task, model, baseline_dir, Path(args.hot_root_live))
+                args.bench, task, model, baseline_dir,
+                Path(args.hot_root_live))
             wall = time.monotonic() - t0
             if "error" in baseline_summary:
                 print(f"  [baseline] ERROR: {baseline_summary['error']}", flush=True)

@@ -61,7 +61,7 @@ from agentstage.detector.engine import StreamBlock  # noqa: E402
 from agentstage.detector.session import SessionDetector  # noqa: E402
 from agentstage.stager import DataHint, Stager  # noqa: E402
 from agentstage.workloads.mlebench import (  # noqa: E402
-    MLEWorkload, load_mle_competition,
+    MLEWorkload, load_mle_competition, load_mle_competition_dispatch,
 )
 
 REPO = Path(__file__).resolve().parents[2]
@@ -185,12 +185,28 @@ def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
             pass
         return out
 
+    # Sorted prefix list, longest-first, so multi-entry prefix_maps
+    # resolve correctly even if one prefix is a substring of another.
+    _sorted_prefixes = sorted(prefix_map, key=lambda x: -len(x[0]))
+
     def _resolve(path: str) -> tuple[str, bool]:
+        # Auto-fix: treat relative paths (no leading /) as workspace-relative
+        # so agents don't burn an LLM turn learning the path convention.
+        if path and not path.startswith("/"):
+            path = "/workspace/" + path
         if path.startswith("/data/") or path == "/data":
-            phys = resolve_logical(path, prefix_map)
-            if not phys.startswith(data_phys_root):
-                rel = path[len(log_root)+1:] if path.startswith(log_root) else ""
-                phys = f"{data_phys_root}/{rel}" if rel else data_phys_root
+            for log_pre, real_pre in _sorted_prefixes:
+                log_root_p = log_pre.rstrip("/")
+                real_root_p = real_pre.rstrip("/")
+                if path == log_root_p:
+                    return real_root_p, True
+                if path.startswith(log_pre):
+                    rel = path[len(log_pre):]
+                    phys = f"{real_root_p}/{rel}" if rel else real_root_p
+                    return phys, True
+            # No prefix match — fall back to first prefix's real root.
+            rel = path[len(log_root)+1:] if path.startswith(log_root) else ""
+            phys = f"{data_phys_root}/{rel}" if rel else data_phys_root
             return phys, phys.startswith(data_phys_root)
         if path.startswith("/workspace/") or path == "/workspace":
             rel = path[len("/workspace"):].lstrip("/")
@@ -272,6 +288,10 @@ def make_tool_executor(workload: MLEWorkload, workspace_dir: Path,
                 env["AGENTSTAGE_HOT_ROOT"] = str(hot_root)
                 env["AGENTSTAGE_COLD_ROOTS"] = cold_root
                 env["AGENTSTAGE_RETRY_SPIN_MS"] = "0"
+                # Tiered hot: propagate overflow root if set.
+                _ovr = os.environ.get("AGENTSTAGE_HOT_OVERFLOW")
+                if _ovr:
+                    env["AGENTSTAGE_HOT_OVERFLOW"] = _ovr
             else:
                 env.pop("LD_PRELOAD", None)
                 env["AGENTSTAGE_SHIM_DISABLE"] = "1"
@@ -410,9 +430,14 @@ def _run_session_anthropic(*, workload: MLEWorkload, model: str, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _ovr = os.environ.get("AGENTSTAGE_HOT_OVERFLOW") or None
+        _cap_gb = os.environ.get("AGENTSTAGE_HOT_PRIMARY_CAP_GB")
+        _cap = int(float(_cap_gb) * 1024**3) if _cap_gb else None
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
             max_workers=4, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_ovr,
+            hot_primary_capacity_bytes=_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"
@@ -458,6 +483,16 @@ def _run_session_anthropic(*, workload: MLEWorkload, model: str, mode: str,
         "You are a Kaggle competition agent. You are solving an "
         "MLE-bench task, where the goal is to produce a valid "
         "submission.csv in the format described by the competition.\n"
+        "\n"
+        "You are an agent: keep going until the task is fully complete, before\n"
+        "ending your turn. The task is complete ONLY when 'submission.csv'\n"
+        "exists in your CWD and is valid (non-empty, columns match the\n"
+        "competition's sample_submission, plausible values). Do NOT stop after\n"
+        "inspecting the data; produce the submission file.\n"
+        "\n"
+        "If unsure about file structure or contents, use your tools to read;\n"
+        "do NOT guess. Be skeptical of nan / empty / 0-row intermediate\n"
+        "results.\n"
         "\n"
         "Workspace layout:\n"
         f"  data/{cid}/                  — competition files (read-only)\n"
@@ -738,9 +773,14 @@ def _run_session_gemini(*, workload: MLEWorkload, model: str, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _ovr = os.environ.get("AGENTSTAGE_HOT_OVERFLOW") or None
+        _cap_gb = os.environ.get("AGENTSTAGE_HOT_PRIMARY_CAP_GB")
+        _cap = int(float(_cap_gb) * 1024**3) if _cap_gb else None
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
             max_workers=4, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_ovr,
+            hot_primary_capacity_bytes=_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"
@@ -777,7 +817,13 @@ def _run_session_gemini(*, workload: MLEWorkload, model: str, mode: str,
         )
 
     system_msg = (
-        "You are a Kaggle competition agent solving an MLE-bench task. "
+        "You are a Kaggle competition agent solving an MLE-bench task.\n"
+        "You are an agent: keep going until the task is fully complete. The task is "
+        "complete ONLY when 'submission.csv' exists and is valid (non-empty, columns "
+        "match the sample_submission, plausible values). Do NOT stop after exploring "
+        "the data; produce the submission. If unsure about file contents, use tools "
+        "to read; do NOT guess. Be skeptical of nan / empty / 0-row intermediate "
+        "results.\n"
         f"Workspace layout: data/{cid}/ for inputs (read-only); CWD is /workspace/. "
         f"Use list_dir/open_file to inspect, write_file to save solution.py, "
         f"run_shell_command 'python solution.py' to execute. Shell commands "
@@ -1013,10 +1059,15 @@ def _run_session_oss(*, workload: MLEWorkload, model: str, mode: str,
                      hot_root: Path, max_turns: int = 12,
                      shell_timeout: int = 180) -> dict:
     from openai import OpenAI
+    import httpx
 
     base_url = os.environ.get("OSS_MODEL_BASE_URL", "http://localhost:8002/v1")
     api_key = os.environ.get("OSS_MODEL_API_KEY", "EMPTY")
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=600)
+    # Per-phase httpx timeouts kill stuck Qwen streams (vLLM stall) fast.
+    client = OpenAI(
+        base_url=base_url, api_key=api_key,
+        timeout=httpx.Timeout(300.0, connect=10.0, read=60.0, write=10.0),
+    )
 
     prefix_map = workload.prefix_map
     data_phys_root = prefix_map[0][1].rstrip("/")
@@ -1036,9 +1087,14 @@ def _run_session_oss(*, workload: MLEWorkload, model: str, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _ovr = os.environ.get("AGENTSTAGE_HOT_OVERFLOW") or None
+        _cap_gb = os.environ.get("AGENTSTAGE_HOT_PRIMARY_CAP_GB")
+        _cap = int(float(_cap_gb) * 1024**3) if _cap_gb else None
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
             max_workers=4, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_ovr,
+            hot_primary_capacity_bytes=_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"
@@ -1071,6 +1127,14 @@ def _run_session_oss(*, workload: MLEWorkload, model: str, mode: str,
         )
     system_msg = (
         "You are a Kaggle competition agent solving an MLE-bench task.\n"
+        "\n"
+        "You are an agent: keep going until the task is fully complete, before\n"
+        "ending your turn. The task is complete ONLY when 'submission.csv'\n"
+        "exists in your CWD and is valid (non-empty, columns match the\n"
+        "competition's sample_submission, plausible values). Do NOT stop after\n"
+        "inspecting the data; produce the submission. If unsure about file\n"
+        "contents, use tools to read; do NOT guess. Be skeptical of nan /\n"
+        "empty / 0-row intermediate results.\n"
         "\n"
         "Path conventions (READ CAREFULLY):\n"
         f"  • Tools (list_dir, open_file, write_file) take ABSOLUTE LOGICAL paths:\n"
@@ -1350,7 +1414,7 @@ def main() -> int:
         return 2
 
     args.out.mkdir(parents=True, exist_ok=True)
-    workload = load_mle_competition(args.task)
+    workload = load_mle_competition_dispatch(args.task)
     prefix_map = workload.prefix_map
     data_phys_root = prefix_map[0][1].rstrip("/")
 

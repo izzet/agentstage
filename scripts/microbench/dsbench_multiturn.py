@@ -197,6 +197,10 @@ def make_tool_executor(workload: DSBWorkload, workspace_dir: Path,
 
     def _resolve(path: str) -> tuple[str, bool]:
         """Returns (physical_path, allowed)."""
+        # Auto-fix relative paths to workspace-relative so the agent doesn't
+        # burn an LLM turn learning the path convention.
+        if path and not path.startswith("/"):
+            path = "/workspace/" + path
         if path.startswith("/data/") or path == "/data":
             phys = resolve_logical(path, prefix_map)
             if not phys.startswith(data_phys_root):
@@ -467,6 +471,16 @@ def _run_session_anthropic(*, workload: DSBWorkload, model: str, mode: str,
     tid = workload.task.task_id
     system_msg = (
         "You are a data-science agent solving a Kaggle-style modeling task.\n"
+        "\n"
+        "You are an agent: keep going until the task is fully complete, before\n"
+        "ending your turn. The task is complete ONLY when 'submission.csv'\n"
+        "exists in your CWD and is valid (non-empty, columns matching the\n"
+        "sample submission, plausible values). Do NOT stop after inspecting\n"
+        "the data; produce the submission file.\n"
+        "\n"
+        "If you are unsure about file structure or contents, use your tools to\n"
+        "read files; do NOT guess. Be skeptical of intermediate results:\n"
+        "investigate empty arrays / nan / 0-row outputs before submitting.\n"
         "\n"
         "Workspace layout:\n"
         f"  data/{tid}/train.csv               — training data\n"
@@ -802,6 +816,11 @@ def _run_session_gemini(*, workload: DSBWorkload, model: str, mode: str,
 
     system_msg = (
         "You are a data-science agent solving a Kaggle-style modeling task.\n"
+        "You are an agent: keep going until the task is fully complete. The task is "
+        "complete ONLY when 'submission.csv' exists and is valid (non-empty, columns "
+        "match sample, plausible values). Do NOT stop after exploring the data; "
+        "produce the submission. If unsure about file contents, use tools to read; "
+        "do NOT guess. Be skeptical of nan / empty / 0-row intermediate results.\n"
         f"Workspace layout: data/{tid}/ for inputs (read-only), CWD is /workspace/. "
         f"Tools: list_dir, open_file, read_file, write_file, run_shell_command. "
         f"Save your final output as relative path 'submission.csv'. Pre-installed: "
@@ -1022,10 +1041,15 @@ def _run_session_oss(*, workload: DSBWorkload, model: str, mode: str,
                      hot_root: Path, max_turns: int = 12,
                      shell_timeout: int = 180) -> dict:
     from openai import OpenAI
+    import httpx
 
     base_url = os.environ.get("OSS_MODEL_BASE_URL", "http://localhost:8002/v1")
     api_key = os.environ.get("OSS_MODEL_API_KEY", "EMPTY")
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=600)
+    # Per-phase httpx timeouts kill stuck Qwen streams (vLLM stall) fast.
+    client = OpenAI(
+        base_url=base_url, api_key=api_key,
+        timeout=httpx.Timeout(300.0, connect=10.0, read=60.0, write=10.0),
+    )
 
     prefix_map = workload.prefix_map
     data_phys_root = prefix_map[0][1].rstrip("/")
@@ -1081,6 +1105,14 @@ def _run_session_oss(*, workload: DSBWorkload, model: str, mode: str,
         )
     system_msg = (
         "You are a data-science agent solving a Kaggle-style modeling task.\n"
+        "\n"
+        "You are an agent: keep going until the task is fully complete, before\n"
+        "ending your turn. The task is complete ONLY when 'submission.csv'\n"
+        "exists in your CWD and is valid (non-empty, columns match the sample\n"
+        "submission, plausible values). Do NOT stop after inspecting the data;\n"
+        "produce the submission. If unsure about file contents, use tools to\n"
+        "read; do NOT guess. Be skeptical of nan / empty / 0-row intermediate\n"
+        "results.\n"
         "\n"
         "Path conventions (READ CAREFULLY):\n"
         f"  • Tools (list_dir, open_file, write_file) take ABSOLUTE LOGICAL paths:\n"

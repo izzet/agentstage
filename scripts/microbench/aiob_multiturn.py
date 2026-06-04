@@ -67,7 +67,21 @@ from agentstage.detector.session import SessionDetector  # noqa: E402
 from agentstage.stager import DataHint, Stager  # noqa: E402
 from agentstage.workloads.aiob import (  # noqa: E402
     Workload, load_aiob_103, load_aiob_104, load_aiob_107, load_aiob_110,
-    load_aiob_201, load_aiob_202, load_aiob_203,
+    load_aiob_201, load_aiob_202, load_aiob_203, load_aiob_204, load_aiob_205,
+)
+# KramaWorkload + DSBWorkload + MLEWorkload are all interface-compatible
+# (.task_id, .task.task_inst, .workspace_prior, .ground_truth_full,
+# .prefix_map). The AIOB runner can drive any of them — that's how
+# cross-benchmark integrity-manifest tasks get unified through one
+# runner with proper multi-prefix support.
+from agentstage.workloads.kramabench import (  # noqa: E402
+    load_kb_astronomy_inventory, load_kb_wildfire_inventory,
+)
+from agentstage.workloads.dsbench import (  # noqa: E402
+    load_dsbench_integrity_manifest, load_dsbench_integrity_single,
+)
+from agentstage.workloads.mlebench import (  # noqa: E402
+    load_mle_integrity_manifest, load_mle_dogsvcats_integrity,
 )
 
 REPO = Path(__file__).resolve().parents[2]
@@ -76,8 +90,22 @@ SHIM = (REPO / "src" / "agentstage" / "stager" / "shim"
 
 # Cap per-rule prefetch size — AIOB buckets can have 1000+ files
 # (band_08 NetCDFs etc). Prefetching all of them would blow past any
-# reasoning slack. Same policy as path_b_multiturn.py.
-STAGER_BUCKET_CAP = 200
+# reasoning slack. Same policy as path_b_multiturn.py. Override via env
+# for workloads (e.g. KramaBench data-inventory) where the whole archive
+# really does need staging.
+STAGER_BUCKET_CAP = int(os.environ.get("STAGER_BUCKET_CAP", "200"))
+
+
+def _tiered_hot_env() -> tuple[str | None, int | None]:
+    """Read tiered-hot env vars set by the campaign script.
+      AGENTSTAGE_HOT_OVERFLOW        — secondary hot root path (e.g. /mnt/nvme/.../hot_overflow)
+      AGENTSTAGE_HOT_PRIMARY_CAP_GB  — primary-tier cap in GB before files spill to overflow
+    Returns (overflow_root, primary_cap_bytes) — either may be None.
+    """
+    overflow = os.environ.get("AGENTSTAGE_HOT_OVERFLOW") or None
+    cap_gb = os.environ.get("AGENTSTAGE_HOT_PRIMARY_CAP_GB")
+    cap = int(float(cap_gb) * 1024**3) if cap_gb else None
+    return overflow, cap
 
 
 def _aggregate_io(shell_io_log: "list[dict]") -> dict:
@@ -115,6 +143,14 @@ TASK_LOADERS = {
     "aiob_201": load_aiob_201,
     "aiob_202": load_aiob_202,
     "aiob_203": load_aiob_203,
+    "aiob_204": load_aiob_204,
+    "aiob_205": load_aiob_205,
+    "kb_astronomy_inventory": load_kb_astronomy_inventory,
+    "kb_wildfire_inventory": load_kb_wildfire_inventory,
+    "dsb_integrity_manifest": load_dsbench_integrity_manifest,
+    "dsb_integrity_single": load_dsbench_integrity_single,
+    "mle_integrity_manifest": load_mle_integrity_manifest,
+    "mle_dogsvcats_integrity": load_mle_dogsvcats_integrity,
 }
 
 
@@ -225,6 +261,11 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
             pass
         return out
 
+    # Sorted prefix list, longest-first, so multi-entry prefix_maps (e.g.
+    # /data/<dataset>/ + /data/agentstage_tools/) resolve to the right
+    # real path even when one prefix is a substring of another.
+    _sorted_prefixes = sorted(prefix_map, key=lambda x: -len(x[0]))
+
     def _resolve(path: str) -> tuple[str, bool]:
         # Auto-fix: treat relative paths (no leading /) as workspace-relative.
         # Agents otherwise burn a turn learning "use absolute /workspace/X" the
@@ -236,10 +277,18 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
         if path and not path.startswith("/"):
             path = "/workspace/" + path
         if path.startswith("/data/") or path == "/data":
-            phys = resolve_logical(path, prefix_map)
-            if phys.startswith(data_phys_root):
-                return phys, True
-            # Fallback: cold_root + relative
+            for log_pre, real_pre in _sorted_prefixes:
+                log_root_p = log_pre.rstrip("/")
+                real_root_p = real_pre.rstrip("/")
+                if path == log_root_p:
+                    return real_root_p, True
+                if path.startswith(log_pre):
+                    rel = path[len(log_pre):]
+                    phys = f"{real_root_p}/{rel}" if rel else real_root_p
+                    return phys, True
+            # No prefix match — fall back to first prefix's real root for
+            # back-compat with single-prefix workloads (preserves earlier
+            # behaviour for malformed paths under the canonical dataset).
             rel = path[len(log_root)+1:] if path.startswith(log_root) else ""
             phys = f"{data_phys_root}/{rel}" if rel else data_phys_root
             return phys, phys.startswith(data_phys_root)
@@ -319,20 +368,33 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
                 env["AGENTSTAGE_HOT_ROOT"] = str(hot_root)
                 env["AGENTSTAGE_COLD_ROOTS"] = cold_root
                 env["AGENTSTAGE_RETRY_SPIN_MS"] = "0"
+                # Tiered hot: propagate overflow root if set so the shim
+                # checks both primary and overflow on hot-miss.
+                _ovr = os.environ.get("AGENTSTAGE_HOT_OVERFLOW")
+                if _ovr:
+                    env["AGENTSTAGE_HOT_OVERFLOW"] = _ovr
             else:
                 env.pop("LD_PRELOAD", None)
                 env["AGENTSTAGE_SHIM_DISABLE"] = "1"
-            # Set up data/<dataset>/<subpath> symlink in the agent's
+            # Set up data/<dataset>/<subpath> symlink(s) in the agent's
             # workspace cwd. log_root is like "/data/steinmetz_neuropixels/raw"
-            # — we mirror that under <workspace>/data/.
-            ds_path = log_root[len("/data/"):]  # e.g. "steinmetz_neuropixels/raw"
-            data_link = workspace_dir / "data" / ds_path
-            if not data_link.exists():
-                data_link.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    data_link.symlink_to(data_phys_root)
-                except FileExistsError:
-                    pass
+            # — we mirror that under <workspace>/data/. Iterate ALL prefix_map
+            # entries so multi-prefix workloads (e.g. aiob_204 with both
+            # /data/sentinel2_ndvi/raw/ and /data/agentstage_tools/) plant
+            # one symlink per logical root.
+            for log_pre, real_pre in prefix_map:
+                log_p = log_pre.rstrip("/")
+                real_p = real_pre.rstrip("/")
+                if not log_p.startswith("/data/"):
+                    continue
+                ds_path = log_p[len("/data/"):]
+                data_link = workspace_dir / "data" / ds_path
+                if not data_link.exists():
+                    data_link.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        data_link.symlink_to(real_p)
+                    except FileExistsError:
+                        pass
             t0 = time.monotonic()
             # Popen + polling thread reads /proc/[pid]/io until the process
             # exits, so we capture cumulative cold-NVMe read_bytes etc. for
@@ -409,6 +471,19 @@ def _build_prompts(workload: Workload, prompt_mode: str,
     ds_name = log_root[len("/data/"):]
     tid = workload.task_id
 
+    # Multi-prefix workloads (e.g. aiob_204 with /data/sentinel2_ndvi/raw/ +
+    # /data/agentstage_tools/) need symlink descriptions for every entry.
+    extra_logical_paths = [p[0].rstrip("/")
+                            for p in workload.prefix_map[1:]
+                            if p[0].startswith("/data/")]
+    extra_link_lines = "\n".join(
+        f"  • Also accessible: relative path '{lp[len('/data/'):]}/' "
+        f"(symlink pointing at the real {lp[len('/data/'):]} dir)"
+        for lp in extra_logical_paths
+    )
+    if extra_link_lines:
+        extra_link_lines = "\n" + extra_link_lines
+
     if prompt_mode == "hinted":
         user_msg = (
             f"Task: {tid}\n\n"
@@ -435,12 +510,25 @@ def _build_prompts(workload: Workload, prompt_mode: str,
     system_msg = (
         "You are a scientific-data agent solving an AgentIOBench task.\n"
         "\n"
+        "You are an agent: keep going until the task is fully complete, before\n"
+        "ending your turn. The task is complete ONLY when the required output\n"
+        "file(s) specified in the task exist on disk and are valid (non-empty,\n"
+        "correct schema, plausible values). Do NOT stop after merely exploring\n"
+        "the data; produce the output file.\n"
+        "\n"
+        "If you are unsure about file structure or contents, use your tools to\n"
+        "read files and gather the information you need; do NOT guess.\n"
+        "\n"
+        "Be skeptical of intermediate results. If you see nan, 0 rows, empty\n"
+        "arrays, or unexpectedly small files, investigate whether it's a logic\n"
+        "bug, an indexing error, or a real data property.\n"
+        "\n"
         "Workspace conventions (IMPORTANT — read carefully):\n"
         f"  • Tools (list_dir, open_file, read_file) accept the LOGICAL form\n"
         f"      /data/{ds_name}/<subpath>\n"
         f"  • Your Python scripts must use the CWD-RELATIVE form\n"
         f"      data/{ds_name}/<subpath>\n"
-        f"    There is a symlink data/{ds_name}/ in your CWD pointing at the real data.\n"
+        f"    There is a symlink data/{ds_name}/ in your CWD pointing at the real data.{extra_link_lines}\n"
         "  • Output artifacts: write to CWD-relative paths (e.g. 'result/output.parquet'),\n"
         "    NOT to '/workspace/...'. Your CWD is already the workspace.\n"
         "  • Always invoke 'python3' (NOT 'python' — not on PATH).\n"
@@ -567,9 +655,12 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _overflow, _primary_cap = _tiered_hot_env()
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
             max_workers=4, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_overflow,
+            hot_primary_capacity_bytes=_primary_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"
@@ -806,9 +897,12 @@ def _run_session_gemini(*, workload: Workload, model: str, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _overflow, _primary_cap = _tiered_hot_env()
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
             max_workers=4, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_overflow,
+            hot_primary_capacity_bytes=_primary_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"
@@ -1004,10 +1098,17 @@ def _run_session_oss(*, workload: Workload, model: str, mode: str,
                      hot_root: Path, max_turns: int = 12,
                      shell_timeout: int = 300) -> dict:
     from openai import OpenAI
+    import httpx
 
     base_url = os.environ.get("OSS_MODEL_BASE_URL", "http://localhost:8002/v1")
     api_key = os.environ.get("OSS_MODEL_API_KEY", "EMPTY")
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=600)
+    # httpx per-phase timeouts: read=60s kills stuck streams where the
+    # server stops sending bytes (vLLM stalls). Total=300s caps any
+    # single request. Connect=10s for quick failure if tunnel is down.
+    client = OpenAI(
+        base_url=base_url, api_key=api_key,
+        timeout=httpx.Timeout(300.0, connect=10.0, read=60.0, write=10.0),
+    )
 
     prefix_map = workload.prefix_map
     data_phys_root = prefix_map[0][1].rstrip("/")
@@ -1027,9 +1128,12 @@ def _run_session_oss(*, workload: Workload, model: str, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _overflow, _primary_cap = _tiered_hot_env()
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
             max_workers=4, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_overflow,
+            hot_primary_capacity_bytes=_primary_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"
