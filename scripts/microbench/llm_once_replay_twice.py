@@ -178,8 +178,19 @@ def main() -> int:
 
         # 1. Live baseline
         if args.skip_existing_baseline and (baseline_dir/"summary.json").exists():
-            print(f"  [baseline] skipping (exists)", flush=True)
             baseline_summary = json.loads((baseline_dir/"summary.json").read_text())
+            if baseline_summary.get("session_elapsed_s") is None:
+                # Stale crash summary from a prior failed attempt; re-run.
+                print(f"  [baseline] existing summary degenerate "
+                      "(session_elapsed_s=None) — re-running", flush=True)
+                shutil.rmtree(baseline_dir, ignore_errors=True)
+                t0 = time.monotonic()
+                baseline_summary = run_live_baseline(
+                    args.bench, task, model, baseline_dir,
+                    Path(args.hot_root_live))
+                wall = time.monotonic() - t0
+            else:
+                print(f"  [baseline] skipping (exists)", flush=True)
         else:
             print(f"  [baseline] running live LLM session...", flush=True)
             t0 = time.monotonic()
@@ -187,14 +198,19 @@ def main() -> int:
                 args.bench, task, model, baseline_dir,
                 Path(args.hot_root_live))
             wall = time.monotonic() - t0
-            if "error" in baseline_summary:
-                print(f"  [baseline] ERROR: {baseline_summary['error']}", flush=True)
-                results.append({"cell": cell_id, "task": task, "model": model,
-                                "rep": rep, "baseline_error": baseline_summary['error']})
-                Path(args.replay_out_root, args.campaign_name, "results.json").write_text(json.dumps(results, indent=2))
-                continue
+        if "error" in baseline_summary or baseline_summary.get("session_elapsed_s") is None:
+            err = baseline_summary.get('error') or 'baseline returned None session_elapsed_s'
+            print(f"  [baseline] ERROR: {err}", flush=True)
+            results.append({"cell": cell_id, "task": task, "model": model,
+                            "rep": rep, "baseline_error": err})
+            Path(args.replay_out_root, args.campaign_name, "results.json").write_text(json.dumps(results, indent=2))
+            continue
+        if 'wall' in dir():
             print(f"  [baseline] {baseline_summary['session_elapsed_s']:.1f}s "
                   f"(wall {wall:.0f}s), submitted={baseline_summary.get('submitted')}", flush=True)
+        else:
+            print(f"  [baseline] {baseline_summary['session_elapsed_s']:.1f}s "
+                  f"(reused), submitted={baseline_summary.get('submitted')}", flush=True)
 
         rec = {
             "cell": cell_id, "task": task, "model": model, "rep": rep,
