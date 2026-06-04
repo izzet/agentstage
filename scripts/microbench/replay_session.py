@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import statistics
@@ -69,10 +70,20 @@ from agentstage.detector.session import SessionDetector  # noqa: E402
 from agentstage.stager import DataHint, Stager  # noqa: E402
 from agentstage.workloads.aiob import (  # noqa: E402
     load_aiob_103, load_aiob_104, load_aiob_107, load_aiob_110,
-    load_aiob_201, load_aiob_202, load_aiob_203,
+    load_aiob_201, load_aiob_202, load_aiob_203, load_aiob_204, load_aiob_205,
 )
-from agentstage.workloads.dsbench import load_dsbench_task  # noqa: E402
-from agentstage.workloads.mlebench import load_mle_competition  # noqa: E402
+from agentstage.workloads.kramabench import (  # noqa: E402
+    load_kb_astronomy_inventory, load_kb_wildfire_inventory,
+)
+from agentstage.workloads.dsbench import (  # noqa: E402
+    load_dsbench_task, load_dsbench_integrity_manifest,
+    load_dsbench_integrity_single,
+)
+from agentstage.workloads.mlebench import (  # noqa: E402
+    load_mle_competition, load_mle_competition_dispatch,
+    load_mle_integrity_manifest, load_mle_dogsvcats_integrity,
+    load_mle_dogsvcats_thumbhash, load_mle_histopath_thumbhash,
+)
 
 # Each multiturn runner has its own make_tool_executor with bench-specific
 # logic (sandboxing, symlink layout). Import all three.
@@ -92,14 +103,25 @@ def load_workload_for_task(task_id: str, bench: str):
         "aiob_103": load_aiob_103, "aiob_104": load_aiob_104,
         "aiob_107": load_aiob_107, "aiob_110": load_aiob_110,
         "aiob_201": load_aiob_201, "aiob_202": load_aiob_202,
-        "aiob_203": load_aiob_203,
+        "aiob_203": load_aiob_203, "aiob_204": load_aiob_204,
+        "aiob_205": load_aiob_205,
+        # KramaBench / DSBench / MLE-bench integrity tasks via AIOB
+        # runner (interface-compatible workload types).
+        "kb_astronomy_inventory": load_kb_astronomy_inventory,
+        "kb_wildfire_inventory": load_kb_wildfire_inventory,
+        "dsb_integrity_manifest": load_dsbench_integrity_manifest,
+        "dsb_integrity_single": load_dsbench_integrity_single,
+        "mle_integrity_manifest": load_mle_integrity_manifest,
+        "mle_dogsvcats_integrity": load_mle_dogsvcats_integrity,
+        "mle_dogsvcats_thumbhash": load_mle_dogsvcats_thumbhash,
+        "mle_histopath_thumbhash": load_mle_histopath_thumbhash,
     }
     if bench == "aiob" and task_id in aiob_loaders:
         return aiob_loaders[task_id](), aiob_executor
     if bench == "dsbench":
         return load_dsbench_task(task_id), dsbench_executor
     if bench == "mlebench":
-        return load_mle_competition(task_id), mlebench_executor
+        return load_mle_competition_dispatch(task_id), mlebench_executor
     raise ValueError(f"Unknown task '{task_id}' for bench '{bench}'")
 
 _RC_ELAPSED_RE = re.compile(r"run_shell_command \(rc=(-?\d+), ([0-9.]+)s\)")
@@ -230,10 +252,20 @@ def _dispatch_prefetches(*, new_acts, stager, prefix_map, turn,
     if stager is None:
         return
     seen_phys: set[str] = set()
+    # On large workloads (e.g. dogvscats: 22500 files), the is_file() check
+    # below becomes the bottleneck because each Path.is_file() is a network
+    # metadata RPC on OrangeFS (1-3ms). For 22500 files that's 30-60s blocking
+    # the main thread. Stager handles missing files gracefully (failed future)
+    # so we can skip the pre-check; trust the workload's workspace_prior.
+    # Env var SKIP_PREFETCH_ISFILE_CHECK=0 restores the old behavior.
+    skip_isfile = os.environ.get("SKIP_PREFETCH_ISFILE_CHECK", "1") == "1"
     for act in new_acts:
         phys_files = [resolve_logical(p, prefix_map) for p in act.detected_files]
-        phys_files = [p for p in phys_files
-                      if Path(p).is_file() and p not in seen_phys]
+        if skip_isfile:
+            phys_files = [p for p in phys_files if p not in seen_phys]
+        else:
+            phys_files = [p for p in phys_files
+                          if Path(p).is_file() and p not in seen_phys]
         if len(phys_files) > STAGER_BUCKET_CAP:
             phys_files = phys_files[:STAGER_BUCKET_CAP]
         for p in phys_files:
@@ -275,9 +307,15 @@ def replay(traj: dict, *, workload, executor_fn, mode: str,
         if hot_root.exists():
             shutil.rmtree(hot_root)
         hot_root.mkdir(parents=True, exist_ok=True)
+        _overflow = os.environ.get("AGENTSTAGE_HOT_OVERFLOW") or None
+        _cap_gb = os.environ.get("AGENTSTAGE_HOT_PRIMARY_CAP_GB")
+        _primary_cap = int(float(_cap_gb) * 1024**3) if _cap_gb else None
+        _stager_workers = int(os.environ.get("STAGER_MAX_WORKERS", "4"))
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
-            max_workers=4, capacity_bytes=64 * 1024**3,
+            max_workers=_stager_workers, capacity_bytes=64 * 1024**3,
+            hot_overflow_root=_overflow,
+            hot_primary_capacity_bytes=_primary_cap,
         )
 
     workspace_dir = out_dir / "agent_workspace"

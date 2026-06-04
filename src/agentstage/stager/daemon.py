@@ -54,13 +54,24 @@ class Stager:
         hot_root: str | Path,
         cold_roots: list[str | Path],
         *,
-        max_workers: int = 4,
+        max_workers: int = 8,
         capacity_bytes: int = 32 * GB,
         report: StagingReport | None = None,
+        hot_overflow_root: str | Path | None = None,
+        hot_primary_capacity_bytes: int | None = None,
     ) -> None:
         self.hot_root = Path(hot_root).resolve()
         self.cold_roots = tuple(Path(r).resolve() for r in cold_roots)
         self.capacity_bytes = capacity_bytes
+        # Tiered hot: when set, the primary (hot_root) is capped at
+        # hot_primary_capacity_bytes and additional files spill into
+        # hot_overflow_root. Lookup checks primary first, then overflow.
+        # When hot_overflow_root is None, behaviour is single-tier
+        # (existing semantics, untouched).
+        self.hot_overflow_root = (Path(hot_overflow_root).resolve()
+                                  if hot_overflow_root else None)
+        self.hot_primary_capacity_bytes = hot_primary_capacity_bytes
+        self._primary_used_bytes = 0
         self._executor = ThreadPoolExecutor(
             max_workers=max_workers,
             thread_name_prefix="agentstage-stage",
@@ -69,6 +80,8 @@ class Stager:
         self._in_flight: dict[str, Future] = {}
         self._lock = threading.Lock()
         self.hot_root.mkdir(parents=True, exist_ok=True)
+        if self.hot_overflow_root is not None:
+            self.hot_overflow_root.mkdir(parents=True, exist_ok=True)
 
     # -----------------------------------------------------------------
     # Public API
@@ -90,14 +103,43 @@ class Stager:
 
     def hot_path_for(self, cold_path: str | Path) -> Path:
         """Return the hot mirror path for a cold path. Uses absolute-path
-        mirroring under `self.hot_root`."""
+        mirroring under `self.hot_root`. In tiered mode, returns the
+        overflow path if the file already exists there; otherwise the
+        primary path (which is also where new copies default)."""
         abs_cold = str(Path(cold_path).resolve())
         # Strip leading "/" so we get hot_root/mnt/.../foo.nc not double-rooted
-        return self.hot_root / abs_cold.lstrip("/")
+        primary = self.hot_root / abs_cold.lstrip("/")
+        if self.hot_overflow_root is not None:
+            overflow = self.hot_overflow_root / abs_cold.lstrip("/")
+            if overflow.exists() and not primary.exists():
+                return overflow
+        return primary
+
+    def _pick_target_root(self, size_bytes: int) -> Path:
+        """Tiered: pick primary if size fits under cap, else overflow.
+        Single-tier (no overflow): always primary."""
+        if (self.hot_overflow_root is None or
+                self.hot_primary_capacity_bytes is None):
+            return self.hot_root
+        if (self._primary_used_bytes + size_bytes
+                <= self.hot_primary_capacity_bytes):
+            return self.hot_root
+        return self.hot_overflow_root
 
     def is_staged(self, cold_path: str | Path) -> bool:
-        """True if the file is fully staged (rename completed)."""
-        return self.hot_path_for(cold_path).exists()
+        """True if the file is fully staged (rename completed) in either tier."""
+        # See _submit_one — avoid Path.resolve() (does a network metadata
+        # RPC for each call on OrangeFS).
+        cp = str(cold_path)
+        abs_cold = (os.path.normpath(cp)
+                    if cp.startswith("/")
+                    else os.path.normpath(os.path.abspath(cp))).lstrip("/")
+        if (self.hot_root / abs_cold).exists():
+            return True
+        if self.hot_overflow_root is not None:
+            if (self.hot_overflow_root / abs_cold).exists():
+                return True
+        return False
 
     def wait_for_all(self, timeout: float | None = None) -> None:
         """Block until every currently-known stage future has completed.
@@ -112,8 +154,19 @@ class Stager:
     # -----------------------------------------------------------------
 
     def _submit_one(self, cold_path: str, hint: DataHint) -> Future | None:
-        """Submit one stage job; return the Future (or None if no-op)."""
-        cold_abs = str(Path(cold_path).resolve())
+        """Submit one stage job; return the Future (or None if no-op).
+
+        IMPORTANT: avoid `Path(cold_path).resolve()` here — on network
+        filesystems (OrangeFS, NFS) every resolve() is a metadata RPC
+        (3-10ms). With 5500-file dispatches, that's 30+ seconds in the
+        main thread before the workers can even start copying. Callers
+        already pass resolved absolute paths via resolve_logical(); we
+        normalize with os.path.normpath which is pure string ops.
+        """
+        if not cold_path.startswith("/"):
+            cold_abs = os.path.normpath(os.path.abspath(cold_path))
+        else:
+            cold_abs = os.path.normpath(cold_path)
 
         # Only stage files under managed cold roots.
         if not self._under_managed_cold_root(cold_abs):
@@ -135,16 +188,17 @@ class Stager:
 
     def _stage(self, cold_path: str, hint: DataHint) -> StageEvent:
         """Worker function: copy cold -> tmp -> rename to hot. Records event.
-        Idempotent: if hot already exists, returns a 'hit' event."""
+        Idempotent: if hot already exists (in either tier), returns a 'hit'
+        event."""
         t_completed = lambda: now_ms()  # noqa: E731
-        hot_path = self.hot_path_for(cold_path)
+        existing_hot = self.hot_path_for(cold_path)
 
         # Idempotency: another worker may have completed already.
-        if hot_path.exists():
+        if existing_hot.exists():
             ev = StageEvent(
                 cold_path=cold_path,
-                hot_path=str(hot_path),
-                size_bytes=hot_path.stat().st_size,
+                hot_path=str(existing_hot),
+                size_bytes=existing_hot.stat().st_size,
                 fetch_ms=0.0,
                 tier=hint.tier,
                 rule_id=hint.rule_id,
@@ -158,12 +212,12 @@ class Stager:
         try:
             size = os.path.getsize(cold_path)
         except OSError as exc:
-            return self._record_error(cold_path, hot_path, hint, exc)
+            return self._record_error(cold_path, existing_hot, hint, exc)
 
         if size > self.capacity_bytes:
             ev = StageEvent(
                 cold_path=cold_path,
-                hot_path=str(hot_path),
+                hot_path=str(existing_hot),
                 size_bytes=size,
                 fetch_ms=0.0,
                 tier=hint.tier,
@@ -176,9 +230,27 @@ class Stager:
             self.report.record(ev)
             return ev
 
+        # Pick tier under lock so the cap check + reservation are atomic.
+        abs_cold = str(Path(cold_path).resolve()).lstrip("/")
+        with self._lock:
+            target_root = self._pick_target_root(size)
+            if target_root is self.hot_root:
+                self._primary_used_bytes += size
+                reserved_primary = size
+            else:
+                reserved_primary = 0
+        hot_path = target_root / abs_cold
+
         try:
-            self._ensure_capacity_for(size)
+            # LRU eviction only applies to primary single-tier mode where
+            # we have a defined capacity_bytes cap on the whole hot_root.
+            # In tiered mode, the primary cap is enforced by routing and
+            # overflow is assumed to have room (large NVMe).
+            if target_root is self.hot_root and self.hot_overflow_root is None:
+                self._ensure_capacity_for(size)
         except StagerOutOfSpace as exc:
+            with self._lock:
+                self._primary_used_bytes -= reserved_primary
             return self._record_error(cold_path, hot_path, hint, exc)
 
         hot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -195,6 +267,8 @@ class Stager:
                 tmp.unlink(missing_ok=True)
             except OSError:
                 pass
+            with self._lock:
+                self._primary_used_bytes -= reserved_primary
             return self._record_error(cold_path, hot_path, hint, exc)
         fetch_ms = (time.monotonic_ns() - t_start) / 1e6
 
@@ -242,6 +316,14 @@ class Stager:
         """Evict LRU files (by atime) until incoming_size fits. Files
         currently being copied (futures not yet done) are protected from
         eviction; already-completed stages are eligible."""
+        # Fast path: use the incrementally-tracked _primary_used_bytes
+        # instead of rglob'ing the entire hot_root every call. The
+        # rglob path is O(n) per call and O(n^2) cumulative over a
+        # prefetch round of n files (1538-file workloads observed
+        # 80+ s of pure scan time before this optimization).
+        approx_used = self._primary_used_bytes + incoming_size
+        if approx_used + incoming_size <= self.capacity_bytes:
+            return
         with self._lock:
             in_flight_hot_paths = {
                 str(self.hot_path_for(c))

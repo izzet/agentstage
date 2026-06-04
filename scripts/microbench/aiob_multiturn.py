@@ -82,6 +82,7 @@ from agentstage.workloads.dsbench import (  # noqa: E402
 )
 from agentstage.workloads.mlebench import (  # noqa: E402
     load_mle_integrity_manifest, load_mle_dogsvcats_integrity,
+    load_mle_dogsvcats_thumbhash, load_mle_histopath_thumbhash,
 )
 
 REPO = Path(__file__).resolve().parents[2]
@@ -151,6 +152,8 @@ TASK_LOADERS = {
     "dsb_integrity_single": load_dsbench_integrity_single,
     "mle_integrity_manifest": load_mle_integrity_manifest,
     "mle_dogsvcats_integrity": load_mle_dogsvcats_integrity,
+    "mle_dogsvcats_thumbhash": load_mle_dogsvcats_thumbhash,
+    "mle_histopath_thumbhash": load_mle_histopath_thumbhash,
 }
 
 
@@ -559,10 +562,20 @@ def _dispatch_prefetches(*, new_acts, stager, prefix_map, turn: int,
     if stager is None:
         return
     seen_phys: set[str] = set()
+    # On large workloads (>5000 prefetched files), the is_file() check below
+    # becomes the main-thread bottleneck because each Path.is_file() is a
+    # network metadata RPC on OrangeFS/NFS cold tiers (1-3ms each).
+    # workspace_prior already validates existence at construction; the
+    # runtime re-check is redundant. Stager handles missing files via a
+    # failed future. SKIP_PREFETCH_ISFILE_CHECK=0 restores the old behavior.
+    skip_isfile = os.environ.get("SKIP_PREFETCH_ISFILE_CHECK", "1") == "1"
     for act in new_acts:
         phys_files = [resolve_logical(p, prefix_map) for p in act.detected_files]
-        phys_files = [p for p in phys_files
-                      if Path(p).is_file() and p not in seen_phys]
+        if skip_isfile:
+            phys_files = [p for p in phys_files if p not in seen_phys]
+        else:
+            phys_files = [p for p in phys_files
+                          if Path(p).is_file() and p not in seen_phys]
         # CAP per-bucket size to prevent runaway many-files staging
         if len(phys_files) > STAGER_BUCKET_CAP:
             phys_files = phys_files[:STAGER_BUCKET_CAP]
@@ -658,7 +671,7 @@ def _run_session_anthropic(*, workload: Workload, model: str, mode: str,
         _overflow, _primary_cap = _tiered_hot_env()
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
-            max_workers=4, capacity_bytes=64 * 1024**3,
+            max_workers=int(os.environ.get("STAGER_MAX_WORKERS", "8")), capacity_bytes=64 * 1024**3,
             hot_overflow_root=_overflow,
             hot_primary_capacity_bytes=_primary_cap,
         )
@@ -900,7 +913,7 @@ def _run_session_gemini(*, workload: Workload, model: str, mode: str,
         _overflow, _primary_cap = _tiered_hot_env()
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
-            max_workers=4, capacity_bytes=64 * 1024**3,
+            max_workers=int(os.environ.get("STAGER_MAX_WORKERS", "8")), capacity_bytes=64 * 1024**3,
             hot_overflow_root=_overflow,
             hot_primary_capacity_bytes=_primary_cap,
         )
@@ -1131,7 +1144,7 @@ def _run_session_oss(*, workload: Workload, model: str, mode: str,
         _overflow, _primary_cap = _tiered_hot_env()
         stager = Stager(
             hot_root=hot_root, cold_roots=[Path(cold_root_anc)],
-            max_workers=4, capacity_bytes=64 * 1024**3,
+            max_workers=int(os.environ.get("STAGER_MAX_WORKERS", "8")), capacity_bytes=64 * 1024**3,
             hot_overflow_root=_overflow,
             hot_primary_capacity_bytes=_primary_cap,
         )

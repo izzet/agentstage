@@ -87,6 +87,260 @@ def _has_zip_for(dir_name: str, top_level_files: set[str]) -> bool:
     return f"{dir_name}.zip" in top_level_files
 
 
+_MLE_INTEGRITY_MANIFEST_INST = (
+    "You are computing a DATA INTEGRITY MANIFEST for the NYC taxi-fare "
+    "competition dataset (MLE-bench / Kaggle). This is a standard "
+    "data-publishing preprocessing step: every CSV file in the public "
+    "release must be checksummed for downstream verification.\n\n"
+    "For EACH file under /data/new-york-city-taxi-fare-prediction/ that "
+    "ends in .csv (recursively across all subdirectories), compute the "
+    "xxh64 hex digest of the ENTIRE file contents using the `xxhash` "
+    "package (`xxhash.xxh64(open(p,'rb').read()).hexdigest()` for small "
+    "files, or stream-update for large ones in 8MB chunks). Also record "
+    "the file size in bytes (via os.path.getsize).\n\n"
+    "Write result/integrity_manifest.csv with columns: relpath, "
+    "size_bytes, xxh64. Sort by relpath. Include every CSV file in the "
+    "archive (no subsampling). The dataset contains roughly 3-5 CSV "
+    "files including the bulk train/test data."
+)
+
+
+def load_mle_integrity_manifest() -> MLEWorkload:
+    """MLE-bench integrity-manifest task: xxh64 every CSV in the NYC
+    taxi competition. AgentStage-style I/O-bound task on real
+    third-party benchmark data."""
+    competition_id = "new-york-city-taxi-fare-prediction"
+    comp_dir = MLEBENCH_DATA_ROOT / competition_id / "prepared" / "public"
+    if not comp_dir.is_dir():
+        raise FileNotFoundError(
+            f"prepared/public dir missing: {comp_dir}")
+    log_root = f"/data/{competition_id}"
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    all_files: list[str] = []
+    for entry in sorted(comp_dir.iterdir()):
+        if entry.is_file() and entry.suffix.lower() == ".csv":
+            logical = f"{log_root}/{entry.name}"
+            key = entry.stem.replace("-", "_").replace(".", "_")
+            workspace_prior[f"csv_{key}"] = (logical,)
+            all_files.append(logical)
+    workspace_prior["all_files"] = tuple(all_files)
+    workspace_prior["output_submission"] = (
+        f"{log_root}/result/integrity_manifest.csv",)
+    task = MLETask(
+        competition_id=competition_id,
+        description=_MLE_INTEGRITY_MANIFEST_INST,
+        public_dir=comp_dir.resolve(),
+    )
+    prefix_map = ((log_root + "/", str(comp_dir.resolve()) + "/"),)
+    return MLEWorkload(
+        task_id=f"mle_integrity_manifest",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=tuple(all_files),
+        ground_truth_first_inspect=tuple(all_files),
+        prefix_map=prefix_map,
+    )
+
+
+_MLE_DOGSVCATS_INTEGRITY_INST = (
+    "You are computing a DATA INTEGRITY MANIFEST for the dogs-vs-cats "
+    "Kaggle competition dataset. This is a standard data-publishing "
+    "preprocessing step: every archive file must be checksummed for "
+    "downstream verification.\n\n"
+    "For EACH file under "
+    "/data/dogs-vs-cats-redux-kernels-edition/ that ends in .zip, "
+    ".csv, or .md (top-level only), compute the xxh64 hex digest of "
+    "the ENTIRE file contents using the `xxhash` package "
+    "(`xxhash.xxh64(open(p,'rb').read()).hexdigest()` for small "
+    "files, or stream-update in 8 MB chunks for large ones). Also "
+    "record the file size in bytes via os.path.getsize.\n\n"
+    "Write result/integrity_manifest.csv with columns: relpath, "
+    "size_bytes, xxh64. Sort by relpath. Include every file at the "
+    "top level (the dataset includes train.zip, test.zip, "
+    "sample_submission.csv, and description.md). Do NOT recurse into "
+    "the train/ or test/ directories — use the zips."
+)
+
+
+def load_mle_dogsvcats_integrity() -> MLEWorkload:
+    """MLE-bench dogs-vs-cats: xxh64 the 2 zip files + small CSVs.
+    ~544 MB total. AgentStage-style I/O-bound task on real MLE-bench
+    data (different competition from NYC taxi for cross-task coverage)."""
+    competition_id = "dogs-vs-cats-redux-kernels-edition"
+    comp_dir = MLEBENCH_DATA_ROOT / competition_id / "prepared" / "public"
+    if not comp_dir.is_dir():
+        raise FileNotFoundError(
+            f"prepared/public dir missing: {comp_dir}")
+    log_root = f"/data/{competition_id}"
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    all_files: list[str] = []
+    # Just top-level files: .zip, .csv, .md
+    for entry in sorted(comp_dir.iterdir()):
+        if not entry.is_file():
+            continue
+        if entry.suffix.lower() not in (".zip", ".csv", ".md"):
+            continue
+        logical = f"{log_root}/{entry.name}"
+        key = entry.stem.replace("-", "_").replace(".", "_")
+        bucket = ("train_zip" if "train" in entry.name.lower()
+                  else "test_zip" if "test" in entry.name.lower()
+                  else "extra_file")
+        workspace_prior.setdefault(bucket, []).append(logical)
+        all_files.append(logical)
+    workspace_prior = {k: tuple(v) for k, v in workspace_prior.items()}
+    workspace_prior["all_files"] = tuple(all_files)
+    workspace_prior["output_submission"] = (
+        f"{log_root}/result/integrity_manifest.csv",)
+    task = MLETask(
+        competition_id=competition_id,
+        description=_MLE_DOGSVCATS_INTEGRITY_INST,
+        public_dir=comp_dir.resolve(),
+    )
+    prefix_map = ((log_root + "/", str(comp_dir.resolve()) + "/"),)
+    return MLEWorkload(
+        task_id="mle_dogsvcats_integrity",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=tuple(all_files),
+        ground_truth_first_inspect=tuple(all_files),
+        prefix_map=prefix_map,
+    )
+
+
+_MLE_DOGSVCATS_THUMBHASH_INST = (
+    "You are computing a per-image integrity manifest for the dogs-vs-cats "
+    "Kaggle competition's TRAINING SET (the already-extracted train/ "
+    "directory, not the train.zip archive). Every cat.*.jpg and dog.*.jpg "
+    "file in the train directory needs an xxh64 digest for a downstream "
+    "image-dedup pipeline.\n\n"
+    "For EACH file under /data/dogs-vs-cats-redux-kernels-edition/train/ "
+    "(every cat.N.jpg and dog.N.jpg, 25000 files total), compute the xxh64 "
+    "hex digest of the file's bytes using the `xxhash` package "
+    "(`xxhash.xxh64(open(p,'rb').read()).hexdigest()`). Also record the "
+    "file size via os.path.getsize.\n\n"
+    "Write result/train_thumbnail_manifest.csv with columns: filename, "
+    "size_bytes, xxh64. Sort by filename. Use a simple os.listdir loop "
+    "over the train/ directory; do NOT recurse into subdirectories."
+)
+
+
+def load_mle_dogsvcats_thumbhash() -> MLEWorkload:
+    """MLE-bench dogs-vs-cats THUMBNAIL HASH task: xxh64 every .jpg in the
+    extracted train/ directory (25000 files, ~537 MB total). Designed to
+    stress many-small-file prefetch — the workload that AgentStage's
+    bulk-stage-to-/dev/shm pattern targets most directly. The bucket cap
+    must be raised via STAGER_BUCKET_CAP env var (e.g. 30000) for the
+    full corpus to be prefetched."""
+    competition_id = "dogs-vs-cats-redux-kernels-edition"
+    comp_dir = MLEBENCH_DATA_ROOT / competition_id / "prepared" / "public"
+    if not comp_dir.is_dir():
+        raise FileNotFoundError(
+            f"prepared/public dir missing: {comp_dir}")
+    train_dir = comp_dir / "train"
+    if not train_dir.is_dir():
+        raise FileNotFoundError(
+            f"train/ dir missing (run zip extraction first): {train_dir}")
+    log_root = f"/data/{competition_id}"
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    cat_files: list[str] = []
+    dog_files: list[str] = []
+    for entry in sorted(train_dir.iterdir()):
+        if not entry.is_file() or entry.suffix.lower() != ".jpg":
+            continue
+        logical = f"{log_root}/train/{entry.name}"
+        if entry.name.startswith("cat."):
+            cat_files.append(logical)
+        elif entry.name.startswith("dog."):
+            dog_files.append(logical)
+    workspace_prior["train_cats"] = tuple(cat_files)
+    workspace_prior["train_dogs"] = tuple(dog_files)
+    workspace_prior["all_train_images"] = tuple(cat_files + dog_files)
+    workspace_prior["output_manifest"] = (
+        f"{log_root}/result/train_thumbnail_manifest.csv",)
+    task = MLETask(
+        competition_id=competition_id,
+        description=_MLE_DOGSVCATS_THUMBHASH_INST,
+        public_dir=comp_dir.resolve(),
+    )
+    prefix_map = ((log_root + "/", str(comp_dir.resolve()) + "/"),)
+    return MLEWorkload(
+        task_id="mle_dogsvcats_thumbhash",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=tuple(cat_files + dog_files),
+        ground_truth_first_inspect=tuple(cat_files[:50]),
+        prefix_map=prefix_map,
+    )
+
+
+_MLE_HISTOPATH_THUMBHASH_INST = (
+    "You are computing a per-image integrity manifest for the histopathologic "
+    "cancer detection Kaggle competition's TEST SET (the already-extracted "
+    "test/ directory of .tif files). Every test image needs an xxh64 digest "
+    "for a downstream patch-dedup pipeline before model inference.\n\n"
+    "For EACH .tif file under /data/histopathologic-cancer-detection/test/ "
+    "(45561 files total, ~28 KB each, ~1.3 GB total), compute the xxh64 hex "
+    "digest using `xxhash.xxh64(open(p,'rb').read()).hexdigest()`. Also "
+    "record the file size via os.path.getsize.\n\n"
+    "Write result/test_thumbnail_manifest.csv with columns: filename, "
+    "size_bytes, xxh64. Sort by filename. Use a simple os.listdir loop over "
+    "the test/ directory; do NOT recurse into subdirectories."
+)
+
+
+def load_mle_histopath_thumbhash() -> MLEWorkload:
+    """MLE-bench histopathologic-cancer-detection THUMBHASH task: xxh64 every
+    .tif in the extracted test/ directory (45561 files, ~1.3 GB). Many-small-
+    files workload pattern, 2× the file count of dogvscats. Requires
+    STAGER_BUCKET_CAP=50000 or higher to prefetch the full corpus."""
+    competition_id = "histopathologic-cancer-detection"
+    comp_dir = MLEBENCH_DATA_ROOT / competition_id / "prepared" / "public"
+    if not comp_dir.is_dir():
+        raise FileNotFoundError(
+            f"prepared/public dir missing: {comp_dir}")
+    test_dir = comp_dir / "test"
+    if not test_dir.is_dir():
+        raise FileNotFoundError(
+            f"test/ dir missing (run zip extraction first): {test_dir}")
+    log_root = f"/data/{competition_id}"
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    tif_files: list[str] = []
+    for entry in sorted(test_dir.iterdir()):
+        if entry.is_file() and entry.suffix.lower() == ".tif":
+            tif_files.append(f"{log_root}/test/{entry.name}")
+    workspace_prior["all_test_images"] = tuple(tif_files)
+    workspace_prior["output_manifest"] = (
+        f"{log_root}/result/test_thumbnail_manifest.csv",)
+    task = MLETask(
+        competition_id=competition_id,
+        description=_MLE_HISTOPATH_THUMBHASH_INST,
+        public_dir=comp_dir.resolve(),
+    )
+    prefix_map = ((log_root + "/", str(comp_dir.resolve()) + "/"),)
+    return MLEWorkload(
+        task_id="mle_histopath_thumbhash",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=tuple(tif_files),
+        ground_truth_first_inspect=tuple(tif_files[:50]),
+        prefix_map=prefix_map,
+    )
+
+
+def load_mle_competition_dispatch(task_id: str) -> MLEWorkload:
+    """Top-level loader: dispatch to integrity-manifest task or fall back
+    to the standard MLE-bench competition loader."""
+    if task_id == "integrity_manifest":
+        return load_mle_integrity_manifest()
+    if task_id == "dogsvcats_integrity":
+        return load_mle_dogsvcats_integrity()
+    if task_id == "dogsvcats_thumbhash":
+        return load_mle_dogsvcats_thumbhash()
+    if task_id == "histopath_thumbhash":
+        return load_mle_histopath_thumbhash()
+    return load_mle_competition(task_id)
+
+
 def load_mle_competition(competition_id: str) -> MLEWorkload:
     """Load a prepared MLE-bench competition by id.
 
@@ -124,8 +378,15 @@ def load_mle_competition(competition_id: str) -> MLEWorkload:
             top_level_files.add(entry.name)
 
     # Decide which subdirectories to include based on file count + zip presence
-    SUBDIR_MAX_FILES = 2000
+    # SUBDIR_MAX_FILES caps how many files in a single subdir we'll enumerate
+    # into workspace_prior. Override via env so experiments with big image
+    # directories (histopath = 220k PNGs) can opt in to per-file prefetching
+    # while preserving the default safety net for unintended runs.
+    SUBDIR_MAX_FILES = int(os.environ.get("MLEBENCH_SUBDIR_MAX_FILES", "2000"))
+    SUBDIR_SAMPLE_CAP = os.environ.get("MLEBENCH_SUBDIR_SAMPLE_CAP")
+    sample_cap = int(SUBDIR_SAMPLE_CAP) if SUBDIR_SAMPLE_CAP else None
     skip_subdirs: set[str] = set()
+    truncate_subdirs: dict[str, int] = {}
     for entry in comp_dir.iterdir():
         if not entry.is_dir():
             continue
@@ -135,23 +396,36 @@ def load_mle_competition(competition_id: str) -> MLEWorkload:
             # Use the zip; skip the unpacked dir to avoid double-staging
             skip_subdirs.add(entry.name)
         elif n_files > SUBDIR_MAX_FILES:
-            # Too many files for individual prefetch — skip this dir.
-            # Honest tradeoff: agent's script will hit cold tier per-file
-            # if it iterates these. For our experiments we should pick
-            # competitions where this isn't the dominant access pattern.
-            skip_subdirs.add(entry.name)
+            if sample_cap and sample_cap < n_files:
+                # Enumerate a deterministic prefix of files; agent's task
+                # prompt must direct workload onto this subset.
+                truncate_subdirs[entry.name] = sample_cap
+            else:
+                # Too many files for individual prefetch — skip this dir.
+                skip_subdirs.add(entry.name)
 
     # Build workspace_prior by walking the public dir, honoring skip_subdirs
     buckets: dict[str, list[str]] = {}
+    # Per-subdir counter for truncation
+    truncated_seen: dict[str, int] = {n: 0 for n in truncate_subdirs}
     for root, dirs, files in os.walk(comp_dir):
         # Mutate dirs in place to skip subdirectories we've excluded
         rel_root = Path(root).relative_to(comp_dir)
         if rel_root == Path("."):
             dirs[:] = [d for d in dirs if d not in skip_subdirs]
-        for fname in files:
+        # Determine which top-level subdir this root belongs to (for trunc)
+        rel_str = str(rel_root)
+        top_subdir = rel_str.split("/", 1)[0] if rel_str != "." else None
+        for fname in sorted(files):
+            if (top_subdir and top_subdir in truncate_subdirs
+                    and truncated_seen[top_subdir]
+                    >= truncate_subdirs[top_subdir]):
+                continue
             bucket = _bucket_for_file(fname)
             if bucket is None:
                 continue
+            if top_subdir and top_subdir in truncate_subdirs:
+                truncated_seen[top_subdir] += 1
             phys = Path(root) / fname
             rel = phys.relative_to(comp_dir)
             logical = f"{log_root}/{rel}"
