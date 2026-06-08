@@ -35,13 +35,19 @@ from _style import (  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from agentstage.detector.rules import get_ruleset  # noqa: E402
+from agentstage.detector.auto_rules import AutoRuleGenerator  # noqa: E402
 from agentstage.workloads import get_workload  # noqa: E402
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-VALID_TASKS = ("aiob_104", "aiob_107", "aiob_110")
+VALID_TASKS = (
+    # Curated only — §IV.C reports activation latency on the targeted
+    # regime. Activation is a system property (detector + parser) that
+    # transfers to community workloads; characterization on curated
+    # suffices for the contribution claim.
+    "aiob_201", "aiob_202", "aiob_205",
+)
 
 _MODEL_ORDER = ["haiku", "sonnet", "flash", "qwen3"]
 _MODEL_LABELS = {"haiku": "Haiku", "sonnet": "Sonnet",
@@ -92,8 +98,12 @@ def _latency_s(rd: Path, summary: dict, task: str) -> float | None:
     activation, in seconds (absolute session time)."""
     try:
         workload = get_workload(task)
-        ruleset = get_ruleset(task)
-    except KeyError:
+        ruleset = AutoRuleGenerator(
+            workload_id=task,
+            task_instruction=workload.task.task_inst,
+            workspace_prior_keys=tuple(workload.workspace_prior.keys()),
+        ).generate()
+    except (KeyError, FileNotFoundError, AttributeError):
         return None
     gt = set(workload.ground_truth_first_inspect)
     prior = workload.workspace_prior
@@ -155,7 +165,11 @@ def load_latencies() -> list[dict]:
         if "_archive" in sf.parts:
             continue
         rel = sf.relative_to(REPO / "outputs")
-        if len(rel.parts) < 2 or not str(rel).startswith("aiob_mt"):
+        if len(rel.parts) < 2:
+            continue
+        # Sessions live under outputs/{aiob_mt,dsbench_mt,mlebench_mt}/
+        # depending on which runner produced them.
+        if rel.parts[0] not in ("aiob_mt", "dsbench_mt", "mlebench_mt"):
             continue
         if rel.parts[1].startswith("_smoke"):
             continue
@@ -165,7 +179,7 @@ def load_latencies() -> list[dict]:
             continue
         if s.get("task") not in VALID_TASKS:
             continue
-        if s.get("mode") != "staged":
+        if s.get("mode") not in ("staged", "baseline"):
             continue
         mk = _model_key(s.get("model") or "")
         if mk is None:
@@ -210,9 +224,9 @@ def build_cdf(rows: list[dict], out_name: str = "fig_activation") -> Path:
                 zorder=4, label=_MODEL_LABELS[mk])
 
     ax.set_xscale("log")
-    ax.set_xlim(0.05, 100.0)
-    ax.set_xticks([0.1, 1.0, 10.0, 100.0])
-    ax.set_xticklabels(["0.1", "1", "10", "100"])
+    ax.set_xlim(0.05, 10.0)
+    ax.set_xticks([0.1, 1.0, 10.0])
+    ax.set_xticklabels(["0.1", "1", "10"])
     ax.set_xlabel("Time From Reasoning Start to First Detection (s, log)")
     ax.set_ylim(0.0, 1.05)
     ax.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])

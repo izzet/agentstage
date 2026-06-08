@@ -152,76 +152,79 @@ def _decompose_session(session_dir: Path) -> dict | None:
     }
 
 
-_BENCH_SWEEP_GLOBS = {
-    "Curated": ["outputs/aiob_mt/_sweep_*_curated*"],
-    "DSBench": [
-        "outputs/dsbench_mt/_sweep_haiku_*",
-        "outputs/dsbench_mt/_sweep_sonnet_*",
-        "outputs/dsbench_mt/_sweep_gemini_*",
-    ],
-    "MLE": [
-        "outputs/mlebench_mt/_sweep_haiku_*",
-        "outputs/mlebench_mt/_sweep_sonnet_*",
-        "outputs/mlebench_mt/_sweep_gemini_*",
-    ],
+# Benchmark assignment is by TASK (the six paper-grade tasks), not by
+# sweep name: curated and KramaBench sessions both live under aiob_mt/, so
+# a glob cannot separate them. Scanning by task also folds in every model
+# (including Qwen3) without per-model glob lists.
+_TASK2BENCH = {
+    "aiob_201": "Curated",
+    "aiob_202": "Curated",
+    "aiob_205": "Curated",
+    "tabular-playground-series-oct-2021": "DSBench",
+    "mle_dogsvcats_thumbhash": "MLE",
+    "kb_astronomy_inventory": "KramaBench",
 }
+_BENCH_ORDER = ["Curated", "DSBench", "MLE", "KramaBench"]
+_TOP_DIRS = ("aiob_mt", "dsbench_mt", "mlebench_mt")
+_SWEEP_EXCLUDE = ("smoke", "mini", "poc", "surgical", "pathful")
 
 
 def load_decomp_by_bench_mode() -> tuple[dict, list[dict]]:
-    """Aggregate sessions per (benchmark, mode). Returns
-    ({(bench, mode): {comm_s, stream_s, ...}}, raw_rows)."""
-    by: dict[tuple[str, str], dict] = {}
+    """Aggregate sessions per (benchmark, mode), assigning benchmark by
+    task. Returns ({(bench, mode): {comm_s, stream_s, ...}}, raw_rows)."""
+    from collections import defaultdict
+    buckets: dict[tuple[str, str], list[dict]] = defaultdict(list)
     raw: list[dict] = []
-    for bench, patterns in _BENCH_SWEEP_GLOBS.items():
-        sweep_dirs: list[Path] = []
-        for pattern in patterns:
-            sweep_dirs.extend(Path(p) for p in glob.glob(str(REPO / pattern)))
-        rows_per_mode: dict[str, list[dict]] = {"baseline": [], "staged": []}
-        for sweep in sorted(set(sweep_dirs)):
-            for sess in sorted(sweep.iterdir()):
+    for top in _TOP_DIRS:
+        for sweep in glob.glob(str(REPO / "outputs" / top / "_sweep_*")):
+            sp = Path(sweep)
+            if any(x in sp.name for x in _SWEEP_EXCLUDE):
+                continue
+            for sess in sorted(sp.iterdir()):
                 if not sess.is_dir():
                     continue
                 r = _decompose_session(sess)
                 if r is None:
                     continue
-                if r["total_s"] < 10.0:
+                task = r.get("task")
+                if task not in _TASK2BENCH:
                     continue
-                mode = r["mode"]
-                if mode not in rows_per_mode:
+                if float(r["total_s"]) < 10.0:
                     continue
-                rows_per_mode[mode].append(r)
-                raw.append({**r, "benchmark": bench})
-        for mode, rs in rows_per_mode.items():
-            if not rs:
-                continue
-            # Per-session shares — each session sums to 100% by construction
-            # so median-of-shares is meaningful (medians of raw seconds are
-            # not additive, which would make Fig 1a misleading).
-            for r in rs:
-                t = float(r["total_s"])
-                r["tool_exec_pct"] = (
-                    (float(r["tool_shell_s"]) + float(r["tool_other_s"]))
-                    / t * 100.0
-                )
-                r["reasoning_pct"] = float(r["stream_s"]) / t * 100.0
-                r["comm_pct"] = float(r["comm_s"]) / t * 100.0
-                r["harness_pct"] = float(r["harness_s"]) / t * 100.0
-            med = statistics.median
-            by[(bench, mode)] = {
-                "n_sessions": len(rs),
-                "total_s": med([r["total_s"] for r in rs]),
-                "comm_s": med([r["comm_s"] for r in rs]),
-                "stream_s": med([r["stream_s"] for r in rs]),
-                "tool_shell_s": med([r["tool_shell_s"] for r in rs]),
-                "tool_other_s": med([r["tool_other_s"] for r in rs]),
-                "harness_s": med([r["harness_s"] for r in rs]),
-                # Median of per-session shares (these are the load-bearing
-                # numbers for Fig 1a — guaranteed to sum to ~100%).
-                "tool_exec_pct": med([r["tool_exec_pct"] for r in rs]),
-                "reasoning_pct": med([r["reasoning_pct"] for r in rs]),
-                "comm_pct": med([r["comm_pct"] for r in rs]),
-                "harness_pct": med([r["harness_pct"] for r in rs]),
-            }
+                mode = r.get("mode")
+                if mode not in ("baseline", "staged"):
+                    continue
+                r["benchmark"] = _TASK2BENCH[task]
+                buckets[(r["benchmark"], mode)].append(r)
+                raw.append(r)
+    by: dict[tuple[str, str], dict] = {}
+    for (bench, mode), rs in buckets.items():
+        # Per-session shares — each session sums to 100% by construction
+        # so median-of-shares is meaningful (medians of raw seconds are
+        # not additive, which would make Fig 1a misleading).
+        for r in rs:
+            t = float(r["total_s"])
+            r["tool_exec_pct"] = (
+                (float(r["tool_shell_s"]) + float(r["tool_other_s"]))
+                / t * 100.0
+            )
+            r["reasoning_pct"] = float(r["stream_s"]) / t * 100.0
+            r["comm_pct"] = float(r["comm_s"]) / t * 100.0
+            r["harness_pct"] = float(r["harness_s"]) / t * 100.0
+        med = statistics.median
+        by[(bench, mode)] = {
+            "n_sessions": len(rs),
+            "total_s": med([r["total_s"] for r in rs]),
+            "comm_s": med([r["comm_s"] for r in rs]),
+            "stream_s": med([r["stream_s"] for r in rs]),
+            "tool_shell_s": med([r["tool_shell_s"] for r in rs]),
+            "tool_other_s": med([r["tool_other_s"] for r in rs]),
+            "harness_s": med([r["harness_s"] for r in rs]),
+            "tool_exec_pct": med([r["tool_exec_pct"] for r in rs]),
+            "reasoning_pct": med([r["reasoning_pct"] for r in rs]),
+            "comm_pct": med([r["comm_pct"] for r in rs]),
+            "harness_pct": med([r["harness_pct"] for r in rs]),
+        }
     return by, raw
 
 
@@ -248,11 +251,20 @@ def load_backend_bw() -> list[dict]:
     return rows
 
 
+# Workload dataset sizes (MB) for the six paper-grade tasks. Markers on
+# panel (b) show where each dataset sits against the thinking-phase
+# staging budget. cross-archive (52 GB) is the largest.
+# {Bench}/{task} marker labels with UNIQUE dataset sizes (MB) — each
+# physical file counted once (the workspace prior lists files in both
+# per-instance and aggregate buckets, so summing buckets double-counts).
+# Overlapping same-size datasets are collapsed to one marker each:
+# igsr/jwst are both Curated at ~11 GB (show igsr), and MLE/dogs-vs-cats
+# and KB/astronomy are both ~0.5 GB (show MLE/dogs-vs-cats).
 WORKLOAD_REFS = [
-    ("DSBench/tabular", 30),
-    ("DSBench/ventilator", 400),
-    ("MLE/nyc-taxi", 5401),
-    ("Curated/goes-r", 18000),
+    ("MLE/dogs-vs-cats", 515),
+    ("DSBench/tabular", 2200),
+    ("Curated/igsr-cov-qc", 10700),
+    ("Curated/cross-archive", 25900),
 ]
 
 
@@ -366,12 +378,43 @@ def _save_floating(fig, name: str) -> Path:
     return pdf
 
 
+def _save_fixed(fig, name: str) -> Path:
+    """Save on a fixed canvas (NO tight crop) so panels that share the
+    same figsize render to identical dimensions regardless of differing
+    y-label or legend text widths. The y-label margin shifts the axes
+    right, so the x-label and legend are re-centered on the FIGURE (not
+    the axes) to avoid overflow. Used by panels a and c so the two square
+    panels line up exactly at the same column width."""
+    ax = fig.axes[0]
+    handles, labels = getattr(ax, "_legend_handles", (None, None))
+    leg = ax.get_legend()
+    if leg is not None:
+        leg.remove()
+    xlabel = ax.get_xlabel()
+    ax.set_xlabel("")
+    fig.subplots_adjust(left=0.36, right=0.93, top=0.97, bottom=0.34)
+    if xlabel:
+        fig.text(0.5, 0.20, xlabel, ha="center", va="center")
+    if handles is not None:
+        fig.legend(handles, labels, loc="lower center",
+                   bbox_to_anchor=(0.5, 0.0), ncol=len(labels),
+                   frameon=False, handlelength=1.0, columnspacing=0.6,
+                   handletextpad=0.3)
+    pdf = FIG_DIR / f"{name}.pdf"
+    png = FIG_DIR / f"{name}.png"
+    fig.savefig(pdf, dpi=200)
+    fig.savefig(png, dpi=200)
+    plt.close(fig)
+    return pdf
+
+
 def build_fig_a(per_bench_baseline: dict,
                 out_name: str = "fig_motivation_a") -> Path:
-    # Square plot box. Legend floats below — does not compress the plot.
-    fig, ax = plt.subplots(1, 1, figsize=(1.85, 1.85))
+    # Fixed canvas shared with panel c so the two square panels render to
+    # identical dimensions (the legend/label text widths differ slightly).
+    fig, ax = plt.subplots(1, 1, figsize=(2.3, 2.2))
     _draw_panel_a(ax, per_bench_baseline)
-    _save_floating(fig, out_name)
+    _save_fixed(fig, out_name)
     return FIG_DIR / f"{out_name}.pdf"
 
 
@@ -411,19 +454,25 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
     ax.set_xlabel("Bytes-Moveable in the Thinking Phase")
     style_axis(ax)
 
-    # Dataset reference verticals + rotated labels inside plot
+    # Dataset reference verticals + rotated labels inside plot. The four
+    # markers are well separated on the log axis, so a single label height
+    # (near the top) reads cleanly and keeps long labels clear of the
+    # x-axis tick labels.
     n_cold = len(cold)
-    for name, mb_size in WORKLOAD_REFS:
+    refs = sorted(WORKLOAD_REFS, key=lambda x: x[1])
+    for (name, mb_size) in refs:
         ax.axvline(mb_size, color=_REF_COLOR, linestyle="--",
                    linewidth=0.7, alpha=0.65, zorder=2)
         ax.text(mb_size, n_cold - 0.55, name,
                 rotation=90, ha="center", va="top",
                 color=_REF_COLOR, bbox=label_bbox(alpha=0.9))
 
-    # Bar-end value annotation
-    for i, v in enumerate(mb):
-        label = f"{v/1000:.0f} GB" if v >= 1000 else f"{v:.0f} MB"
-        ax.text(v * 1.20, i, label, va="center", ha="left")
+    # Label only the largest bar (the fastest tier's stageable ceiling, the
+    # "up to ~50 GB in the thinking phase" indicator); drop the smaller
+    # bar-end labels, which cluttered the panel and duplicate the x-axis.
+    imax = int(np.argmax(mb)); vmax = mb[imax]
+    lab = f"{vmax/1000:.0f} GB" if vmax >= 1000 else f"{vmax:.0f} MB"
+    ax.text(vmax * 1.20, imax, lab, va="center", ha="left")
 
     handles = [
         mpatches.Patch(facecolor=_COLD_COLOR, edgecolor="black",
@@ -433,16 +482,20 @@ def _draw_panel_b(ax, backends: list[dict], prefetch_window_s: float) -> None:
     ]
     ax._legend_handles = (handles, [h.get_label() for h in handles])  # type: ignore
 
+    # Anchor tuned so the x-label -> legend gap visually matches panels a
+    # and c (which use the fixed-canvas layout).
     ax.legend(handles=handles, loc="upper center",
-              bbox_to_anchor=(0.5, -0.30), ncol=3, frameon=False,
+              bbox_to_anchor=(0.5, -0.270), ncol=3, frameon=False,
               handlelength=1.2, columnspacing=0.8, handletextpad=0.3)
 
 
 def build_fig_b(backends: list[dict], prefetch_window_s: float,
                 out_name: str = "fig_motivation_b") -> Path:
-    # Same plot-box height as Fig 1a; double the width per the 1:2:1
-    # row layout. Legend floats below — no tight_layout compression.
-    fig, ax = plt.subplots(1, 1, figsize=(4.40, 1.85))
+    # Wide panel (1:2:1 row layout). Height trimmed (1.75 vs 1.85) so the
+    # plot area is ~5% shorter than the square panels; width 4.60 (with
+    # \textwidth 0.48) keeps the on-paper height equal to panels a/c while
+    # giving the markers more horizontal room. Legend floats below.
+    fig, ax = plt.subplots(1, 1, figsize=(4.60, 1.75))
     _draw_panel_b(ax, backends, prefetch_window_s)
     _save_floating(fig, out_name)
     return FIG_DIR / f"{out_name}.pdf"
@@ -500,8 +553,9 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
         "", xy=(saved_x1, arrow_y), xytext=(saved_x0, arrow_y),
         arrowprops=dict(arrowstyle="<->", color="black", lw=0.7),
     )
+    spd = naive_total / staged_total if staged_total > 0 else 1.0
     ax.text((saved_x0 + saved_x1) / 2, arrow_y + 0.05,
-            f"saved {int(naive_total - staged_total)} s",
+            f"{spd:.1f}$\\times$",
             ha="center", va="bottom",
             fontweight="bold", color="black",
             bbox=label_bbox(alpha=0.9))
@@ -546,9 +600,11 @@ def _draw_panel_c(ax, naive_total: float, naive_floor: float,
 def build_fig_c(naive_total: float, naive_floor: float,
                 staged_total: float, staged_floor: float,
                 out_name: str = "fig_motivation_c") -> Path:
-    fig, ax = plt.subplots(1, 1, figsize=(1.85, 1.85))
+    # Fixed canvas shared with panel a (see _save_fixed) so the two
+    # square panels render to identical dimensions.
+    fig, ax = plt.subplots(1, 1, figsize=(2.3, 2.2))
     _draw_panel_c(ax, naive_total, naive_floor, staged_total, staged_floor)
-    _save_floating(fig, out_name)
+    _save_fixed(fig, out_name)
     return FIG_DIR / f"{out_name}.pdf"
 
 
@@ -605,11 +661,12 @@ def build_combined(per_bench_baseline: dict, backends: list[dict],
 def main() -> int:
     print("Loading decomposition (baseline + staged, headline cells)...")
     by, _raw = load_decomp_by_bench_mode()
+    # Fixed benchmark order for panel (a).
     per_bench_baseline = {
-        b: d for (b, mode), d in by.items() if mode == "baseline"
+        b: by[(b, "baseline")] for b in _BENCH_ORDER if (b, "baseline") in by
     }
     per_bench_staged = {
-        b: d for (b, mode), d in by.items() if mode == "staged"
+        b: by[(b, "staged")] for b in _BENCH_ORDER if (b, "staged") in by
     }
     def _floor(d: dict) -> float:
         # Fig 1c "Thinking Phase" = parallel-copyable window = everything
@@ -643,28 +700,33 @@ def main() -> int:
         print("ERROR: no IOR backend data found", file=sys.stderr)
         return 2
 
-    prefetch_window_s = float(statistics.median(
-        [_floor(d) for d in per_bench_baseline.values()]
-    ))
-    print(f"\nMedian prefetch window (thinking phase, across baseline benches): "
+    # Panel (b) window = the maximum thinking phase observed across
+    # baseline sessions: a single "what is possible in the thinking phase"
+    # ceiling for the motivation figure.
+    base_stream = [float(r["stream_s"]) for r in _raw
+                   if r.get("mode") == "baseline"]
+    prefetch_window_s = float(max(base_stream)) if base_stream else 30.0
+    print(f"\nMax thinking window (across baseline sessions): "
           f"{prefetch_window_s:.1f} s")
 
-    # Fig 1c source data: AIOB representative (largest tool dominance)
-    aiob_baseline = per_bench_baseline.get("Curated")
-    aiob_staged = per_bench_staged.get("Curated")
-    if aiob_baseline is None or aiob_staged is None:
-        print("WARNING: AIOB staged or baseline missing — using illustrative numbers")
-        c_args = (200.0, 50.0, 100.0, 50.0)
+    # Fig 1c source: Curated baseline, with the staged timeline anchored to
+    # the measured headline speedup so the teaser never out-promises §IV.
+    HEADLINE_SPEEDUP = 1.79
+    cur_base = per_bench_baseline.get("Curated")
+    if cur_base is None:
+        print("WARNING: Curated baseline missing — using illustrative numbers")
+        c_args = (200.0, prefetch_window_s, 200.0 / HEADLINE_SPEEDUP,
+                  prefetch_window_s)
     else:
-        c_args = (
-            float(aiob_baseline["total_s"]),
-            _floor(aiob_baseline),
-            float(aiob_staged["total_s"]),
-            _floor(aiob_staged),
-        )
-    print(f"Fig 1c timeline source (AIOB):")
-    print(f"  Naive  total={c_args[0]:.0f}s  floor={c_args[1]:.0f}s")
-    print(f"  Staged total={c_args[2]:.0f}s  floor={c_args[3]:.0f}s")
+        base_total = float(cur_base["total_s"])
+        # Use the same thinking-window value as panel (b) for the
+        # overlap-able block, so the two panels tell one consistent story.
+        thinking = prefetch_window_s
+        staged_total = base_total / HEADLINE_SPEEDUP
+        c_args = (base_total, thinking, staged_total, thinking)
+    print(f"Fig 1c timeline (Curated, anchored at {HEADLINE_SPEEDUP}x):")
+    print(f"  Baseline total={c_args[0]:.0f}s  floor={c_args[1]:.0f}s")
+    print(f"  Staged   total={c_args[2]:.0f}s  floor={c_args[3]:.0f}s")
 
     print("\nBuilding panel (a) - time decomposition...")
     build_fig_a(per_bench_baseline)

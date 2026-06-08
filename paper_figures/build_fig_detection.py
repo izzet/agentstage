@@ -58,27 +58,15 @@ from agentstage.workloads import get_workload  # noqa: E402
 # (benchmark × task × model) cells §IV.D reports speedups on, so §IV.B and
 # §IV.D characterize the same campaign.
 _RESULT_TRIO = frozenset({
-    # AIOB
-    "aiob_104", "aiob_107", "aiob_110",
-    # DSBench
-    "lmsys-chatbot-arena",
-    "ventilator-pressure-prediction",
-    "tabular-playground-series-may-2022",
-    # MLE-bench
-    "dogs-vs-cats-redux-kernels-edition",
-    "new-york-city-taxi-fare-prediction",
-    "histopathologic-cancer-detection",
+    # Curated only — §IV.B reports detection on the targeted regime
+    # (per-instance bucket-decomposable workloads). Community benchmarks
+    # are discussed separately in §IV.F (generalizability), where the
+    # staging mechanism uses tier-2/tier-3 for monolithic-bucket workloads.
+    "aiob_201", "aiob_202", "aiob_205",
 })
 
 _TASK_BENCH = {
-    **{t: "aiob" for t in ("aiob_104", "aiob_107", "aiob_110")},
-    **{t: "dsbench" for t in (
-        "lmsys-chatbot-arena", "ventilator-pressure-prediction",
-        "tabular-playground-series-may-2022")},
-    **{t: "mle" for t in (
-        "dogs-vs-cats-redux-kernels-edition",
-        "new-york-city-taxi-fare-prediction",
-        "histopathologic-cancer-detection")},
+    **{t: "aiob" for t in ("aiob_201", "aiob_202", "aiob_205")},
 }
 
 # Path-fragment exclusions — drop PoC-era runs, surgical campaigns, and
@@ -140,7 +128,13 @@ def _score_predictor_floor(blocks, workload, ruleset) -> dict | None:
     detection = run_detector(
         scan_blocks, workload.workspace_prior, ruleset, per_char=False,
     )
-    gt = workload.ground_truth_first_inspect
+    # Score tier-1 staging against the workload's full read set
+    # (every file the agent's session ultimately opens), not just the
+    # first-inspect probe. On integrity-manifest workloads the agent
+    # reads the whole corpus in one shell call, so the eligible
+    # staging target equals the full set, and tier-1 byte overfetch
+    # against that target is the meaningful precision measurement.
+    gt = workload.ground_truth_full
     score = byte_score(detection.tier_1.detected_files, gt, workload.prefix_map)
     d = score.to_dict()
     return {
@@ -285,9 +279,12 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
                ylabel: str = "", yref: float | None = None,
                yref_label: str | None = None,
                ylim: tuple[float, float] | None = None,
-               log_y: bool = False) -> None:
-    """Draw a strip plot with a box overlay per model column.
-    Models on x-axis at integer positions 0..N-1.
+               log_y: bool = False, show_legend: bool = False) -> None:
+    """Draw a strip plot with a median tick per model column.
+    Models on x-axis at integer positions 0..N-1. When show_legend is
+    set, models are identified by a 2-row legend above the plot (matching
+    the per-task panel and Fig 5/6) and the x-tick text is dropped, since
+    color already encodes the model and 4 names do not fit horizontally.
     """
     rng = np.random.RandomState(7)
 
@@ -300,6 +297,7 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
             xs, vals,
             s=marker_size, color=_MODEL_COLOR[mk], alpha=0.55,
             edgecolors="white", linewidths=0.4, zorder=3,
+            label=_MODEL_LABELS[mk],
         )
 
     # Median tick (short horizontal bar through each column). We skip the
@@ -312,8 +310,8 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
         if not vals:
             continue
         med = float(np.percentile(vals, 50))
-        ax.plot([i - 0.22, i + 0.22], [med, med],
-                color="black", linewidth=1.3, zorder=5,
+        ax.plot([i - 0.24, i + 0.24], [med, med],
+                color="black", linewidth=1.4, zorder=6,
                 solid_capstyle="round")
 
     # Reference line. Anchor the label at the left edge above the line so
@@ -328,15 +326,18 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
                     bbox=dict(boxstyle="round,pad=0.10",
                               facecolor="white", edgecolor="none", alpha=0.9))
 
-    # x-axis. Slight rotation (20 deg) keeps 4 column labels from touching
-    # each other when the panel is narrow. The (n=…) goes on a 2nd line.
-    n_per_model = {mk: len(values_per_model.get(mk, []))
-                   for mk in _MODEL_ORDER}
+    # x-axis.
     ax.set_xticks(list(range(n_models)))
-    ax.set_xticklabels(
-        [_MODEL_LABELS[mk] for mk in _MODEL_ORDER],
-        rotation=20, ha="right",
-    )
+    if show_legend:
+        # Model identity comes from the 2-row legend above; drop the
+        # x-tick text (4 names do not fit horizontally) but keep ticks.
+        ax.set_xticklabels([""] * n_models)
+    else:
+        # Slight rotation keeps 4 column labels from touching when narrow.
+        ax.set_xticklabels(
+            [_MODEL_LABELS[mk] for mk in _MODEL_ORDER],
+            rotation=20, ha="right",
+        )
     ax.set_xlim(-0.50, n_models - 1 + 0.50)
 
     # y-axis
@@ -345,6 +346,11 @@ def _strip_box(ax, values_per_model: dict[str, list[float]],
     if ylim is not None:
         ax.set_ylim(*ylim)
     style_axis(ax, xlabel="Model", ylabel=ylabel)
+
+    if show_legend:
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2,
+                  frameon=False, handlelength=1.0, handletextpad=0.4,
+                  columnspacing=1.0, labelspacing=0.3, borderaxespad=0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -367,11 +373,15 @@ def build_panel_a(rows: list[dict], out_name: str = "fig_detection_a") -> Path:
     # Slightly wider than HALF_COL because 4 column labels need the room
     # at 10pt serif. Combined preview keeps the HALF_COL convention.
     fig, ax = plt.subplots(figsize=(2.0, 1.85))
+    # Panel a: models on the x-axis (no legend; that would be redundant
+    # with the axis). Keeps the bolder median line and the spread-out
+    # dots from the pile-up fix.
     _strip_box(
         ax, _bucket_by_model(rows, "byte_recall"),
         ylabel="Tier-1 Byte Recall",
         yref=0.85, yref_label="0.85",
         ylim=(-0.04, 1.06),
+        jitter=0.18, marker_size=46.0,
     )
     pdf = FIG_DIR / f"{out_name}.pdf"
     png = FIG_DIR / f"{out_name}.png"
@@ -382,17 +392,77 @@ def build_panel_a(rows: list[dict], out_name: str = "fig_detection_a") -> Path:
 
 
 def build_panel_b(rows: list[dict], out_name: str = "fig_detection_b") -> Path:
-    """Tier-1 byte overfetch: log y, ref line at 1.5x. y-range tuned to
-    the campaign distribution (cluster at 1.0, p95 within ~1.6, max ~2.1).
-    """
-    fig, ax = plt.subplots(figsize=(2.0, 1.85))
-    _strip_box(
-        ax, _bucket_by_model(rows, "byte_overfetch", drop_nonfinite=True),
-        ylabel=r"Tier-1 Byte Overfetch ($\times$)",
-        yref=1.5, yref_label=r"1.5$\times$",
-        ylim=(0.9, 100.0),
-        log_y=True,
-    )
+    """Per-task recall distribution: strip plot of byte_recall per task
+    (3 columns for the 3 curated tasks), colored by model. Decomposes
+    the per-model headline (panel a) by task so the reader sees on
+    which tasks each model achieves full coverage."""
+    rng = np.random.RandomState(7)
+
+    # Shorter plot area than panel a (~20% shorter axes): the recall
+    # distribution is concentrated at 1.0 with a few low outliers, so a
+    # squatter axes reads fine and keeps 3b's total height (it carries a
+    # bottom legend) close to 3a's.
+    fig, ax = plt.subplots(figsize=(2.0, 1.44))
+
+    # Task ordering matches the workload table
+    task_order = ["aiob_201", "aiob_202", "aiob_205"]
+    task_labels = {
+        "aiob_201": "igsr",
+        "aiob_202": "jwst",
+        "aiob_205": "cross",
+    }
+
+    # bucket by (task, model_key)
+    by_task_model = {(t, mk): [] for t in task_order for mk in _MODEL_ORDER}
+    for r in rows:
+        if r["task"] in task_order:
+            by_task_model[(r["task"], r["model_key"])].append(r["byte_recall"])
+
+    # Plot per-(task) groups; within each task, scatter per model with jitter
+    n_models = len(_MODEL_ORDER)
+    for ti, task in enumerate(task_order):
+        for mi, mk in enumerate(_MODEL_ORDER):
+            vals = by_task_model[(task, mk)]
+            if not vals:
+                continue
+            # Offset per model within the task group
+            offset = (mi - (n_models - 1) / 2) * 0.16
+            xs = ti + offset + (rng.rand(len(vals)) - 0.5) * 0.06
+            ax.scatter(xs, vals, s=46, color=_MODEL_COLOR[mk], alpha=0.75,
+                       edgecolors="white", linewidths=0.4, zorder=3,
+                       label=_MODEL_LABELS[mk] if ti == 0 else None)
+
+    # Per-task median line (matches Fig 5/6's bold rounded group line).
+    cluster_half = (n_models - 1) / 2 * 0.16 + 0.10
+    for ti, task in enumerate(task_order):
+        tvals = [v for mk in _MODEL_ORDER for v in by_task_model[(task, mk)]]
+        if not tvals:
+            continue
+        med = float(np.percentile(tvals, 50))
+        ax.plot([ti - cluster_half, ti + cluster_half], [med, med],
+                color="black", linewidth=1.4, zorder=6,
+                solid_capstyle="round")
+
+    # 0.85 reference
+    ax.axhline(0.85, linestyle="--", color="#666666", linewidth=0.7,
+               alpha=0.85, zorder=2)
+    ax.text(-0.45, 0.85, "0.85", va="center", ha="left", color="#444444",
+            bbox=dict(boxstyle="round,pad=0.10",
+                      facecolor="white", edgecolor="none", alpha=0.9))
+
+    ax.set_xticks(list(range(len(task_order))))
+    ax.set_xticklabels([task_labels[t] for t in task_order])
+    ax.set_xlim(-0.50, len(task_order) - 1 + 0.50)
+    ax.set_ylim(-0.04, 1.06)
+    style_axis(ax, xlabel="Curated Task", ylabel="Tier-1 Byte Recall")
+    # Legend BELOW the plot in 2 columns. Placing it at the bottom (rather
+    # than on top) leaves both panels' plot areas top-aligned, and a 2-row
+    # block stays within the plot width (a single 4-wide row would stretch
+    # the panel).
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.32), ncol=2,
+              frameon=False, handlelength=1.0, handletextpad=0.4,
+              columnspacing=1.0, labelspacing=0.3, borderaxespad=0.0)
+
     pdf = FIG_DIR / f"{out_name}.pdf"
     png = FIG_DIR / f"{out_name}.png"
     fig.savefig(pdf, bbox_inches="tight", dpi=200)
