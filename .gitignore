@@ -32,3 +32,9 @@ build/
 # Secrets
 .env
 .env.local
+
+# Editor / local dev
+.vscode/
+
+# Local sqlite cache (LLM response cache)
+cache/
