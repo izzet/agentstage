@@ -94,7 +94,10 @@ SHIM = (REPO / "src" / "agentstage" / "stager" / "shim"
 # reasoning slack. Same policy as path_b_multiturn.py. Override via env
 # for workloads (e.g. KramaBench data-inventory) where the whole archive
 # really does need staging.
-STAGER_BUCKET_CAP = int(os.environ.get("STAGER_BUCKET_CAP", "200"))
+# Default 100000 (was 200): a low cap silently truncated full-corpus prefetch on
+# many-file workloads (MLE dogs 25k, KB 1.5k) and produced FALSE ~1.0x speedups.
+# Keep it high by default so runs never under-prefetch even if the env is unset.
+STAGER_BUCKET_CAP = int(os.environ.get("STAGER_BUCKET_CAP", "100000"))
 
 
 def _tiered_hot_env() -> tuple[str | None, int | None]:
@@ -408,6 +411,7 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
                 cwd=str(workspace_dir), env=env,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True,
+                start_new_session=True,  # own process group: kill whole tree on timeout
             )
             last_io: dict = {}
             stop = threading.Event()
@@ -425,7 +429,14 @@ def make_tool_executor(workload: Workload, workspace_dir: Path,
                 stdout, stderr = proc.communicate(timeout=shell_timeout)
                 rc = proc.returncode
             except subprocess.TimeoutExpired:
-                proc.kill()
+                # Kill the whole process group, not just bash: grandchildren
+                # (e.g. `python3 solution.py`) otherwise survive, keep the
+                # stdout/stderr pipe open, and communicate() blocks forever.
+                import signal
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    proc.kill()
                 stdout, stderr = proc.communicate()
                 rc = -9
                 stderr = (stderr or "") + (

@@ -324,9 +324,10 @@ def replay(traj: dict, *, workload, executor_fn, mode: str,
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
     shell_io_log: list[dict] = []
+    _sh_to = int(os.environ.get("AGENTSTAGE_SHELL_TIMEOUT", "300"))
     execute = executor_fn(
         workload, workspace_dir, mode=mode, hot_root=hot_root,
-        cold_root=cold_root_anc, shell_timeout=300,
+        cold_root=cold_root_anc, shell_timeout=_sh_to,
         io_log=shell_io_log,
     )
 
@@ -358,6 +359,12 @@ def replay(traj: dict, *, workload, executor_fn, mode: str,
     }
 
     t_session_start = time.monotonic()
+    # Cap per-turn replayed stream time. Recorded sessions occasionally contain
+    # multi-thousand-second "streaming" stalls from the OSS model's vLLM stream
+    # hanging mid-turn (not real reasoning). Reproducing those as time.sleep()
+    # makes a cell take ~the stalled wall time and dilutes the speedup toward 1.
+    # Real reasoning turns are seconds; cap at 180s (env-overridable).
+    _max_stream = float(os.environ.get("AGENTSTAGE_MAX_TURN_STREAM_S", "180"))
     for turn in traj["turns"]:
         t_turn_start = time.monotonic()
 
@@ -366,7 +373,7 @@ def replay(traj: dict, *, workload, executor_fn, mode: str,
         fired_rules_this_turn: list[str] = []
         dispatched_this_turn: list[dict] = []
         for b in turn["blocks"]:
-            target_t = t_turn_start + b["t_stop_ms"] / 1000.0
+            target_t = t_turn_start + min(b["t_stop_ms"] / 1000.0, _max_stream)
             now = time.monotonic()
             if target_t > now:
                 time.sleep(target_t - now)
@@ -387,7 +394,7 @@ def replay(traj: dict, *, workload, executor_fn, mode: str,
 
         # 2. Sleep out remaining LLM streaming time (covers unsaved
         #    tool_use deltas). Implied = duration - rc=0 shell elapsed.
-        end_of_stream = t_turn_start + turn["implied_stream_s"]
+        end_of_stream = t_turn_start + min(turn["implied_stream_s"], _max_stream)
         now = time.monotonic()
         if end_of_stream > now:
             time.sleep(end_of_stream - now)

@@ -241,6 +241,10 @@ def main() -> int:
             shio = r.get("shell_io_aggregate", {})
             rec[f"{mode}_shell_elapsed_s"] = shio.get("total_shell_elapsed_s")
             rec[f"{mode}_read_bytes"] = shio.get("total_read_bytes")
+            # rchar = logical bytes read (read()-family). On OrangeFS the block
+            # layer is bypassed so total_read_bytes is 0; rchar is the real
+            # read-volume term for the speedup predictor.
+            rec[f"{mode}_rchar"] = shio.get("total_rchar")
             rec[f"{mode}_syscr"] = shio.get("total_syscr")
             if mode == "staged":
                 rec["n_prefetched_staged"] = r.get("n_prefetched_files", 0)
