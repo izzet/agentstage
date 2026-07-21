@@ -159,3 +159,107 @@ KB_MINIMAL_SLICE = {
     "kb_biomedical_easy_6": load_kb_biomedical_easy_6,
     "kb_wildfire_easy_1": load_kb_wildfire_easy_1,
 }
+
+
+# ---------------------------------------------------------------------------
+# Custom "data inventory" task — built on KramaBench astronomy raw data.
+#
+# Motivation: KramaBench's stock tasks are Q&A style and each reads only
+# 5-10 files, so they are LLM-dominated and don't exercise bulk I/O.
+# Real data-engineering pipelines often start with a data-inventory step
+# that walks every file. This custom task exercises that pattern on
+# KramaBench's actual astronomy raw archive (1538 files / 486 MB) and
+# becomes a transferability data point for AgentStage on a third-party
+# scientific-data benchmark.
+# ---------------------------------------------------------------------------
+
+_KB_ASTRONOMY_INVENTORY_INST = (
+    "You are building a data inventory for the astronomy raw archive in "
+    "/data/astronomy/. The full archive contains every file across the "
+    "following subgroups: geomag_forecast, STORM-AI, swarm, omni2, and "
+    "any other top-level directory under /data/astronomy/. Each file must "
+    "appear in the manifest exactly once.\n\n"
+    "For every file under /data/astronomy/ (recursively, across all "
+    "subdirectories) record three fields: the relative path, the file size "
+    "in bytes (via os.path.getsize), and the first 64 bytes of the file "
+    "content encoded as a lowercase hex string (open the file in binary, "
+    "read up to 64 bytes, .hex()). Do not subsample or skip directories.\n\n"
+    "Save the result as result/astronomy_inventory.csv with columns: "
+    "relpath, size_bytes, head_hex. Sort by relpath. Include every file "
+    "found in the recursive walk (typical scientific data archives in "
+    "this domain ship roughly 1500 files at this stage of the pipeline).\n"
+)
+
+
+_KB_WILDFIRE_INVENTORY_INST = (
+    "You are building a data inventory for the wildfire raw archive "
+    "in /data/wildfire/. The archive contains ~22 files covering "
+    "wildfire counts, suppression costs, weather data, and "
+    "geographic boundaries across multiple sources (NIFC, NOAA, US "
+    "Census, RAWS stations).\n\n"
+    "For every file under /data/wildfire/ (recursively across all "
+    "subdirectories) record three fields: relative path, file size in "
+    "bytes (via os.path.getsize), and the first 64 bytes of the file "
+    "content encoded as a lowercase hex string (open in binary, read "
+    "up to 64 bytes, .hex()). Do not subsample.\n\n"
+    "Save the result as result/wildfire_inventory.csv with columns: "
+    "relpath, size_bytes, head_hex. Sort by relpath. Include every "
+    "file from the recursive walk."
+)
+
+
+def load_kb_wildfire_inventory() -> KramaWorkload:
+    """KramaBench wildfire data inventory task (~22 files / 31 MB).
+    Smaller than astronomy by 16× — explicitly tests the lower bound
+    of AgentStage's operating envelope on small-data workloads."""
+    data_input = KRAMA_ROOT / "data" / "wildfire" / "input"
+    files_phys = _enumerate_input(data_input)
+    logical_root = "/data/wildfire"
+    workspace_prior = _build_workspace_prior(files_phys, logical_root)
+    gt_logical = workspace_prior["all_files"]
+    task = KramaTask(
+        task_id="wildfire-inventory",
+        domain="wildfire",
+        query=_KB_WILDFIRE_INVENTORY_INST,
+        answer=None,
+        data_sources=tuple(p[len("/data/wildfire/"):] for p in gt_logical),
+    )
+    prefix_map = ((logical_root + "/", str(data_input) + "/"),)
+    return KramaWorkload(
+        task_id="kb_wildfire_inventory",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_logical,
+        ground_truth_first_inspect=gt_logical,
+        prefix_map=prefix_map,
+    )
+
+
+def load_kb_astronomy_inventory() -> KramaWorkload:
+    """KramaBench astronomy: comprehensive data-inventory task over all
+    1538 input files. Stresses many-small-files metadata + first-byte
+    read latency, which is the regime where OrangeFS cold-tier RPCs
+    dominate session time."""
+    data_input = KRAMA_ROOT / "data" / "astronomy" / "input"
+    files_phys = _enumerate_input(data_input)
+    logical_root = "/data/astronomy"
+    workspace_prior = _build_workspace_prior(files_phys, logical_root)
+    # All-files first-inspect: a 'first-look' over the entire archive,
+    # matching the inventory task pattern.
+    gt_logical = workspace_prior["all_files"]
+    task = KramaTask(
+        task_id="astronomy-inventory",
+        domain="astronomy",
+        query=_KB_ASTRONOMY_INVENTORY_INST,
+        answer=None,
+        data_sources=tuple(p[len("/data/astronomy/"):] for p in gt_logical),
+    )
+    prefix_map = ((logical_root + "/", str(data_input) + "/"),)
+    return KramaWorkload(
+        task_id="kb_astronomy_inventory",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_logical,
+        ground_truth_first_inspect=gt_logical,
+        prefix_map=prefix_map,
+    )

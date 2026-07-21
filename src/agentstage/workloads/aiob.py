@@ -152,6 +152,54 @@ _CURATED_TASK_INST: dict[str, str] = {
         "size_bytes, xxh64. Sort by scene then filename. Include every "
         "GeoTIFF in the archive (do not subsample).\n"
     ),
+    "aiob_205": (
+        "Compute a unified xxh64 data-integrity manifest covering TWO "
+        "Earth-observation and astronomy archives staged on the same "
+        "shared filesystem: Sentinel-2 NDVI Level-2A GeoTIFFs under "
+        "/data/sentinel2_ndvi/raw/<scene>/<band>.tif (16 scenes × 5 "
+        "bands = 80 files, ~14.7 GB) AND JWST coadd Level-2 FITS files "
+        "under /data/jwst_coadd_catalog/raw/cal/*.fits (96 files, "
+        "~11.3 GB across 8 NIRCam detectors nrca[1-4]/nrcb[1-4]).\n\n"
+        "The combined archive (~25 GB / 176 files) is too large for a "
+        "single fast in-memory tier on most clusters, so this is a "
+        "realistic stress test for a tiered staging system.\n\n"
+        "For every file across BOTH archives compute the xxh64 hex "
+        "digest of the entire file contents. Also record the file size "
+        "in bytes, the source archive label ('sentinel2_ndvi' or "
+        "'jwst_coadd_catalog'), and a group key (scene name for "
+        "Sentinel-2; detector code nrcaN/nrcbN parsed from the FITS "
+        "filename for JWST).\n\n"
+        "Save result/integrity_manifest.csv with columns: archive, "
+        "group, filename, size_bytes, xxh64. Sort by archive, then "
+        "group, then filename. Include every file across both archives "
+        "(do not subsample).\n"
+    ),
+    "aiob_204": (
+        "Validate the Sentinel-2 NDVI Level-2A scene archive in "
+        "/data/sentinel2_ndvi/raw/ using three INDEPENDENT checksum "
+        "families. Modern Earth-observation pipelines cross-check files "
+        "with multiple hash families because no single algorithm catches "
+        "every kind of bit-flip or block-swap. The dataset publisher "
+        "ships three reference CLI tools for this purpose, found in "
+        "/data/agentstage_tools/:\n\n"
+        "  - xxh64sum     (xxHash 64-bit, non-cryptographic, family A)\n"
+        "  - xxh3_128sum  (xxHash3 128-bit, family B, different mixing)\n"
+        "  - crc32sum     (CRC-32 polynomial, error-detection code)\n\n"
+        "Each tool follows md5sum conventions: '<hex>  <filename>' lines "
+        "on stdout, accepts multiple FILE arguments per invocation, "
+        "returns exit code 0 on success. You MUST use ALL THREE tools "
+        "to compute the checksums (do NOT re-implement the hashes in "
+        "Python and do NOT substitute md5sum/sha256sum, since downstream "
+        "consumers expect the exact digest formats produced by these "
+        "reference tools).\n\n"
+        "Most efficient usage is to invoke each tool once with the full "
+        "file list (the tool processes them sequentially).\n\n"
+        "For every *.tif under /data/sentinel2_ndvi/raw/<scene>/, capture "
+        "all three digests. Save result/integrity_manifest.csv with "
+        "columns: scene, filename, xxh64, xxh3_128, crc32. Sort by scene "
+        "then filename. Include every GeoTIFF in the archive (do not "
+        "subsample).\n"
+    ),
 }
 
 
@@ -730,6 +778,159 @@ def load_aiob_203() -> Workload:
 
 
 # ---------------------------------------------------------------------------
+# aiob_204 — Sentinel-2 GeoTIFF multi-checksum (3-pass I/O-bound)
+# ---------------------------------------------------------------------------
+# Same 14GB Sen2 corpus as aiob_203 but the task prompt directs the agent
+# to use three provided reference CLI tools (xxh64sum, xxh3_128sum,
+# crc32sum) in /data/agentstage_tools/. The agent's natural shell pipeline
+# (one invocation per tool, with the full file list) yields THREE
+# independent read passes over the corpus (~42GB of cold reads). This
+# pushes shell_share of session high enough to clear the 2× session
+# speedup bar that single-pass aiob_203 cannot hit on this hardware.
+
+def load_aiob_204() -> Workload:
+    """Sentinel-2 multi-checksum integrity (xxh64 + xxh3_128 + crc32).
+    Same 14GB / 80 files as aiob_203; three-pass shell behaviour forced
+    by the provided reference CLIs."""
+    inst = _CURATED_TASK_INST["aiob_204"]
+    task = TaskConfig(
+        name="aiob_204_sentinel2_multihash",
+        instance_id=204,
+        domain="earth_observation",
+        dataset_subdir="sentinel2_ndvi",
+        task_inst=inst,
+        output_fname="integrity_manifest.csv",
+    )
+    real_base = data_root() / task.dataset_subdir / "raw"
+    logical_base = "/data/sentinel2_ndvi/raw"
+    tool_logical_base = "/data/agentstage_tools"
+    tool_real_base = data_root() / "agentstage_tools"
+
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    all_files: list[str] = []
+    if real_base.is_dir():
+        for scene_dir in sorted(real_base.iterdir()):
+            if not scene_dir.is_dir():
+                continue
+            scene = scene_dir.name
+            tif_files: list[str] = []
+            for f in sorted(scene_dir.iterdir()):
+                if f.suffix.lower() in (".tif", ".tiff"):
+                    tif_files.append(f"{logical_base}/{scene}/{f.name}")
+            workspace_prior[f"scene_{scene}"] = tuple(tif_files)
+            all_files.extend(tif_files)
+    workspace_prior["all_scenes"] = tuple(all_files)
+    # Reference tools — class-prefix `tool_` so auto-rule-generator can fire
+    # when the agent's thinking mentions any of these names.
+    workspace_prior["tool_xxh64sum"] = (f"{tool_logical_base}/xxh64sum",)
+    workspace_prior["tool_xxh3_128sum"] = (f"{tool_logical_base}/xxh3_128sum",)
+    workspace_prior["tool_crc32sum"] = (f"{tool_logical_base}/crc32sum",)
+    workspace_prior["output_manifest"] = (
+        "/output/result/integrity_manifest.csv",)
+
+    gt_full = tuple(all_files)
+    first_scene_key = next((k for k in workspace_prior if k.startswith("scene_")), None)
+    gt_first = workspace_prior.get(first_scene_key, ()) if first_scene_key else ()
+
+    return Workload(
+        task_id="aiob_204",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_full,
+        ground_truth_first_inspect=gt_first,
+        prefix_map=(
+            (f"{logical_base}/", f"{real_base}/"),
+            (f"{tool_logical_base}/", f"{tool_real_base}/"),
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# aiob_205 — Combined Sen2 + JWST xxh64 integrity (tiered hot stress test)
+# ---------------------------------------------------------------------------
+# Two archives merged into one ~25.95 GB / 176-file workload that exceeds
+# common /dev/shm caps (24 GB on this node), forcing tiered staging
+# (primary tmpfs + NVMe overflow). Single-pass xxh64 per file so the
+# session shell time scales with cold-tier bandwidth, demonstrating both
+# the I/O-saving mechanism AND the tiered hot architecture end-to-end.
+
+def load_aiob_205() -> Workload:
+    """Combined Sen2 GeoTIFF + JWST FITS xxh64 integrity manifest."""
+    inst = _CURATED_TASK_INST["aiob_205"]
+    task = TaskConfig(
+        name="aiob_205_combined_integrity",
+        instance_id=205,
+        domain="multi_archive",
+        dataset_subdir="sentinel2_ndvi",   # primary subdir for back-compat
+        task_inst=inst,
+        output_fname="integrity_manifest.csv",
+    )
+    sen2_real = data_root() / "sentinel2_ndvi" / "raw"
+    jwst_real = data_root() / "jwst_coadd_catalog" / "raw" / "cal"
+    sen2_logical = "/data/sentinel2_ndvi/raw"
+    jwst_logical = "/data/jwst_coadd_catalog/raw/cal"
+
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    sen2_files: list[str] = []
+    if sen2_real.is_dir():
+        for scene_dir in sorted(sen2_real.iterdir()):
+            if not scene_dir.is_dir():
+                continue
+            scene = scene_dir.name
+            tif_files: list[str] = []
+            for f in sorted(scene_dir.iterdir()):
+                if f.suffix.lower() in (".tif", ".tiff"):
+                    tif_files.append(f"{sen2_logical}/{scene}/{f.name}")
+            workspace_prior[f"scene_{scene}"] = tuple(tif_files)
+            sen2_files.extend(tif_files)
+
+    import re
+    det_re = re.compile(r"_(nrc[ab][1234])_")
+    by_det: dict[str, list[str]] = {f"nrc{ab}{n}": []
+                                     for ab in ("a", "b") for n in (1, 2, 3, 4)}
+    jwst_files: list[str] = []
+    if jwst_real.is_dir():
+        for f in sorted(jwst_real.iterdir()):
+            if f.suffix.lower() not in (".fits", ".fits.gz"):
+                continue
+            logical = f"{jwst_logical}/{f.name}"
+            jwst_files.append(logical)
+            m = det_re.search(f.name)
+            if m:
+                by_det[m.group(1)].append(logical)
+    for det, files in by_det.items():
+        if files:
+            workspace_prior[f"detector_{det}"] = tuple(files)
+    # SINGLE combined "all_files" bucket spans both archives so the
+    # auto-rule generator's `all_signal` rule (matching "all/every/each
+    # FILE|FITS|tif" patterns) fires one prefetch covering everything.
+    # If we kept separate all_scenes + all_fits, the auto rule would
+    # target only the alphabetically-first bucket, leaving the other
+    # archive un-staged.
+    workspace_prior["all_files"] = tuple(sen2_files + jwst_files)
+    workspace_prior["output_manifest"] = (
+        "/output/result/integrity_manifest.csv",)
+
+    gt_full = tuple(sen2_files + jwst_files)
+    first_scene_key = next((k for k in workspace_prior
+                             if k.startswith("scene_")), None)
+    gt_first = (workspace_prior.get(first_scene_key, ())
+                if first_scene_key else ())
+
+    return Workload(
+        task_id="aiob_205",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=gt_full,
+        ground_truth_first_inspect=gt_first,
+        prefix_map=(
+            (f"{sen2_logical}/", f"{sen2_real}/"),
+            (f"{jwst_logical}/", f"{jwst_real}/"),
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -742,6 +943,8 @@ ALL_AIOB_WORKLOADS: dict[str, "callable[[], Workload]"] = {
     "aiob_201": load_aiob_201,
     "aiob_202": load_aiob_202,
     "aiob_203": load_aiob_203,
+    "aiob_204": load_aiob_204,
+    "aiob_205": load_aiob_205,
 }
 
 

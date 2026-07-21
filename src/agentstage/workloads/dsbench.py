@@ -64,8 +64,210 @@ def _logical_root(task_id: str) -> str:
     return f"/data/{task_id}"
 
 
+_DSB_MULTITASK_ANALYSIS_TASKS = (
+    "tabular-playground-series-oct-2021",
+    "tabular-playground-series-dec-2021",
+    "tabular-playground-series-nov-2021",
+    "tabular-playground-series-sep-2021",
+)
+
+_DSB_MULTITASK_ANALYSIS_INST = (
+    "You are doing comparative data-analysis across FOUR tabular Kaggle "
+    "competitions. For EACH of the following tasks (each has its own "
+    "train.csv and test.csv under /data/<task-name>/), load the train "
+    "set via pandas and compute summary statistics, then write a single "
+    "consolidated comparison report.\n\n"
+    "Tasks (full train.csv path under /data/):\n"
+    "  - /data/tabular-playground-series-oct-2021/train.csv\n"
+    "  - /data/tabular-playground-series-dec-2021/train.csv\n"
+    "  - /data/tabular-playground-series-nov-2021/train.csv\n"
+    "  - /data/tabular-playground-series-sep-2021/train.csv\n\n"
+    "For each task: load the FULL train.csv via "
+    "`pd.read_csv(path)` (do NOT subsample, do NOT use nrows or chunksize), "
+    "then record: row count, column count, target-column mean and std "
+    "(the target is typically named 'target' or 'claim'), and the "
+    "missing-rate of the most-missing column.\n\n"
+    "Write the consolidated report to result/analysis_summary.csv with "
+    "columns: task, n_rows, n_cols, target_mean, target_std, "
+    "max_missing_rate, max_missing_col. One row per task, four rows total.\n\n"
+    "Read EVERY train.csv fully; this is a data-quality audit, not a "
+    "modeling exercise, so pandas read_csv on each file is the dominant "
+    "I/O step. Use one pandas pass per file."
+)
+
+
+def load_dsbench_multitask_analysis() -> DSBWorkload:
+    """Custom DSBench workload: combined analysis across 4 tabular tasks.
+
+    Combines ~3.7 GB of CSV data so the I/O share is large enough relative
+    to LLM time to actually demonstrate session-level speedup on a
+    compute-bound benchmark family.
+    """
+    log_root = "/data"
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    prefix_map_entries: list[tuple[str, str]] = []
+    all_files: list[str] = []
+    for tid in _DSB_MULTITASK_ANALYSIS_TASKS:
+        resplit_dir = DSBENCH_DATA_ROOT / "data_resplit" / tid
+        if not resplit_dir.is_dir():
+            raise FileNotFoundError(f"data_resplit dir missing: {resplit_dir}")
+        train_logical = f"{log_root}/{tid}/train.csv"
+        test_logical = f"{log_root}/{tid}/test.csv"
+        key_safe = tid.replace("-", "_")
+        workspace_prior[f"train_{key_safe}"] = (train_logical,)
+        workspace_prior[f"test_{key_safe}"] = (test_logical,)
+        all_files.extend([train_logical, test_logical])
+        prefix_map_entries.append(
+            (f"{log_root}/{tid}/", str(resplit_dir) + "/"))
+    workspace_prior["all_files"] = tuple(all_files)
+    workspace_prior["output_submission"] = (
+        f"{log_root}/result/analysis_summary.csv",)
+    task = DSBTask(
+        task_id="multitask_analysis",
+        description=_DSB_MULTITASK_ANALYSIS_INST,
+        train_csv=(DSBENCH_DATA_ROOT / "data_resplit"
+                   / _DSB_MULTITASK_ANALYSIS_TASKS[0] / "train.csv").resolve(),
+        test_csv=(DSBENCH_DATA_ROOT / "data_resplit"
+                  / _DSB_MULTITASK_ANALYSIS_TASKS[0] / "test.csv").resolve(),
+        sample_csv=None,
+    )
+    return DSBWorkload(
+        task_id="dsb_multitask_analysis",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=tuple(all_files),
+        ground_truth_first_inspect=tuple(all_files),
+        prefix_map=tuple(prefix_map_entries),
+    )
+
+
+_DSB_INTEGRITY_MANIFEST_INST = (
+    "You are computing a DATA INTEGRITY MANIFEST for four tabular Kaggle "
+    "competition datasets staged on a shared filesystem. This is a "
+    "standard data-publishing preprocessing step: every file in the "
+    "archive must be checksummed so downstream consumers can verify "
+    "integrity after transfer.\n\n"
+    "Files to checksum (full paths under /data/):\n"
+    "  - /data/tabular-playground-series-oct-2021/train.csv\n"
+    "  - /data/tabular-playground-series-oct-2021/test.csv\n"
+    "  - /data/tabular-playground-series-dec-2021/train.csv\n"
+    "  - /data/tabular-playground-series-dec-2021/test.csv\n"
+    "  - /data/tabular-playground-series-nov-2021/train.csv\n"
+    "  - /data/tabular-playground-series-nov-2021/test.csv\n"
+    "  - /data/tabular-playground-series-sep-2021/train.csv\n"
+    "  - /data/tabular-playground-series-sep-2021/test.csv\n\n"
+    "For EACH file compute the xxh64 hex digest of the ENTIRE file "
+    "contents using the `xxhash` package "
+    "(`xxhash.xxh64(open(p,'rb').read()).hexdigest()`). Also record the "
+    "file size in bytes (via os.path.getsize). Use a streaming approach "
+    "if the file is too large for memory: read in 8 MB chunks and update "
+    "the hasher.\n\n"
+    "Write result/integrity_manifest.csv with columns: dataset, "
+    "filename, size_bytes, xxh64. Sort by dataset then filename. "
+    "Include all 8 files, no subsampling."
+)
+
+
+_DSB_INTEGRITY_SINGLE_INST = (
+    "You are computing a DATA INTEGRITY MANIFEST for the "
+    "tabular-playground-series-oct-2021 Kaggle competition dataset. "
+    "Standard data-publishing preprocessing step.\n\n"
+    "For EACH file under /data/tabular-playground-series-oct-2021/ "
+    "(specifically train.csv and test.csv), compute the xxh64 hex "
+    "digest of the ENTIRE file contents using the `xxhash` package. "
+    "Use a streaming approach: read in 8 MB chunks and update the "
+    "hasher (xxhash.xxh64()).update(chunk). Also record the file size "
+    "in bytes via os.path.getsize.\n\n"
+    "Write result/integrity_manifest.csv with columns: filename, "
+    "size_bytes, xxh64. Sort by filename. Include both train.csv and "
+    "test.csv."
+)
+
+
+def load_dsbench_integrity_single() -> DSBWorkload:
+    """DSBench single-task integrity manifest. Just train.csv + test.csv
+    of tabular-playground-series-oct-2021 (~2.2 GB). Few-large-files
+    workload — less shim overhead than the 8-file multi-task variant."""
+    tid = "tabular-playground-series-oct-2021"
+    log_root = "/data"
+    resplit_dir = DSBENCH_DATA_ROOT / "data_resplit" / tid
+    if not resplit_dir.is_dir():
+        raise FileNotFoundError(f"data_resplit dir missing: {resplit_dir}")
+    train_logical = f"{log_root}/{tid}/train.csv"
+    test_logical = f"{log_root}/{tid}/test.csv"
+    workspace_prior: dict[str, tuple[str, ...]] = {
+        "train_csv": (train_logical,),
+        "test_csv": (test_logical,),
+        "all_files": (train_logical, test_logical),
+        "output_submission": (f"{log_root}/result/integrity_manifest.csv",),
+    }
+    task = DSBTask(
+        task_id="integrity_single",
+        description=_DSB_INTEGRITY_SINGLE_INST,
+        train_csv=(resplit_dir / "train.csv").resolve(),
+        test_csv=(resplit_dir / "test.csv").resolve(),
+        sample_csv=None,
+    )
+    return DSBWorkload(
+        task_id="dsb_integrity_single",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=(train_logical, test_logical),
+        ground_truth_first_inspect=(train_logical, test_logical),
+        prefix_map=((f"{log_root}/{tid}/", str(resplit_dir) + "/"),),
+    )
+
+
+def load_dsbench_integrity_manifest() -> DSBWorkload:
+    """DSBench integrity-manifest task: xxh64 every train/test CSV
+    across the 4 tabular-playground tasks. Real third-party benchmark
+    data, AgentStage-style I/O-bound task design."""
+    log_root = "/data"
+    workspace_prior: dict[str, tuple[str, ...]] = {}
+    prefix_map_entries: list[tuple[str, str]] = []
+    all_files: list[str] = []
+    for tid in _DSB_MULTITASK_ANALYSIS_TASKS:
+        resplit_dir = DSBENCH_DATA_ROOT / "data_resplit" / tid
+        if not resplit_dir.is_dir():
+            raise FileNotFoundError(f"data_resplit dir missing: {resplit_dir}")
+        train_logical = f"{log_root}/{tid}/train.csv"
+        test_logical = f"{log_root}/{tid}/test.csv"
+        key_safe = tid.replace("-", "_")
+        workspace_prior[f"train_{key_safe}"] = (train_logical,)
+        workspace_prior[f"test_{key_safe}"] = (test_logical,)
+        all_files.extend([train_logical, test_logical])
+        prefix_map_entries.append(
+            (f"{log_root}/{tid}/", str(resplit_dir) + "/"))
+    workspace_prior["all_files"] = tuple(all_files)
+    workspace_prior["output_submission"] = (
+        f"{log_root}/result/integrity_manifest.csv",)
+    task = DSBTask(
+        task_id="integrity_manifest",
+        description=_DSB_INTEGRITY_MANIFEST_INST,
+        train_csv=(DSBENCH_DATA_ROOT / "data_resplit"
+                   / _DSB_MULTITASK_ANALYSIS_TASKS[0] / "train.csv").resolve(),
+        test_csv=(DSBENCH_DATA_ROOT / "data_resplit"
+                  / _DSB_MULTITASK_ANALYSIS_TASKS[0] / "test.csv").resolve(),
+        sample_csv=None,
+    )
+    return DSBWorkload(
+        task_id="dsb_integrity_manifest",
+        task=task,
+        workspace_prior=workspace_prior,
+        ground_truth_full=tuple(all_files),
+        ground_truth_first_inspect=tuple(all_files),
+        prefix_map=tuple(prefix_map_entries),
+    )
+
+
 def load_dsbench_task(task_id: str) -> DSBWorkload:
     """Load a DSBench data_modeling task by name."""
+    # Special-case for the multi-task analysis workload — combines 4 tasks
+    # into one session to exercise more cumulative I/O.
+    if task_id == "multitask_analysis":
+        return load_dsbench_multitask_analysis()
+    if task_id == "integrity_manifest":
+        return load_dsbench_integrity_manifest()
     resplit_dir = DSBENCH_DATA_ROOT / "data_resplit" / task_id
     task_file = DSBENCH_DATA_ROOT / "task" / f"{task_id}.txt"
     if not resplit_dir.is_dir():

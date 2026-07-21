@@ -23,11 +23,19 @@ from agentstage.workloads.aiob import (
 )
 from agentstage.workloads.code_repo import code_repo_root, load_code_repo
 from agentstage.workloads.dsbench import load_dsbench_task
-from agentstage.workloads.mlebench import load_mle_competition
+from agentstage.workloads.mlebench import (
+    load_mle_competition,
+    load_mle_dogsvcats_thumbhash,
+)
+from agentstage.workloads.kramabench import (
+    load_kb_astronomy_inventory,
+)
 
 ALL_WORKLOADS: dict[str, "callable[[], Workload]"] = {
     **ALL_AIOB_WORKLOADS,
     "code_repo": load_code_repo,
+    "mle_dogsvcats_thumbhash": load_mle_dogsvcats_thumbhash,
+    "kb_astronomy_inventory": load_kb_astronomy_inventory,
 }
 
 # Result-trio DSBench + MLE-bench tasks. Loaded via parameterized factories
@@ -37,6 +45,7 @@ _DSBENCH_TASKS = frozenset({
     "lmsys-chatbot-arena",
     "ventilator-pressure-prediction",
     "tabular-playground-series-may-2022",
+    "tabular-playground-series-oct-2021",
 })
 _MLEBENCH_TASKS = frozenset({
     "dogs-vs-cats-redux-kernels-edition",
