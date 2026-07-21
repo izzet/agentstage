@@ -44,58 +44,20 @@ from agentstage.workloads import get_workload  # noqa: E402
 # description text only, with no workspace-inventory traversal.
 # ---------------------------------------------------------------------------
 HAND_RULES: dict[str, list[tuple[str, str, tuple[str, ...]]]] = {
-    "aiob_104": [
+    "aiob_201": [
         ("bam_pattern", r"\bBAM\b|alignment|samples", ("all_samples",)),
         ("reference_pattern", r"reference|chromosome", ("reference",)),
-        ("output_hist", r"histogram", ("output_histogram",)),
-        ("output_summary", r"summary", ("output_summary",)),
-        ("output_report", r"\breport\b", ("output_report",)),
+        ("output_manifest", r"manifest|integrity", ("output_manifest",)),
     ],
-    "aiob_107": [
-        ("netcdf_pattern", r"NetCDF|brightness|CMI|GOES", ("all_files",)),
-        ("band_pattern", r"band\s*\d+", ("all_files",)),
-        ("output_hourly", r"hourly", ("output_hourly",)),
-        ("output_diurnal", r"diurnal", ("output_diurnal",)),
-        ("output_report", r"\breport\b", ("output_report",)),
+    "aiob_202": [
+        ("fits_pattern", r"\bFITS\b|JWST|coadd|calibration", ("all_fits",)),
+        ("detector_pattern", r"detector|nrca|nrcb", ("all_fits",)),
+        ("output_manifest", r"manifest|integrity", ("output_manifest",)),
     ],
-    "aiob_110": [
-        ("nwb_pattern", r"NWB|Steinmetz|Neuropixels|recording", ("all_subjects",)),
-        ("subject_pattern", r"subject|session|spike", ("all_subjects",)),
-        ("output_psth", r"PSTH|peri.stimulus", ("output_psth",)),
-        ("output_summary", r"summary", ("output_session_summary",)),
-        ("output_report", r"\breport\b", ("output_report_md",)),
-    ],
-    "lmsys-chatbot-arena": [
-        ("train_pattern", r"train\.csv|training data|train data", ("train_csv",)),
-        ("test_pattern", r"test\.csv|test data|test set", ("test_csv",)),
-        ("submission_pattern", r"sample.submission|submission", ("output_submission",)),
-    ],
-    "ventilator-pressure-prediction": [
-        ("train_pattern", r"train|training", ("train_csv",)),
-        ("test_pattern", r"test", ("test_csv",)),
-        ("submission_pattern", r"sample.submission|submission", ("output_submission",)),
-    ],
-    "tabular-playground-series-may-2022": [
-        ("train_pattern", r"train|training", ("train_csv",)),
-        ("test_pattern", r"test", ("test_csv",)),
-        ("submission_pattern", r"sample.submission|submission", ("output_submission",)),
-    ],
-    "dogs-vs-cats-redux-kernels-edition": [
-        ("train_pattern", r"train|training", ("train_zip",)),
-        ("test_pattern", r"test", ("test_zip",)),
-        ("submission_pattern", r"sample.submission|submission", ("output_submission",)),
-    ],
-    "new-york-city-taxi-fare-prediction": [
-        # NB: a naive author assumes a 'train_csv' bucket; nyc-taxi actually
-        # exposes 'extra_csv'. This is an honest naive-author miss.
-        ("train_pattern", r"train|training", ("train_csv",)),
-        ("test_pattern", r"test", ("test_csv",)),
-        ("submission_pattern", r"sample.submission|submission", ("output_submission",)),
-    ],
-    "histopathologic-cancer-detection": [
-        ("train_pattern", r"train|training", ("train_zip",)),
-        ("test_pattern", r"test", ("test_zip",)),
-        ("submission_pattern", r"sample.submission|submission", ("output_submission",)),
+    "aiob_205": [
+        ("fits_pattern", r"\bFITS\b|JWST", ("all_files",)),
+        ("geotiff_pattern", r"GeoTIFF|tiff|Sentinel|scene", ("all_files",)),
+        ("output_manifest", r"manifest|integrity", ("output_manifest",)),
     ],
 }
 
@@ -114,18 +76,7 @@ def hand_ruleset(task_id: str) -> RuleSet:
 # ---------------------------------------------------------------------------
 PATH_EXCLUDE = ("poc/", "surgical_", "_sweep_pathful", "_smoke", "_archive")
 RESULT_TRIO = set(HAND_RULES.keys())
-TASK_BENCH = {
-    **{t: "aiob" for t in ("aiob_104", "aiob_107", "aiob_110")},
-    **{t: "dsbench" for t in (
-        "lmsys-chatbot-arena", "ventilator-pressure-prediction",
-        "tabular-playground-series-may-2022",
-    )},
-    **{t: "mle" for t in (
-        "dogs-vs-cats-redux-kernels-edition",
-        "new-york-city-taxi-fare-prediction",
-        "histopathologic-cancer-detection",
-    )},
-}
+TASK_BENCH = {t: "aiob" for t in ("aiob_201", "aiob_202", "aiob_205")}
 REPS_PER_CELL = 3
 
 
@@ -146,7 +97,8 @@ def score_one(blocks, workload, ruleset):
     detection = run_detector(
         blocks, workload.workspace_prior, ruleset, per_char=False,
     )
-    gt = workload.ground_truth_first_inspect
+    # Score against ground_truth_full to match §IV.B's recall metric
+    gt = workload.ground_truth_full
     s = byte_score(detection.tier_1.detected_files, gt, workload.prefix_map)
     return s.to_dict()
 
