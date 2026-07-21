@@ -58,6 +58,12 @@
 static struct {
     char hot_root[PATH_MAX];
     size_t hot_root_len;
+    /* Optional overflow tier (single path). On lookup, primary hot_root
+     * is tried first; if the file is not there, hot_overflow is tried;
+     * if still missing, fall through to cold. */
+    char hot_overflow[PATH_MAX];
+    size_t hot_overflow_len;
+    int has_overflow;
     char *cold_roots[MAX_COLD_ROOTS];
     size_t cold_roots_len[MAX_COLD_ROOTS];
     size_t n_cold_roots;
@@ -102,6 +108,19 @@ static void cfg_init(void) {
     memcpy(g_cfg.hot_root, hot, hot_len);
     g_cfg.hot_root[hot_len] = '\0';
     g_cfg.hot_root_len = hot_len;
+
+    /* Optional overflow hot root for tiered staging. */
+    const char *overflow = getenv("AGENTSTAGE_HOT_OVERFLOW");
+    if (overflow && *overflow) {
+        size_t ov_len = strlen(overflow);
+        while (ov_len > 0 && overflow[ov_len - 1] == '/') ov_len--;
+        if (ov_len > 0 && ov_len < PATH_MAX) {
+            memcpy(g_cfg.hot_overflow, overflow, ov_len);
+            g_cfg.hot_overflow[ov_len] = '\0';
+            g_cfg.hot_overflow_len = ov_len;
+            g_cfg.has_overflow = 1;
+        }
+    }
 
     const char *cold = getenv("AGENTSTAGE_COLD_ROOTS");
     if (!cold || !*cold) {
@@ -293,6 +312,13 @@ static int build_hot_path(const char *abs_cold, char *out, size_t outsz) {
     return n > 0 && (size_t)n < outsz;
 }
 
+static int build_overflow_path(const char *abs_cold,
+                               char *out, size_t outsz) {
+    if (!g_cfg.has_overflow) return 0;
+    int n = snprintf(out, outsz, "%s%s", g_cfg.hot_overflow, abs_cold);
+    return n > 0 && (size_t)n < outsz;
+}
+
 static int is_write_flag(int flags) {
     return (flags & (O_WRONLY | O_RDWR | O_CREAT | O_TRUNC | O_APPEND)) != 0;
 }
@@ -308,13 +334,21 @@ static long elapsed_ms(struct timespec *start) {
          + (now.tv_nsec - start->tv_nsec) / 1000000L;
 }
 
-/* Try opening hot_path; if ENOENT, spin briefly checking again before
- * giving up. Returns fd on success or -1 with errno set. */
-static int open_hot_with_spin(const char *hot_path, int flags, mode_t mode) {
+/* Try opening hot_path; if ENOENT, also try overflow_path (if any);
+ * if both miss and retry_spin_ms > 0, spin briefly re-checking both.
+ * Returns fd on success or -1 with errno set. */
+static int open_hot_with_spin(const char *hot_path,
+                              const char *overflow_path,
+                              int flags, mode_t mode) {
     LOAD_NEXT(real_openat, "openat");
     int fd = real_openat(AT_FDCWD, hot_path, flags, mode);
     if (fd >= 0) return fd;
     if (errno != ENOENT) return -1;
+    if (overflow_path && *overflow_path) {
+        fd = real_openat(AT_FDCWD, overflow_path, flags, mode);
+        if (fd >= 0) return fd;
+        if (errno != ENOENT) return -1;
+    }
     if (g_cfg.retry_spin_ms <= 0) return -1;
 
     struct timespec start;
@@ -325,6 +359,11 @@ static int open_hot_with_spin(const char *hot_path, int flags, mode_t mode) {
         fd = real_openat(AT_FDCWD, hot_path, flags, mode);
         if (fd >= 0) return fd;
         if (errno != ENOENT) return -1;
+        if (overflow_path && *overflow_path) {
+            fd = real_openat(AT_FDCWD, overflow_path, flags, mode);
+            if (fd >= 0) return fd;
+            if (errno != ENOENT) return -1;
+        }
     }
     errno = ENOENT;
     return -1;
@@ -374,9 +413,14 @@ int openat(int dirfd, const char *pathname, int flags, ...) {
     if (!build_hot_path(resolved_abs, hot, sizeof(hot))) {
         return real_openat(dirfd, pathname, flags, mode);
     }
+    char overflow[PATH_MAX];
+    const char *overflow_ptr = NULL;
+    if (build_overflow_path(resolved_abs, overflow, sizeof(overflow))) {
+        overflow_ptr = overflow;
+    }
 
     t_in_shim = 1;
-    int fd = open_hot_with_spin(hot, flags, mode);
+    int fd = open_hot_with_spin(hot, overflow_ptr, flags, mode);
     t_in_shim = 0;
     if (fd >= 0) {
         shim_log("HIT  %s -> %s\n", resolved_abs, hot);
@@ -412,18 +456,53 @@ static int try_redirect_stat_path(const char *pathname, char *hot_out, size_t ou
     return build_hot_path(resolved_abs, hot_out, outsz);
 }
 
+/* Like try_redirect_stat_path, but also populates overflow_out when an
+ * overflow hot root is configured. Returns:
+ *   0 = path not under managed cold root
+ *   1 = hot only (no overflow configured or build failed)
+ *   2 = both hot and overflow populated
+ */
+static int try_redirect_stat_paths(const char *pathname,
+                                   char *hot_out, size_t hot_sz,
+                                   char *overflow_out, size_t overflow_sz) {
+    if (!pathname) return 0;
+    char abs[PATH_MAX];
+    t_in_shim = 1;
+    int resolved = resolve_absolute(AT_FDCWD, pathname, abs, sizeof(abs));
+    t_in_shim = 0;
+    if (!resolved) return 0;
+    char resolved_abs[PATH_MAX];
+    if (!under_managed_cold_root_resolved(abs, resolved_abs,
+                                           sizeof(resolved_abs))) {
+        return 0;
+    }
+    if (!build_hot_path(resolved_abs, hot_out, hot_sz)) return 0;
+    if (build_overflow_path(resolved_abs, overflow_out, overflow_sz)) {
+        return 2;
+    }
+    return 1;
+}
+
 int stat(const char *pathname, struct stat *statbuf) {
     LOAD_NEXT(real_stat, "stat");
     ensure_init();
     if (g_cfg.disabled || t_in_shim) {
         return real_stat(pathname, statbuf);
     }
-    char hot[PATH_MAX];
-    if (try_redirect_stat_path(pathname, hot, sizeof(hot))) {
+    char hot[PATH_MAX], overflow[PATH_MAX];
+    int n = try_redirect_stat_paths(pathname, hot, sizeof(hot),
+                                     overflow, sizeof(overflow));
+    if (n > 0) {
         t_in_shim = 1;
         int r = real_stat(hot, statbuf);
         t_in_shim = 0;
         if (r == 0) return 0;
+        if (n == 2) {
+            t_in_shim = 1;
+            r = real_stat(overflow, statbuf);
+            t_in_shim = 0;
+            if (r == 0) return 0;
+        }
     }
     return real_stat(pathname, statbuf);
 }
@@ -434,12 +513,20 @@ int lstat(const char *pathname, struct stat *statbuf) {
     if (g_cfg.disabled || t_in_shim) {
         return real_lstat(pathname, statbuf);
     }
-    char hot[PATH_MAX];
-    if (try_redirect_stat_path(pathname, hot, sizeof(hot))) {
+    char hot[PATH_MAX], overflow[PATH_MAX];
+    int n = try_redirect_stat_paths(pathname, hot, sizeof(hot),
+                                     overflow, sizeof(overflow));
+    if (n > 0) {
         t_in_shim = 1;
         int r = real_lstat(hot, statbuf);
         t_in_shim = 0;
         if (r == 0) return 0;
+        if (n == 2) {
+            t_in_shim = 1;
+            r = real_lstat(overflow, statbuf);
+            t_in_shim = 0;
+            if (r == 0) return 0;
+        }
     }
     return real_lstat(pathname, statbuf);
 }
@@ -458,12 +545,20 @@ int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags) {
         char resolved_abs[PATH_MAX];
         if (under_managed_cold_root_resolved(abs, resolved_abs,
                                               sizeof(resolved_abs))) {
-            char hot[PATH_MAX];
+            char hot[PATH_MAX], overflow[PATH_MAX];
+            int has_overflow = build_overflow_path(resolved_abs, overflow,
+                                                   sizeof(overflow));
             if (build_hot_path(resolved_abs, hot, sizeof(hot))) {
                 t_in_shim = 1;
                 int r = real_fstatat(AT_FDCWD, hot, statbuf, flags);
                 t_in_shim = 0;
                 if (r == 0) return 0;
+                if (has_overflow) {
+                    t_in_shim = 1;
+                    r = real_fstatat(AT_FDCWD, overflow, statbuf, flags);
+                    t_in_shim = 0;
+                    if (r == 0) return 0;
+                }
             }
         }
     }
@@ -483,12 +578,20 @@ int access(const char *pathname, int mode) {
     /* Writes pass through */
     if (mode & W_OK) return real_access(pathname, mode);
 
-    char hot[PATH_MAX];
-    if (try_redirect_stat_path(pathname, hot, sizeof(hot))) {
+    char hot[PATH_MAX], overflow[PATH_MAX];
+    int n = try_redirect_stat_paths(pathname, hot, sizeof(hot),
+                                     overflow, sizeof(overflow));
+    if (n > 0) {
         t_in_shim = 1;
         int r = real_access(hot, mode);
         t_in_shim = 0;
         if (r == 0) return 0;
+        if (n == 2) {
+            t_in_shim = 1;
+            r = real_access(overflow, mode);
+            t_in_shim = 0;
+            if (r == 0) return 0;
+        }
     }
     return real_access(pathname, mode);
 }
@@ -509,12 +612,20 @@ int faccessat(int dirfd, const char *pathname, int mode, int flags) {
         char resolved_abs[PATH_MAX];
         if (under_managed_cold_root_resolved(abs, resolved_abs,
                                               sizeof(resolved_abs))) {
-            char hot[PATH_MAX];
+            char hot[PATH_MAX], overflow[PATH_MAX];
+            int has_overflow = build_overflow_path(resolved_abs, overflow,
+                                                   sizeof(overflow));
             if (build_hot_path(resolved_abs, hot, sizeof(hot))) {
                 t_in_shim = 1;
                 int r = real_faccessat(AT_FDCWD, hot, mode, flags);
                 t_in_shim = 0;
                 if (r == 0) return 0;
+                if (has_overflow) {
+                    t_in_shim = 1;
+                    r = real_faccessat(AT_FDCWD, overflow, mode, flags);
+                    t_in_shim = 0;
+                    if (r == 0) return 0;
+                }
             }
         }
     }
@@ -574,10 +685,15 @@ FILE *fopen(const char *pathname, const char *mode) {
     if (!build_hot_path(resolved_abs, hot, sizeof(hot))) {
         return real_fopen(pathname, mode);
     }
+    char overflow[PATH_MAX];
+    const char *overflow_ptr = NULL;
+    if (build_overflow_path(resolved_abs, overflow, sizeof(overflow))) {
+        overflow_ptr = overflow;
+    }
 
     /* Spin-wait for the hot copy, then wrap the fd in a FILE*. */
     t_in_shim = 1;
-    int fd = open_hot_with_spin(hot, O_RDONLY, 0);
+    int fd = open_hot_with_spin(hot, overflow_ptr, O_RDONLY, 0);
     t_in_shim = 0;
     if (fd >= 0) {
         FILE *f = fdopen(fd, mode);
