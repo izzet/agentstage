@@ -68,6 +68,15 @@ class SessionDetector:
     # Tracked separately from rule activations so the pathful-prompt
     # detection path can independently dispatch literal hits.
     reported_hot_paths: set[str] = field(default_factory=set)
+    # When True, run_detector does the O(n^2) per-character scan to
+    # interpolate the EXACT thinking-delta where a rule fired. When
+    # False, scans each block atomically — same fired-rule SET, only
+    # activation timestamps lose sub-block precision. The atomic mode
+    # is ~100x faster on long multi-turn transcripts where accumulated
+    # text grows large (tool_result listings, large directory dumps).
+    # Default to atomic for benchmark runs where we only care about
+    # which rules fired and what they staged, not sub-block timing.
+    per_char_scan: bool = False
 
     def feed_blocks(self, new_blocks: list[StreamBlock]) -> list[RuleActivation]:
         """Append `new_blocks` to the session and return newly-fired rules.
@@ -91,10 +100,13 @@ class SessionDetector:
                 stamped.append(b)
         self.all_blocks.extend(stamped)
 
-        # Re-run the detector on the full accumulated block list. This
-        # is O(N · M) per call where N = total text so far, M = rules.
-        # For ≤ 50 KB total text and ~100 rules this is sub-millisecond.
-        pred = run_detector(self.all_blocks, self.prior, self.ruleset)
+        # Re-run the detector on the full accumulated block list. With
+        # per_char_scan=False (default) each thinking block scans
+        # atomically (O(N · M)). Per-char mode is O(N^2 · M) per block
+        # and is only needed when we need exact sub-delta activation
+        # timestamps.
+        pred = run_detector(self.all_blocks, self.prior, self.ruleset,
+                             per_char=self.per_char_scan)
 
         # Diff against already-fired rules to find what's new
         new_acts: list[RuleActivation] = []
@@ -141,7 +153,8 @@ class SessionDetector:
 
     def cumulative_detection(self) -> Detection:
         """Return a Detection snapshot for all blocks seen so far."""
-        return run_detector(self.all_blocks, self.prior, self.ruleset)
+        return run_detector(self.all_blocks, self.prior, self.ruleset,
+                             per_char=self.per_char_scan)
 
     def new_hot_paths(self) -> dict[str, float]:
         """Return literal-path matches discovered since the last call.

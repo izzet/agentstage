@@ -458,8 +458,11 @@ class Detection:
 
 
 def _tier_for_size(n: int) -> int:
-    """Tier assignment by target-set size (PoC §6.2 thresholds)."""
-    if n <= 10:
+    """Tier assignment by target-set size.
+    Tier-1 (eager stage): rules with small, immediately-needed target sets.
+    Tier-2 (opportunistic): rules with medium target sets.
+    Tier-3 (on-demand): rules with large target sets, staged reactively."""
+    if n <= 20:
         return 1
     if n <= 200:
         return 2
