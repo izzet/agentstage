@@ -3,6 +3,7 @@ message: "If you use this software, please cite the software and the paper."
 title: "AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents"
 version: 0.1.0
 abstract: "Streaming-intent-driven tiered data staging for scientific LLM agents."
+license: MIT
 url: https://github.com/izzet/agentstage
 repository-code: https://github.com/izzet/agentstage
 contact:

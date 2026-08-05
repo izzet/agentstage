@@ -2,6 +2,8 @@
 name = "agentstage"
 version = "0.1.0"
 description = "Streaming-intent-driven tiered data staging for scientific LLM agents."
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Izzet Yildirim", email = "iyildirim@hawk.iit.edu" }
 ]
