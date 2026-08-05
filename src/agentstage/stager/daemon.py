@@ -37,9 +37,11 @@ class StagerOutOfSpace(RuntimeError):
 class Stager:
     """In-process file pre-stager.
 
-    Thread-safe. Designed for single-agent use; the executor is sized for
-    that case (default 4 workers — enough to pipeline 3-4 stages during
-    one slack window without saturating cold-tier bandwidth).
+    Thread-safe. Designed for single-agent use. The signature default is
+    8 workers; callers that measure wall-clock effects pass max_workers=4
+    (see scripts/microbench/replay_session.py), which is enough to
+    pipeline 3-4 stages during one slack window without saturating
+    cold-tier bandwidth. The reported paper results use 4.
 
     Invariants:
       - prefetch(hint) is non-blocking; copies happen in background threads.
