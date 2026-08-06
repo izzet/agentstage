@@ -35,3 +35,7 @@ preferred-citation:
       orcid: https://orcid.org/0000-0003-3943-663X
   conference:
     name: "eScience'26: 2026 IEEE 22nd International Conference on e-Science"
+    city: Naples
+    country: IT
+    date-start: 2026-09-28
+    date-end: 2026-10-02
