@@ -73,7 +73,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Canonical model order + palette
-# Trio per CAMPAIGN.md: Claude Haiku 4.5, Gemini 2.5 Flash, OSS reasoning.
+# Trio: Claude Haiku 4.5, Gemini 2.5 Flash, OSS reasoning.
 # PoC corpus models (Sonnet 4.5, Gemini 2.5 Pro, DeepSeek-R1) appear as
 # cross-cost-tier validation in the appendix; keep colors disjoint so the
 # two corpora are visually distinguishable.

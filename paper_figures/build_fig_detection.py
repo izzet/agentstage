@@ -14,7 +14,7 @@ the headline H3 claim — "predictor during the LLM-side reasoning floor"
 metrics_v1.json files written by rescore.py currently include tool_result
 blocks, which inflates tier_1_first overfetch on multiturn runs because
 prior-turn list_dir outputs cause every per-class rule to fire (workspace
-fanout). See PAPER_DEFENSE.md §5b.4b for the irreducible floor framing.
+fanout); the irreducible floor is framed in the paper.
 
 Source data: outputs/**/{stream.jsonl or turns/} + summary.json.
 Active campaign only: claude-{haiku,sonnet}-4-5, gemini-2.5-flash, Qwen3.

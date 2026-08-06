@@ -9,7 +9,7 @@ cluster per session; both directories are self-contained and don't share
 state — except the on-disk model cache at `$HF_HOME/hub/` and the
 ARM venv at `$NVME/vllm-venv`, both already present.
 
-See `DELTA_VS_DELTAAI.md` for the cluster-choice trade-offs. Short version:
+Cluster-choice trade-offs, short version:
 Delta AI is the right pick whenever regular Delta's `gpuA100x8-interactive`
 queue is loaded — currently the case (decision recorded 2026-05-20).
 

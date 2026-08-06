@@ -1,8 +1,5 @@
 """AgentStage stager: in-process file pre-stager + LD_PRELOAD path-rewriting shim.
 
-See STAGER_DESIGN.md (spec) and STAGER_WALKTHROUGH.md (explainer) at the
-project root for the full design.
-
 Quick start:
     from agentstage.stager import Stager, DataHint, StagingReport
 

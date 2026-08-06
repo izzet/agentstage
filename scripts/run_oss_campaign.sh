@@ -31,7 +31,7 @@ SHELL_TIMEOUT_DSBENCH=${SHELL_TIMEOUT_DSBENCH:-600}
 SHELL_TIMEOUT_MLE=${SHELL_TIMEOUT_MLE:-600}
 # Capped tighter than the closed-model runs because OSS agents over-iterate
 # on post-solve refinement. 8 turns captures the first bulk-read solver pass,
-# which is all the shim's I/O acceleration affects — see PAPER_DEFENSE.md §6.
+# which is all the shim's I/O acceleration affects.
 MAX_TURNS_AIOB=${MAX_TURNS_AIOB:-15}
 MAX_TURNS_DSBENCH=${MAX_TURNS_DSBENCH:-15}
 MAX_TURNS_MLE=${MAX_TURNS_MLE:-15}

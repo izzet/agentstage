@@ -10,7 +10,7 @@ The discovered profile is cached per-host under
 `outputs/storage_profile_<hostname>.json` to amortize probe cost across
 runs. The cache TTL is 7 days (regenerated if older).
 
-See AUTO_TIER_DESIGN.md for full design rationale.
+Tier assignment follows the target-set-size policy in the detector.
 
 Note: discovery is opt-in. If the user sets `AGENTSTAGE_HOT_ROOT` and
 `AGENTSTAGE_COLD_ROOTS` explicitly, those override the discovered values.

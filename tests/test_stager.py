@@ -1,4 +1,4 @@
-"""Layer-1 stager unit tests (STAGER_DESIGN.md §7).
+"""Layer-1 stager unit tests.
 
 These tests pin the Stager's behavioral invariants. They use real files on
 the filesystem (tmpfs via pytest's tmp_path) but no LLM, no shim, and no

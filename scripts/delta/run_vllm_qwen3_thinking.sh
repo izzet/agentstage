@@ -78,7 +78,7 @@ module load "$LMOD_MODULE"
 
 if [[ ! -d "$VLLM_VENV" ]]; then
     echo "ERROR: vLLM venv not found at $VLLM_VENV." >&2
-    echo "Run AIOB's setup first; see DELTAAI_SETUP_LOG.md Phase 2." >&2
+    echo "Run the AIOB vLLM setup first." >&2
     exit 1
 fi
 source "$VLLM_VENV/bin/activate"

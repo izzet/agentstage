@@ -2,7 +2,7 @@
  * AgentStage LD_PRELOAD shim.
  *
  * Intercepts path-taking syscalls and redirects reads under managed cold
- * roots to a hot tier mirror. See STAGER_DESIGN.md §3 for the design.
+ * roots to a hot tier mirror.
  *
  * Intercepted (minimal set):
  *   openat, openat2, creat            — primary redirect points

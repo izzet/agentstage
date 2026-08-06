@@ -3,7 +3,7 @@
 # Throttle sweep: cold reads at multiple simulated throughputs vs hot (tmpfs).
 # Simulates a range of cold-tier bandwidths (real PFS, S3-class, slow-S3, ...)
 # to convert the slow-cold-tier wall-time projection in
-# STAGER_VERIFICATION.md into measured numbers.
+# the stager verification plan into measured numbers.
 #
 # Usage:  ./scripts/microbench/path0_throttle_sweep.sh [WORKLOAD] [N_SAMPLES]
 # Default: aiob_110, 3 files.

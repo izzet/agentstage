@@ -4,7 +4,7 @@
 #   LD_PRELOAD=$DFTRACER_SO:$(realpath libagentstage_shim.so) ...
 #
 # DFTracer (if used) MUST come first so it logs the agent's intent
-# (cold path) before our shim redirects. See STAGER_DESIGN.md §3.
+# (cold path) before our shim redirects.
 
 CC      ?= gcc
 CFLAGS  ?= -O2 -Wall -Wextra -fPIC -D_GNU_SOURCE

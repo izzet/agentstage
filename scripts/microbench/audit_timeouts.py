@@ -2,7 +2,7 @@
 
 Identifies cells where one mode hit the per-turn shell timeout more often
 than the other — those cells have inflated reported speedup. See
-PAPER_DEFENSE.md §5b for the methodology discussion.
+the paper for the methodology discussion.
 
 Usage:
     python scripts/microbench/audit_timeouts.py

@@ -2,7 +2,7 @@
 
 Build the shim, spawn subprocesses with LD_PRELOAD set, verify the shim
 intercepts the right syscalls and redirects correctly. Equivalent to the
-pure-C harness in STAGER_DESIGN.md §7; chosen pytest-Python over raw C
+pure-C harness; chosen pytest-Python over raw C
 for ease of authorship + maintenance.
 
 Covered:

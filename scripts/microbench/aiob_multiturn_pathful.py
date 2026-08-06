@@ -19,7 +19,7 @@ The monkeypatch on base._build_prompts is picked up by run_session's
 internal callers because they reference _build_prompts via module-global
 lookup at call time.
 
-See H12_PATHFUL_PROMPT_DESIGN.md for the campaign plan + assertions.
+Pathful-prompt ablation: campaign plan + assertions live with the H12 eval.
 """
 
 from __future__ import annotations

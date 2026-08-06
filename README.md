@@ -73,6 +73,62 @@ uv run pytest paper_evals/ # claim-verification suite; tests whose input
                            # artifacts are not committed will skip
 ```
 
+## Usage
+
+AgentStage has two halves: a drop-in client that detects and stages during the
+thinking phase, and an `LD_PRELOAD` shim that redirects the tool's reads to the
+staged copy.
+
+```python
+import os
+from agentstage.client.anthropic import AnthropicClient
+from agentstage.detector.auto_rules import AutoRuleGenerator
+from agentstage.stager import Stager
+
+# What exists in the workspace, grouped into the buckets rules match against.
+workspace_prior = {
+    "sample_HG00096": ("/cold/igsr/HG00096/aln.bam", "/cold/igsr/HG00096/aln.bai"),
+    "reference": ("/cold/igsr/ref/human_g1k_v37.fasta.fai",),
+}
+
+# Mine a rule library from workload metadata. No hand-written rules.
+ruleset = AutoRuleGenerator(
+    workload_id="igsr-cov-qc",
+    task_instruction="Compute an xxh64 manifest for every BAM under each sample.",
+    workspace_prior_keys=tuple(workspace_prior),
+).generate()
+
+# Background thread pool that copies cold to hot.
+stager = Stager(hot_root="/dev/shm/agentstage", cold_roots=["/cold"])
+
+# Drop-in replacement for the vendor client: same call, plus staging.
+client = AnthropicClient(
+    api_key=os.environ["ANTHROPIC_API_KEY"],
+    stager=stager,
+    workspace_prior=workspace_prior,
+    ruleset=ruleset,
+)
+
+response = client.stream(
+    model="claude-haiku-4-5",
+    messages=[{"role": "user", "content": "..."}],
+)
+for event in response:
+    ...  # forwarded unchanged; the detector fires on each thinking delta
+```
+
+`GeminiClient` in `agentstage.client.gemini` takes the same arguments.
+
+Run the agent's tool subprocesses under the shim so their `open()` calls land
+on the staged copies:
+
+```bash
+LD_PRELOAD=src/agentstage/stager/shim/libagentstage_shim.so \
+AGENTSTAGE_HOT_ROOT=/dev/shm/agentstage \
+AGENTSTAGE_COLD_ROOTS=/cold \
+  python analysis.py
+```
+
 ## Configuration
 
 Copy `.env.example` to `.env` and fill in provider credentials and data roots.

@@ -58,7 +58,7 @@ def evict(paths: list[str], *, verify: bool = True) -> dict:
     """Cold-cache methodology, consistent with AgentIOBench's
     `agentiobench.utils.cache.evict_dataset`: posix_fadvise(DONTNEED)
     per file + mincore-based residency verification on a sample. See
-    EXPERIMENTS.md "Cold-cache methodology" section."""
+    the cold-cache methodology."""
     n_files = n_bytes = 0
     for p in paths:
         try:

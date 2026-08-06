@@ -141,7 +141,7 @@ def test_rules_are_immutable():
 
 def test_all_rules_use_valid_origins():
     """Defensive: an unrecognized origin string would bypass leave-one-out
-    filtering (since `excl` is a closed set of names from CAMPAIGN.md).
+    filtering (since `excl` is a closed set of names).
     Verify every rule's origin is in the known set."""
     valid_origins = {"aiob_101", "aiob_104", "aiob_107", "aiob_110", "code_repo", "general"}
     for workload, rs in ALL_RULESETS.items():

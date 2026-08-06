@@ -329,8 +329,7 @@ def test_chain_order_does_not_break_dftracer_intent_logging(
     assert str(cold_file) in trace_bytes, (
         "dftracer no longer logs cold-path intent in reversed LD_PRELOAD "
         "ordering — its instrumentation has weakened to pure function "
-        "wrapping. Document this in STAGER_VERIFICATION.md and pin a "
-        "specific LD_PRELOAD order in CAMPAIGN.md."
+        "wrapping. Pin a specific LD_PRELOAD order."
     )
 
 
@@ -379,7 +378,7 @@ def test_dfanalyzer_produces_io_report_matching_empirical_gt_schema(
     if r.returncode != 0:
         pytest.skip(
             f"dfanalyzer invocation failed (likely needs different CLI args; "
-            f"see STAGER_VERIFICATION.md). stderr: {r.stderr[:500]}"
+            f"stderr: {r.stderr[:500]}"
         )
 
     # Parse with our empirical_gt loader
