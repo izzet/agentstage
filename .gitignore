@@ -38,3 +38,9 @@ build/
 
 # Local sqlite cache (LLM response cache)
 cache/
+
+# Camera-ready tracker: contains reviewer feedback, keep local
+CAMERA_READY.md
+
+# Dangling workspace symlinks from MLE-bench e2e runs
+outputs/**/workspace_*/data/
