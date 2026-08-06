@@ -1,6 +1,6 @@
 # paper_figures/
 
-Reproducible figure pipeline for the AgentStage eScience '26 paper. Pattern lifted from `sciiobench/scripts/build_fig_*.py`, with the rcParams block factored into a shared `_style.py` so future style tweaks are single-source.
+Reproducible figure pipeline for the AgentStage eScience '26 paper. The rcParams block is factored into a shared `_style.py` so style tweaks are single-source.
 
 ## Convention
 

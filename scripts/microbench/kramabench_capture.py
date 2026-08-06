@@ -44,7 +44,8 @@ def _load_dotenv(p: Path) -> None:
 
 
 _load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-_load_dotenv(Path("/mnt/common/iyildirim/projects/sciiobench/.env"))
+if os.environ.get("SCIIOBENCH_ROOT"):
+    _load_dotenv(Path(os.environ["SCIIOBENCH_ROOT"]) / ".env")
 
 from agentstage.workloads.kramabench import KB_MINIMAL_SLICE, load_kramabench_task  # noqa: E402
 

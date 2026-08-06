@@ -38,7 +38,8 @@ def _load_dotenv(p: Path) -> None:
 
 
 _load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-_load_dotenv(Path("/mnt/common/iyildirim/projects/sciiobench/.env"))
+if os.environ.get("SCIIOBENCH_ROOT"):
+    _load_dotenv(Path(os.environ["SCIIOBENCH_ROOT"]) / ".env")
 
 from agentstage.workloads.scienceagentbench import (  # noqa: E402
     load_sab_task, sab_minimal_slice, SABWorkload,

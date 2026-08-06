@@ -14,7 +14,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path("/mnt/common/iyildirim/projects/agentstage")
+ROOT = Path(__file__).resolve().parents[2]
 
 SWEEPS = {
     ("DSBench", "haiku"):  ROOT / "outputs/dsbench_mt/_sweep_20260525T113623",

@@ -1,13 +1,11 @@
 # AgentStage
 
-Thinking-phase data staging for scientific LLM agents.
-
-An LLM agent alternates between a *thinking phase*, where it plans the next
-tool call, and a *tool phase*, where that tool reads data. The thinking phase
-is idle storage time. AgentStage reads the model's streaming reasoning and the
-agent's own filesystem probes to infer which files the next tool will open, and
-stages them from cold storage into a local hot tier before the tool fires, so
-the reads land hot instead of cold.
+AgentStage stages scientific data during an LLM agent's *thinking phase*, the
+interval where the model plans its next tool call and the storage layer sits
+idle. It reads the model's streaming reasoning and the agent's own filesystem
+probes to infer which files the next tool will open, then copies them from cold
+storage into a local hot tier before the tool fires, so the reads land hot
+instead of cold.
 
 ## Paper
 
@@ -41,6 +39,7 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 | `tests/` | Unit tests |
 | `paper_evals/` | Claim-verification suite, run separately from `tests/` |
 | `paper_figures/` | Figure builders plus version-controlled data snapshots |
+| `outputs/` | Committed run artifacts that the eval suite and figure builders read |
 | `scripts/microbench/` | Measurement and analysis scripts behind the paper's numbers |
 | `scripts/BENCH_TIERS.md` | Storage-tier bandwidth measurements (paper §IV.A) |
 | `external/` | Benchmark and tracing submodules |
@@ -60,14 +59,6 @@ git submodule update --init --recursive
 uv sync
 ```
 
-> **Known limitation.** The curated workload definitions in
-> `src/agentstage/workloads/aiob.py` depend on AgentIOBench, an unpublished
-> sibling project wired in as a private submodule and a uv workspace member.
-> Without access to that repository, `git submodule update --init --recursive`
-> and `uv sync` will not complete. The detector, staging daemon, and shim do
-> not otherwise depend on it, and the community-benchmark workloads
-> (MLE-bench, KramaBench, DSBench) use their own public submodules.
-
 Build the shim:
 
 ```bash
@@ -78,7 +69,8 @@ Run the tests:
 
 ```bash
 uv run pytest              # unit tests
-uv run pytest paper_evals/ # claim-verification suite
+uv run pytest paper_evals/ # claim-verification suite; tests whose input
+                           # artifacts are not committed will skip
 ```
 
 ## Configuration

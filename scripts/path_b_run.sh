@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 
 set -a
 [ -f .env ] && source .env
-[ -f /home/iyildirim/projects/sciiobench/.env ] && source /home/iyildirim/projects/sciiobench/.env
+[ -n "$SCIIOBENCH_ROOT" ] && [ -f "$SCIIOBENCH_ROOT/.env" ] && source "$SCIIOBENCH_ROOT/.env"
 set +a
 
 if [[ -z "${AZURE_FOUNDRY_KEY:-}${ANTHROPIC_API_KEY:-}" ]]; then

@@ -10,10 +10,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Load env vars (ours first, sciiobench's as fallback for credentials)
+# Load env vars (ours first, then an optional sibling project's as fallback)
 set -a
 [ -f .env ] && source .env
-[ -f /home/iyildirim/projects/sciiobench/.env ] && source /home/iyildirim/projects/sciiobench/.env
+[ -n "$SCIIOBENCH_ROOT" ] && [ -f "$SCIIOBENCH_ROOT/.env" ] && source "$SCIIOBENCH_ROOT/.env"
 set +a
 
 if [[ -z "${AZURE_FOUNDRY_KEY:-}${ANTHROPIC_API_KEY:-}" ]]; then

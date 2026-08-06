@@ -62,7 +62,8 @@ def _load_dotenv(p: Path) -> None:
             _os.environ[k.strip()] = v.strip().strip('"').strip("'")
 
 _load_dotenv(REPO / ".env")
-_load_dotenv(Path("/mnt/common/iyildirim/projects/sciiobench/.env"))
+if os.environ.get("SCIIOBENCH_ROOT"):
+    _load_dotenv(Path(os.environ["SCIIOBENCH_ROOT"]) / ".env")
 
 from agentstage.detector.auto_rules import AutoRuleGenerator  # noqa: E402
 from agentstage.detector.engine import StreamBlock  # noqa: E402
