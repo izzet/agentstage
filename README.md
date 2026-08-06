@@ -1,86 +1,106 @@
 # AgentStage
 
-Streaming-intent-driven tiered data staging for scientific LLM agents.
-Uses an LLM's own streaming thinking content as an early signal of which
-files the agent will read next, and stages those files from cold storage
-(PFS / object store / NFS) into local NVMe during the wall-clock slack
-between "first thinking chunk" and "first tool dispatch" — moving only
-data, not pre-executing the tool.
+Thinking-phase data staging for scientific LLM agents.
 
-**Authoritative research doc:** [`AGENTSTAGE.md`](AGENTSTAGE.md).
-Read it first. Everything else here is operational scaffolding.
+An LLM agent alternates between a *thinking phase*, where it plans the next
+tool call, and a *tool phase*, where that tool reads data. The thinking phase
+is idle storage time. AgentStage reads the model's streaming reasoning and the
+agent's own filesystem probes to infer which files the next tool will open, and
+stages them from cold storage into a local hot tier before the tool fires, so
+the reads land hot instead of cold.
 
-## Where things live
+## Paper
+
+> Izzet Yildirim, Xian-He Sun, Anthony Kougkas.
+> **AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents.**
+> IEEE International Conference on e-Science (eScience'26), Naples, Italy,
+> 28 September – 2 October 2026.
+
+Across three curated I/O-bearing scientific tasks plus one data-intensive task
+from each of MLE-bench, KramaBench, and DSBench, over four reasoning models,
+AgentStage delivers an average **1.74× end-to-end session speedup** on the
+curated tasks (up to 2.34× per run) with no per-model or per-task tuning.
+
+Use [`CITATION.cff`](CITATION.cff) to cite this work.
+
+## How it works
+
+| Component | Role |
+|---|---|
+| Capture proxy | In-process SDK wrapper. Forwards each stream event unchanged while firing the detector over the accumulated thinking text |
+| Auto-rule generator | Mines each workload's metadata into a per-workload regex rule library, with no hand-written rules |
+| Tiered detector | Matches rules against the streaming reasoning, refines against filesystem-probe results, and classifies each rule by target-set size into eager, opportunistic, and on-demand tiers |
+| Staging daemon | Thread pool that copies cold-tier files into the hot tier, publishing each atomically (copy to a temporary path, then `rename`) so a reader never sees a partial file |
+| `LD_PRELOAD` shim | Small C library that redirects path-taking syscalls under managed cold roots to the staged hot copy. Writes pass through, leaving the hot tier read-only from the agent's view |
+
+## Layout
 
 | Path | Purpose |
 |---|---|
-| `AGENTSTAGE.md` | Research notes, hypotheses (H1-H5), claims (C1-C10), evaluations (E1-E11), execution plan (§11.8) |
-| `CAMPAIGN.md` | Experimental campaign matrix, model choice, cost ceiling |
-| `TASKS.md` | Persistent task list across sessions |
-| `src/agentstage/` | uv-managed src-layout package (Python ≥3.12) |
-| `tests/` | Unit tests over `src/agentstage/`. Run with `uv run pytest`. |
-| `paper_evals/` | Claim-verification suite — one file per hypothesis H1-H10. Run with `uv run pytest paper_evals/ --trace-root <path>`. See `paper_evals/README.md`. |
-| `external/benchmarks/` | Git submodules: ScienceAgentBench (pinned `72220ee8`, ICLR 2025), KramaBench (pinned `a9d0023`, MIT DB Lab preprint), AgentIOBench (pinned `29a2070`, branch `feat/agentstage-integration`) |
-| `external/datasets/` | Gitignored. Populated by `scripts/fetch_datasets.sh`. |
-| `outputs/` | Gitignored. Campaign run outputs (trace + end-to-end share this root, one dir per `<task>_<model>_<config>_s<seed>`). |
-| `poc/` | Gitignored. Holds only `probe_reasoning_slack.py` as historical artifact (the script that produced the §6 numbers). Run outputs moved to `outputs/poc/`. Production code does not depend on this directory. |
-| `paper/` | Gitignored. Working directory for paper drafts. |
-| `results/` | Gitignored. Experiment driver outputs (microbenchmarks, plotting scratch). |
+| `src/agentstage/` | The package: `client/` (capture proxy), `detector/`, `stager/` (daemon + C shim), `workloads/`, `runners/`, `metrics/` |
+| `tests/` | Unit tests |
+| `paper_evals/` | Claim-verification suite, run separately from `tests/` |
+| `paper_figures/` | Figure builders plus version-controlled data snapshots |
+| `scripts/microbench/` | Measurement and analysis scripts behind the paper's numbers |
+| `scripts/BENCH_TIERS.md` | Storage-tier bandwidth measurements (paper §IV.A) |
+| `PREDICTION_ANALYSIS.md` | I/O-share and timeliness analysis (paper §IV.F) |
+| `PAPER_DISCUSSION.md` | Long-form companion material that did not fit the page limit |
+| `external/` | Benchmark and tracing submodules |
 
-## Setup
+## Requirements
+
+- Python ≥ 3.12 and [uv](https://docs.astral.sh/uv/)
+- Linux with glibc, for the `LD_PRELOAD` shim
+- A cold tier (parallel filesystem, network export, or local disk) and a hot
+  tier (tmpfs or local NVMe)
+
+## Install
 
 ```bash
-# 1. Clone with submodules
-git clone <repo> agentstage && cd agentstage
+git clone https://github.com/izzet/agentstage && cd agentstage
 git submodule update --init --recursive
-
-# 2. Install uv (if not already present)
-# uv lives at ~/.local/bin/uv on Ares; install per https://astral.sh/uv if elsewhere
-
-# 3. Sync the project venv
-~/.local/bin/uv sync
-
-# 4. Copy + populate the env file
-cp .env.example .env
-# Edit .env to set:
-#   AZURE_FOUNDRY_KEY, AZURE_FOUNDRY_ANTHROPIC_URL  (Claude Haiku 4.5)
-#   GOOGLE_GEMINI_API_KEY                          (Gemini 2.5 Flash)
-#   OSS_MODEL_BASE_URL                             (self-hosted Qwen/DeepSeek vLLM)
-#   AGENTIOBENCH_DATA_ROOT                         (workload data path)
-
-# 5. Verify
-~/.local/bin/uv run pytest                          # unit tests
-~/.local/bin/uv run pytest paper_evals/                         # claim-verification stubs
-~/.local/bin/uv run pytest paper_evals/ --outputs-root outputs/ # against the live campaign root (includes outputs/poc/ if present)
-~/.local/bin/uv run pytest paper_evals/ --outputs-root outputs/ --io-report-root $SCIIOBENCH_ROOT/outputs  # with historical empirical GT for E2 re-score
+uv sync
 ```
 
-## Hard rules
+> **Known limitation.** The curated workload definitions in
+> `src/agentstage/workloads/aiob.py` depend on AgentIOBench, an unpublished
+> sibling project wired in as a private submodule and a uv workspace member.
+> Without access to that repository, `git submodule update --init --recursive`
+> and `uv sync` will not complete. The detector, staging daemon, and shim do
+> not otherwise depend on it, and the community-benchmark workloads
+> (MLE-bench, KramaBench, DSBench) use their own public submodules.
 
-- **Never write into `/home/iyildirim/projects/sciiobench/`.** That's the
-  adjacent AgentIOBench project; treat as read-only. Go there for `.env`
-  reference, prior `io_report.json` files, or workload definitions, but
-  do not modify or commit there.
-- **Never add `Co-Authored-By: Claude ...` to commits or PRs.** No AI
-  attribution trailers, no `🤖 Generated with ...` markers.
-- **Frozen rules cannot be quietly updated.** Bumping
-  `RULE_LIBRARY_VERSION` in `src/agentstage/detector/__init__.py` is a
-  deliberate, commit-message-documented event. The version hash is pinned
-  in `tests/test_rules_freeze.py` and consumed by the genericity defense
-  (H6, H7).
-- **`uv run pytest` covers `tests/` only.** Paper evals run explicitly:
-  `uv run pytest paper_evals/`. Do not migrate paper evals into `tests/`
-  — the discovery separation is intentional.
+Build the shim:
 
-## Daily workflow
+```bash
+make -C src/agentstage/stager/shim
+```
 
-1. Open `TASKS.md`, find the next unchecked task for today
-2. Make changes
-3. Commit (no Co-Authored-By trailer)
-4. Mark `[x]` in `TASKS.md` and append `— _commit `<hash>`_`
-5. If discovering a new task, add it inline rather than holding it in head
+Run the tests:
 
-## Paper submission target
+```bash
+uv run pytest              # unit tests
+uv run pytest paper_evals/ # claim-verification suite
+```
 
-eScience '26 full paper, 8 pages IEEE, **deadline 2026-06-01 AoE**. See
-`AGENTSTAGE.md` §11 for the 14-day execution plan and §11.9 for risks.
+## Configuration
+
+Copy `.env.example` to `.env` and fill in provider credentials and data roots.
+The shim is configured entirely through the environment:
+
+| Variable | Meaning |
+|---|---|
+| `AGENTSTAGE_HOT_ROOT` | Hot-tier mount (required) |
+| `AGENTSTAGE_COLD_ROOTS` | Colon-separated cold roots (required) |
+| `AGENTSTAGE_HOT_OVERFLOW` | Overflow tier used when the primary hot tier fills |
+| `AGENTSTAGE_RETRY_SPIN_MS` | How long to wait on an in-flight stage (default 20) |
+| `AGENTSTAGE_SHIM_LOG` | Write per-call events to this path |
+| `AGENTSTAGE_SHIM_DISABLE` | Set to `1` to pass every call through unchanged |
+
+Integrating AgentStage into an agent harness means replacing the provider's
+streaming client with the drop-in equivalent in `src/agentstage/client/` and
+exporting `LD_PRELOAD` for the tool subprocesses.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).

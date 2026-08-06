@@ -1,9 +1,9 @@
 # Paper Evaluations
 
 Pytest-based evaluation suite for the AgentStage paper. Each test file encodes
-one hypothesis from `AGENTSTAGE.md` §2. Each `assert` verifies a quantitative
-claim from §3 (C1-C10) or an evaluation from §11.5 (E1-E11) against captured
-data. If all tests pass, the paper's claims have live evidence.
+one hypothesis (H1-H10), and each `assert` verifies a quantitative claim
+against captured run data. If all tests pass, the paper's claims have live
+evidence.
 
 This suite is independent of `tests/`, which contains fast unit tests over
 `src/agentstage/`. Running `uv run pytest` covers `tests/` only; the paper
