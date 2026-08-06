@@ -44,7 +44,6 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 | `scripts/microbench/` | Measurement and analysis scripts behind the paper's numbers |
 | `scripts/BENCH_TIERS.md` | Storage-tier bandwidth measurements (paper §IV.A) |
 | `PREDICTION_ANALYSIS.md` | I/O-share and timeliness analysis (paper §IV.F) |
-| `PAPER_DISCUSSION.md` | Long-form companion material that did not fit the page limit |
 | `external/` | Benchmark and tracing submodules |
 
 ## Requirements
