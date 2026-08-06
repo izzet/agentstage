@@ -51,7 +51,7 @@ def _find_dftracer_preload() -> Path | None:
     """Locate libdftracer_preload.so. Tries (in order):
       1. AGENTSTAGE_DFTRACER_PRELOAD env var (explicit override)
       2. Our submodule's build dir
-      3. Sciiobench's pre-built copy (legacy fallback)
+      3. A pre-built copy under $DFTRACER_FALLBACK_ROOT (legacy)
     """
     env = os.environ.get("AGENTSTAGE_DFTRACER_PRELOAD")
     if env and Path(env).is_file():
@@ -65,11 +65,10 @@ def _find_dftracer_preload() -> Path | None:
     if candidates:
         return candidates[0]
 
-    # Sciiobench fallback
-    sciio = (
-        Path.home() / "projects" / "sciiobench" / "dftracer"
-    )
-    if sciio.is_dir():
+    # Legacy pre-built fallback
+    fallback_root = os.environ.get("DFTRACER_FALLBACK_ROOT")
+    sciio = Path(fallback_root) if fallback_root else None
+    if sciio and sciio.is_dir():
         candidates = list(sciio.rglob("libdftracer_preload.so"))
         # Prefer the non-_dbg build
         non_dbg = [c for c in candidates if "_dbg" not in str(c)]

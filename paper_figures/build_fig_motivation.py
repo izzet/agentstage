@@ -1,6 +1,6 @@
 """Fig 1 - motivation (three panels: 1+2+1 widths, equal heights).
 
-Layout (sciiobench square convention from feedback-figure-style memory):
+Layout (square-panel convention):
     (a) 1.85" x 1.85"  square          time-decomposition stacked bars
     (b) 3.70" x 1.85"  2x-wide rectangle  bytes-moveable per backend
                                           with workload dataset reference lines

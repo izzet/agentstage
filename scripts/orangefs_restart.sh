@@ -8,8 +8,7 @@
 #   - SLURM stepd killed it on step exit (REMOTE_LAUNCHER=srun footgun)
 #   - Node didn't reboot; OrangeFS data on /mnt/nvme is untouched
 #
-# If the backing storage is gone, use orangefs_smoke.sh (in sciiobench)
-# to do a fresh bring-up.
+# If the backing storage is gone, do a fresh OrangeFS bring-up instead.
 set -euo pipefail
 
 NODE="${1:-$(hostname)}"

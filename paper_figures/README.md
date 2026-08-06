@@ -53,7 +53,7 @@ uv run python paper_figures/build_fig_motivation.py
 
 Each script writes `paper/figures/<name>.pdf`, `paper/figures/<name>.png`, and `paper/figures/data/<name>.csv`.
 
-## Prose conventions (carried over from sciiobench memory)
+## Prose conventions
 
 These apply to every `.tex` file under `paper/sections/`, not just figures, but listed here as the discoverable convention doc:
 

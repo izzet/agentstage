@@ -1,7 +1,7 @@
 """E-027 — Project session-level speedup from real AIOB agentic runs.
 
 Reads `io_report.json` files from /mnt/common/datasets-staging/agentiobench/outputs/
-(real production runs captured by sciiobench's tracing harness, with full
+(real production runs captured by an external tracing harness, with full
 DFTracer instrumentation) and computes:
 
   - Session wall-time (job_time_s)

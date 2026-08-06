@@ -4,13 +4,13 @@
 # chunks that AgentStage's predictor consumes as the "intent" signal.
 #
 # Delta-AI-targeted sibling of scripts/delta/run_vllm_qwen3_thinking.sh.
-# Mirrors sciiobench's `run_vllm_qwen36.sh` config, with two differences:
+# Mirrors a known-good Qwen3.6 vLLM config, with two differences:
 #   1. `--default-chat-template-kwargs '{"enable_thinking": true}'`
-#      (sciiobench sets false to keep <think> blocks bounded)
+#      (set false to keep <think> blocks bounded)
 #   2. ~/.vllm_host / ~/.vllm_port drop-files for the tunnel helper
 #
 # Prereqs:
-#   - ~/.bashrc sets the bekn policy block (PROJECT/NVME/SCRATCH/HF_*)
+#   - ~/.bashrc sets the allocation policy block (PROJECT/NVME/SCRATCH/HF_*)
 #   - $NVME/vllm-venv exists (ARM aarch64, pre-built; usable on Delta AI only)
 #   - You are on a compute node with --gres=gpu:2 (ghx4 / ghx4-interactive)
 #
@@ -20,14 +20,14 @@
 #   ./run_vllm_qwen3_thinking.sh --tp 4           # use all 4 GH200s on the node
 #
 # Allocation that wraps this:
-#   salloc -A bekn-dtai-gh -p ghx4-interactive \
+#   salloc -A <alloc>-dtai-gh -p ghx4-interactive \
 #          --gres=gpu:2 --cpus-per-task=32 --mem=200G --time=02:00:00
 #   # or, for TP=4:
-#   salloc -A bekn-dtai-gh -p ghx4-interactive \
+#   salloc -A <alloc>-dtai-gh -p ghx4-interactive \
 #          --gres=gpu:4 --cpus-per-task=64 --mem=600G --time=02:00:00
 #   # Slurm prints the assigned node (e.g. gh017); ssh into it:
 #   ssh gh017
-#   /projects/bekn/izzet/agentstage/scripts/deltaai/run_vllm_qwen3_thinking.sh --tp 4
+#   $PROJECT/agentstage/scripts/deltaai/run_vllm_qwen3_thinking.sh --tp 4
 
 set -euo pipefail
 
@@ -53,7 +53,7 @@ log() { echo "[qwen-thinking-dtai] $*" >&2; }
 # ---- preflight ----
 
 [ -n "${PROJECT:-}" ] && [ -n "${NVME:-}" ] && [ -n "${SCRATCH:-}" ] \
-  || die "bekn env vars missing — source ~/.bashrc"
+  || die "allocation env vars missing — source ~/.bashrc"
 
 command -v nvidia-smi >/dev/null 2>&1 \
   || die "nvidia-smi not found — are you on a compute node?"
@@ -63,7 +63,7 @@ GPU_COUNT="$(nvidia-smi -L | wc -l)"
 
 VENV="$NVME/vllm-venv"
 [ -f "$VENV/bin/activate" ] && [ -x "$VENV/bin/vllm" ] \
-  || die "vllm venv not found at $VENV — see sciiobench/DELTAAI_VLLM.md to rebuild"
+  || die "vllm venv not found at $VENV — see the vLLM build notes to rebuild"
 
 [ "$(uname -m)" = "aarch64" ] \
   || die "this script expects aarch64 (Delta AI / GH200) — for regular Delta x86 use scripts/delta/"
@@ -79,7 +79,7 @@ HF_MODEL_PATH="${HF_HUB_CACHE:-$PROJECT/hf/hub}/$HF_DIR_NAME"
 
 # ---- env workarounds ----
 
-# /projects/bekn/hf/token is mode-600 owned by another team member.
+# $HF_HOME/token is mode-600 owned by another user.
 # huggingface_hub catches FileNotFoundError but not PermissionError, so
 # pointing at a personal path lets it fall through cleanly.
 export HF_TOKEN_PATH="${HF_TOKEN_PATH:-$NVME/hf_token_personal}"
@@ -89,7 +89,7 @@ touch "$HF_TOKEN_PATH" 2>/dev/null || true
 # is cu130. The cu129 plugin's libcudart drift corrupts NCCL workers' heap
 # during TP>=2 init ("free(): double free detected in tcache"). Socket
 # transport bypasses OFI; intra-node NVLink doesn't need it. Documented in
-# sciiobench/DELTAAI_VLLM.md §"NCCL init (TP>=2 only)".
+# the vLLM build notes §"NCCL init (TP>=2 only)".
 export NCCL_NET="${NCCL_NET:-Socket}"
 
 # Cached-only HF serving: skip hub revision checks at startup.
@@ -129,7 +129,7 @@ log "port  -> $HOME/.vllm_port"
 log ""
 log "launching vllm…"
 
-# Recipe locked to sciiobench's working Delta-AI config, with enable_thinking
+# Recipe locked to a working Delta-AI config, with enable_thinking
 # flipped on (load-bearing for AgentStage — without it the model embeds
 # thinking in delta.content instead of delta.reasoning_content).
 exec vllm serve "$MODEL" \

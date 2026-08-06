@@ -27,7 +27,7 @@ import sys
 import time
 from pathlib import Path
 
-# Load .env files (ours + sciiobench fallback) so AZURE_FOUNDRY_KEY etc.
+# Load .env files (ours, then an optional sibling project) so AZURE_FOUNDRY_KEY etc.
 # resolve without needing to source manually.
 def _load_dotenv(p: Path) -> None:
     if not p.is_file():

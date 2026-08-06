@@ -36,7 +36,7 @@ import sys
 import time
 from pathlib import Path
 
-# Load .env (ours + sciiobench fallback) for API keys
+# Load .env (ours, then an optional sibling project) for API keys
 def _load_dotenv(p: Path) -> None:
     if not p.is_file():
         return

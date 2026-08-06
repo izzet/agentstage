@@ -170,7 +170,7 @@ class TestBytesMoveablePerBackend:
         the staging mount; faster for true NVMe page cache)
       - throttled PFS classes (10 / 30 / 50 MB/s — the H9 sweep points)
       - S3 (from outputs/e2e/s3 measured throughput)
-      - OrangeFS (sourced from sciiobench storage profile if available)
+      - OrangeFS (sourced from a storage profile if available)
     """
 
     @staticmethod
@@ -239,7 +239,7 @@ class TestBytesMoveablePerBackend:
                     "source": "e2e_s3_baseline",
                 })
 
-        # OrangeFS — optional, pulled from a sciiobench-sourced profile
+        # OrangeFS — optional, pulled from a storage profile
         # at outputs/storage_profile_orangefs.json if the user dropped one.
         ofs_path = outputs_root / "storage_profile_orangefs.json"
         if ofs_path.is_file():
