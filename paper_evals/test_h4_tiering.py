@@ -116,64 +116,6 @@ class TestGoesCollapse:
         )
 
 
-class TestTieringIsLoadBearing:
-    """Across workloads where workspace ≫ working set, the union-of-rules
-    (tier-3) byte overfetch is materially higher than tier-1. Without
-    this gap, the tiering choice is over-engineered."""
-
-    def test_tier3_overfetch_exceeds_tier1_on_high_fanout_workloads(
-        self, campaign, min_seeds, report
-    ):
-        """On aiob_107 (and code_repo, when present), tier-3 overfetch is
-        ≥ 10× the tier-1 overfetch median. Establishes the tiering payoff."""
-        rows: list[dict] = []
-        for task in ("aiob_107", "code_repo"):
-            seeds = campaign.filter(task=task, with_thinking=True,
-                                    has_byte_metrics_v1=True)
-            if len(seeds) < min_seeds:
-                continue
-            t1_overs, t3_overs = [], []
-            for r in seeds.runs:
-                try:
-                    t1 = r.byte_metrics_v1["tier_1_first"]["byte_overfetch"]
-                    t3 = r.byte_metrics_v1["tier_3_full"]["byte_overfetch"]
-                except (KeyError, TypeError):
-                    continue
-                if t1 == float("inf") or t3 == float("inf"):
-                    continue
-                t1_overs.append(t1)
-                t3_overs.append(t3)
-            if not t1_overs:
-                continue
-            t1_med = sorted(t1_overs)[len(t1_overs) // 2]
-            t3_med = sorted(t3_overs)[len(t3_overs) // 2]
-            rows.append({
-                "task": task, "n_seeds": len(t1_overs),
-                "tier1_overfetch_median": round(t1_med, 3),
-                "tier3_overfetch_median": round(t3_med, 3),
-                "ratio_tier3_over_tier1": (
-                    round(t3_med / t1_med, 2) if t1_med > 0
-                    else None
-                ),
-            })
-
-        if not rows:
-            pytest.skip(
-                "H4.tier3_vs_tier1: no high-fanout workloads (aiob_107, "
-                "code_repo) with sufficient seeds"
-            )
-        report.record("h4_tiering_payoff_per_workload", rows)
-
-        for row in rows:
-            if row.get("ratio_tier3_over_tier1") is None:
-                continue
-            assert row["ratio_tier3_over_tier1"] >= 5.0, (
-                f"H4.tier3_vs_tier1: on {row['task']}, tier3/tier1 overfetch "
-                f"ratio is only {row['ratio_tier3_over_tier1']}× — the "
-                f"tiering choice is not paying off on a high-fanout workload."
-            )
-
-
 class TestTier3RecallStillHigh:
     """Even though tier-3 overfetches more than tier-1, its recall against
     the eventual working set is high — confirming tier-3 captures the

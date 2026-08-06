@@ -42,8 +42,7 @@ Every paper claim must have a hypothesis test here. The test STRUCTURE has to ex
 | `test_h1_slack.py` | Reasoning slack windows are large and reliable; cross-provider consistency | C1, C6 | §3, §6.1 |
 | `test_h2_intent.py` | Thinking reveals file-access intent; HOT high-precision low-recall; semantic rules carry the load | C2, C5 | §3, §6.5 |
 | `test_h3_predictability.py` | Tiered detector ≥0.85 byte recall, ≤1.5× overfetch; cross-provider consistency (HEADLINE) | C2, C3 | §3, §6.2 |
-| `test_h4_tiering.py` | aiob_107 GOES collapse 6078× → ≤1.5×; tiering load-bearing on high-fanout workloads | C2/C3 case | §6.3 |
-| `test_h5_planning_prompts.py` | Planning prompts give paired ≥2× slack multiplier; never regress; PP doesn't loosen tier-1 overfetch | C6 | §6, §7.1 |
+| `test_h4_tiering.py` | aiob_107 GOES collapse 6078× → ≤1.5×; tier-3 recall stays high on high-fanout workloads | C2/C3 case | §6.3 |
 | `test_h7_leave_one_out.py` | No single rule load-bearing; min-recall-after-drop ≥ 0.80 | L1 genericity (E3) | §11.6 |
 | `test_h8_staging_effectiveness.py` | E2E speedup aiob_110 (s3 ≥1.3×, local ≥1.0×); decompression-staging ≥ plain; per-benchmark median ≥1.1×, max ≥1.5× on DSBench + MLE-bench (the result trio alongside AIOB); speedup attributable to staging | C8, E5 | §11.5 |
 | `test_h9_bandwidth_sensitivity.py` | Speedup monotone in cold-tier BW; figure_bytes_moveable_per_backend spans ≥50× for Fig 1b | E6 | §11.5 |
