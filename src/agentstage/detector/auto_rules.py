@@ -1,11 +1,11 @@
 """Auto-rule generator — synthesizes RuleSets from a workload's task spec
 + workspace prior without human curation.
 
-Serves the L3 genericity defense in AGENTSTAGE.md §11.6: if auto-generated
+Serves the genericity defense: if auto-generated
 rules hit within 10% of hand-tuned recall, the detector architecture is
 task-agnostic and the hand-curation is purely an engineering optimization.
 
-Algorithm (Day 1 deliverable, now real):
+Algorithm:
 
   1. For each workspace-prior bucket key, mechanically derive a regex
      pattern from the key's structure:

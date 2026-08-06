@@ -2,8 +2,7 @@
 
 A "find the dispatch bug" task with static ground truth: runner.py +
 tools.py are the immediate-need files; llm.py is NOT relevant per the
-PoC's reading of 14 failing seeds' thinking texts (see AGENTSTAGE.md
-§6.4 code_repo notes).
+reading of 14 failing seeds' thinking texts.
 
 The repo we point at is `$CODE_REPO_ROOT` (defaults to the AIOB
 submodule under `external/benchmarks/agentiobench/`). The workspace

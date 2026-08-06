@@ -1,7 +1,7 @@
 """AgentStage's intent detector: turns streaming thinking text into a
 tiered file working-set detection.
 
-The detector is composed of three layers (per AGENTSTAGE.md §4.2):
+The detector is composed of three layers:
 
 1. Workspace prior — files known to exist at the agent's current point
    in the task (loaded per-workload from `agentstage.workloads`).
@@ -9,7 +9,7 @@ The detector is composed of three layers (per AGENTSTAGE.md §4.2):
    paths from the workspace prior (high-precision, low-recall).
 3. Semantic rules — regex-defined activations mapping thinking text
    content to subsets of the workspace prior, tiered by target-set
-   size (specific ≤10, medium ≤200, broad >200).
+   size (specific ≤20, medium ≤200, broad >200).
 
 The rule library is FROZEN — see `RULE_LIBRARY_VERSION` and
 `RULE_LIBRARY_HASH` for the freeze contract enforced by

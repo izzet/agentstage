@@ -14,7 +14,7 @@ generator architecture (§4 predictor). If pathful prompting worked, the
 predictor would not need rules at all.
 
 Serves: C1 (path extraction), justifies §4 auto-rule generator
-Origin: AGENTSTAGE.md §6.5 (HOT scan), §6.6 (pathful-prompt experiment)
+Origin: HOT scan, pathful-prompt experiment
 Required data: paired runs differing only in prompt_mode ∈ {default, hinted,
                pathful, sparse}. Pathful directories under
                outputs/multi_turn/e020_multiturn_hinted_pathful_* contain

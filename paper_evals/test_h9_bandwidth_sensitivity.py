@@ -12,7 +12,7 @@ NFS + native + with-stager) and E-028/E-030 end-to-end measurements on
 local NVMe XFS and S3-class FUSE-S3.
 
 Serves: E6
-Origin: AGENTSTAGE.md §11.5 (E6 row), §11.2 (figures 1 & 2)
+Origin: bandwidth-sensitivity requirement
 Required data: outputs/microbench/throttle_sweep_aiob_110_*/ +
                outputs/e2e/{local,s3}/e2e_*.json.
 """

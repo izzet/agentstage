@@ -9,7 +9,7 @@ Tested on captures where the full ruleset already achieves recall ≥ 0.80
 dropping a rule changes nothing and the test is uninformative).
 
 Serves: §11.6 (no-single-point-of-failure)
-Origin: AGENTSTAGE.md §11.6
+Origin: rule-library genericity defense
 Required data: outputs/multi_turn/<corpus>/h7_loo.json from E-034.
 """
 

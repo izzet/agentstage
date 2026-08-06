@@ -13,7 +13,7 @@ filesystem probes by another name).
 
 Serves: C2 (subset selection), supports the §1 P3 empirical claim and
         the §4 predictor design.
-Origin: AGENTSTAGE.md §6, outputs/microbench/first_tool_stat.json
+Origin: outputs/microbench/first_tool_stat.json
 Required data: outputs/microbench/first_tool_stat.json (E-033) OR live
                campaign with `blocks` populated.
 """

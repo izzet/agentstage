@@ -324,13 +324,13 @@ def load_dsbench_task(task_id: str) -> DSBWorkload:
     )
 
 
-# Curated 3-task slice for FULL-AGENTIC-LOOP experiments (E-040).
+# Curated 3-task slice for full-agentic-loop experiments.
 # Selected for I/O-heavy + compute-light profile so the agent's solution
 # finishes fast and the I/O cost is the dominant wall-time fraction:
 #   - ventilator-pressure-prediction       : 336 MB train,   8 columns
 #   - tabular-playground-series-may-2022   : 243 MB train,  33 columns
 #   - lmsys-chatbot-arena                  : 141 MB train,   9 columns
-# (For the script-only orchestrator E-039, the original heavy-compute picks
+# (For the script-only orchestrator, the original heavy-compute picks
 #  santander/tabular-feb/microsoft-malware remain in scripts/microbench/dsbench_e2e.py.)
 DSB_AGENTIC_SLICE = (
     "ventilator-pressure-prediction",

@@ -461,7 +461,7 @@ def load_mle_competition(competition_id: str) -> MLEWorkload:
     )
 
 
-# Curated slice for full-agentic E-041 experiments — picked for
+# Curated slice for full-agentic experiments — picked for
 # I/O-heavy + tractable-prefetch profile:
 #   - new-york-city-taxi-fare-prediction : 5.3 GB single labels.csv (perfect)
 #   - dogs-vs-cats-redux-kernels-edition  : 490 MB train.zip + 54 MB test.zip

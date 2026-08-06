@@ -4,8 +4,8 @@ These wrap the underlying SDK call (anthropic, openai, google-genai),
 intercept streaming events, run the detector live, dispatch DataHints
 to the stager, and forward everything to the caller unchanged.
 
-For Path A smoke (Day 2), only AnthropicClient is implemented. The
-Gemini and HTTP wrappers land on Days 3-4 (see TASKS.md).
+Anthropic and Gemini wrappers are implemented; import GeminiClient
+from `agentstage.client.gemini`.
 """
 
 from .anthropic import AnthropicClient, ToolCall

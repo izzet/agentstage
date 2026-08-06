@@ -7,7 +7,7 @@ ground truth with the empirical "the agent did read X with N POSIX bytes"
 ground truth. The byte-recall denominator becomes the agent's actual
 read volume instead of an expert's enumeration.
 
-io_report.json schema (sampled from sciiobench outputs on 2026-05-19):
+io_report.json schema:
 
     {
       "raw_stats": {...},

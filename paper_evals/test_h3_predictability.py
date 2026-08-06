@@ -7,7 +7,7 @@ stated thresholds (≥ 0.85 byte recall, ≤ 1.5× / ≤ 2.0× overfetch) across
 provider families and workloads.
 
 Serves: C2, C3 (and through them, the entire paper's central claim)
-Origin: AGENTSTAGE.md §3, §6.2 (detector accuracy), §6.4 (per-config)
+Origin: detector accuracy, per-config breakdown
 Required data: trace-only (--outputs-root, includes outputs/poc/) +
                 ground-truth (--io-report-root for empirical GT)
 """

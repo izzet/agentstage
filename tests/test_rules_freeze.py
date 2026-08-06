@@ -7,7 +7,7 @@ this test, and forces a deliberate `RULE_LIBRARY_VERSION` bump documented
 in the commit message.
 
 Without this gate, silent rule edits would invalidate the cross-corpus
-genericity claim (AGENTSTAGE.md §11.6) without anyone noticing. The
+genericity claim without anyone noticing. The
 paper_evals test `test_h6_frozen_rules_crosscorpus.py` consumes
 `RULE_LIBRARY_VERSION` via `--rule-library-version`; this unit test pins
 the bytes underneath that version string.

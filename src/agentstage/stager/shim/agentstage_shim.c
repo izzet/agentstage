@@ -654,7 +654,7 @@ int creat64(const char *pathname, mode_t mode) __attribute__((alias("creat")));
  * before handing it to HDF5's sec2 driver (which uses open()). Without
  * intercepting fopen, that sniff read hits the cold tier even when the
  * file is staged hot — costing one cold first-byte latency per file.
- * Observed: ~2 s/file on an S3 cold tier (E-028/E-029 debugging).
+ * Observed: ~2 s/file on an S3 cold tier.
  *
  * Read-only modes only ("r", "rb", "rt"); writes/append pass through.
  * ------------------------------------------------------------------------- */

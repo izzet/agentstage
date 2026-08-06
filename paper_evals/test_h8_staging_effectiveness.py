@@ -10,7 +10,7 @@ against both local (cold cache, posix_fadvise-evicted, mincore-verified)
 and S3 (mountpoint-s3 over noaa-goes16) tiers.
 
 Serves: C8, E5
-Origin: AGENTSTAGE.md §11.5 (E5 row), §11.9 (risk row "E5 measured speedup")
+Origin: end-to-end staging speedup (E5)
 Required data: outputs/e2e/{local,s3}/e2e_{local,s3}.json.
 """
 

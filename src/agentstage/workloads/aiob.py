@@ -18,7 +18,7 @@ the TaskConfig fields come from AIOB.
 
 `TaskConfig` is replicated locally instead of imported from `agentiobench`
 because AIOB's `__init__.py` eagerly imports `runner` → `validation` →
-numpy, which we don't want as a runtime dependency on Day 1. When T13b
+numpy, which we don't want as a runtime dependency. When
 lands the `feat/agentstage-integration` branch with a lazy `__init__` +
 public re-export, switch the import to:
 
@@ -434,7 +434,7 @@ def load_aiob_104() -> Workload:
 
     gt_full = workspace_prior["all_samples"] + workspace_prior["reference"]
     # Sonnet inspects a BAM sample first (HG00096); Gemini inspects reference.
-    # See AGENTSTAGE.md §6.4.1 — model-strategy variance.
+    # Model-strategy variance.
     gt_first = workspace_prior.get("sample_HG00096", ()) + workspace_prior["reference"]
 
     return Workload(

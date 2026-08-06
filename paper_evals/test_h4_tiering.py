@@ -12,7 +12,7 @@ workspace ≫ working set, the union-of-rules (tier-3) overfetch is at least
 would suffice.
 
 Serves: C2/C3 case study, supports the architectural decision in §4.2
-Origin: AGENTSTAGE.md §6.3 (the GOES collapse table)
+Origin: the GOES collapse table
 Required data: campaign with byte_metrics_v1 populated; for the naive-
                baseline arm, workload static inventory (workspace bytes,
                immediate-need bytes) from agentstage.workloads.aiob.

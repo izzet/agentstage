@@ -5,8 +5,8 @@ one or more workspace-prior bucket keys. When the regex matches, the rule
 "fires" and contributes every file in its target buckets to the tiered
 detected set.
 
-This module is the load-bearing artifact for the paper's genericity claim
-(see AGENTSTAGE.md §11.6). The rules are FROZEN: `RULE_LIBRARY_VERSION`
+This module is the load-bearing artifact for the paper's genericity
+claim. The rules are FROZEN: `RULE_LIBRARY_VERSION`
 plus `RULE_LIBRARY_HASH` form the freeze contract that
 `tests/test_rules_freeze.py` pins. Bumping the version is a deliberate
 commit-message-documented event; quiet rule edits are detected as a hash

@@ -14,7 +14,7 @@ and forwards everything to the agent harness unchanged. Three claims:
 If any fails, the proxy is unshippable in front of production LLM traffic.
 
 Serves: E4, E7
-Origin: AGENTSTAGE.md §11.5, §4.1 (sub-1% requirement)
+Origin: sub-1% LLM-critical-path requirement
 Required data:
   - outputs/microbench/auto_rules_cost.json (E-032) — auto-rule cost data
   - outputs/microbench/proxy_overhead_*.json — proxy LLM-side latency

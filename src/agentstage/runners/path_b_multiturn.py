@@ -10,9 +10,9 @@ Extends Path A (single-turn smoke) into a real agent loop:
   - the stager + shim engage live as in Path A
 
 Used for:
-  E-011: hinted multi-turn baseline capture (--prompt-mode hinted)
-  E-014: sparse-prompt capture for Regime B replay (--prompt-mode sparse)
-  E-015: sparse live end-to-end (same as E-014 but with measurement step)
+  hinted multi-turn baseline capture (--prompt-mode hinted)
+  sparse-prompt capture for Regime B replay (--prompt-mode sparse)
+  sparse live end-to-end (adds the measurement step)
 
 Usage:
 
@@ -101,7 +101,7 @@ and per-file structure are not given to you upfront — discover them.
 """
 
 PATHFUL_PROMPTS: dict[str, str] = {
-    # V1 (original, E-020): soft instruction, permits "use list_dir first
+    # V1 (original): soft instruction, permits "use list_dir first
     # then name paths" — LLM responded with templates ('M6C{08,09,10}').
     "v1": (
         "\n\nIMPORTANT: When reasoning about which files you intend to "
@@ -558,7 +558,7 @@ def main() -> int:
                              "to write full file paths in its thinking. Enables "
                              "the literal-path detection mode (hot_path_scan), "
                              "potentially replacing all hand-coded regex rules. "
-                             "Set up by E-020 ablation.")
+                             "Set up by the prompt-mode ablation.")
     parser.add_argument("--pathful-version",
                         choices=list(PATHFUL_PROMPTS.keys()),
                         default="v2",

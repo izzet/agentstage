@@ -16,7 +16,7 @@ Three assertions:
       semantic-class auto-rules (justifies §4 architecture).
 
 Serves: C2, C5
-Origin: AGENTSTAGE.md §3, §6.5 (HOT scan)
+Origin: HOT scan
 Required data: campaign with `blocks` + `byte_metrics_v1.hot.{byte_recall,
                byte_overfetch}` populated.
 """

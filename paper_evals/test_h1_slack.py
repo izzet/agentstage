@@ -6,7 +6,7 @@ NVMe ingest rates (3–7 GB/s) to stage useful amounts of data (≥ 100 MB)
 per tool call.
 
 Serves: C1, C6
-Origin: AGENTSTAGE.md §3 (claims table), §6.1 (slack distribution)
+Origin: slack distribution
 Required data: trace-only (--outputs-root)
 """
 

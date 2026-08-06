@@ -1,6 +1,6 @@
 """Shared fixtures for AgentStage paper evaluations.
 
-Each test_h<N>_*.py file encodes one hypothesis from AGENTSTAGE.md §2. The
+Each test_h<N>_*.py file encodes one hypothesis. The
 assertions in each file verify the quantitative claims from §3 (C1-C10) and
 the evaluations from §11.5 (E1-E11) against captured data.
 
