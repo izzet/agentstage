@@ -26,7 +26,6 @@ and input; the caller decides what to do (execute, log, abort).
 from __future__ import annotations
 
 import os
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Iterator
@@ -35,7 +34,8 @@ import anthropic
 
 from agentstage.detector.engine import StreamBlock
 from agentstage.detector.rules import RuleSet
-from agentstage.stager import DataHint, Stager, now_ms
+from agentstage.client.dispatch import RuleDispatcher
+from agentstage.stager import Stager, now_ms
 
 
 @dataclass
@@ -185,7 +185,7 @@ class StreamingResponse:
         self._thinking_text_by_idx: dict[int, list[str]] = {}
         # Rule regexes compiled once per stream (lazily, on first thinking
         # chunk) so the live per-chunk scan stays cheap.
-        self._compiled: list[tuple[Any, "re.Pattern[str]"]] | None = None
+        self._dispatcher: RuleDispatcher | None = None
 
     def events(self) -> Iterator[Any]:
         if not self._detector_enabled:
@@ -242,57 +242,19 @@ class StreamingResponse:
                 pass
 
     def _maybe_fire_rules(self, block_idx: int, t_ms: float) -> None:
-        """Incrementally scan the accumulated thinking text for `block_idx`
-        and dispatch any newly-fired rules to the stager.
-
-        Detection-equivalent to `engine.run_detector` — a rule fires iff its
-        regex matches the accumulated thinking text — but O(N·M) per chunk
-        instead of O(N²·M): we run a single `regex.search` over the
-        accumulated text per not-yet-fired rule, with no per-character offset
-        interpolation. (The offline engine re-evaluates every character
-        prefix to compute an interpolated activation timestamp; on the live
-        path we don't need that — the activation time IS the chunk's arrival
-        time `t_ms`, i.e. the moment we learned the file is needed.) Re-running
-        the offline engine per chunk made the proxy quadratic in thinking
-        length and blew past the sub-1% LLM-critical-path budget (H10/E4).
-        """
-        if self.session.ruleset is None or self.session.stager is None:
+        """Scan this block's accumulated thinking text and dispatch any
+        newly-fired rules. See `dispatch.RuleDispatcher` for the matching
+        contract and why it differs from the offline engine."""
+        if self._dispatcher is None:
+            self._dispatcher = RuleDispatcher(
+                ruleset=self.session.ruleset,
+                workspace_prior=self.session.workspace_prior,
+                stager=self.session.stager,
+            )
+        if not self._dispatcher.enabled:
             return
         accumulated = "".join(self._thinking_text_by_idx.get(block_idx, []))
-        if not accumulated:
-            return
-        if self._compiled is None:
-            self._compiled = [
-                (r, re.compile(r.pattern, flags=re.IGNORECASE))
-                for r in self.session.ruleset.rules
-            ]
-        for rule, regex in self._compiled:
-            if rule.name in self.session.fired_rule_names:
-                continue
-            if regex.search(accumulated) is None:
-                continue
-            self.session.fired_rule_names.add(rule.name)
-            detected = tuple(
-                p
-                for k in rule.target_keys
-                for p in self.session.workspace_prior.get(k, ())
-            )
-            tier = _tier_for_size(len(detected))
-            # Only auto-dispatch tier-1 (≤10 files). Tier-2/3 record the
-            # activation but skip prefetch — broad rules can dispatch
-            # thousands of files and starve the streaming loop. Tier-2/3
-            # would be background-priority in production; for the Path A
-            # smoke we just skip them.
-            if tier > 1:
-                continue
-            hint = DataHint(
-                detected_files=detected,
-                tier=tier,
-                fired_at_ms=t_ms,
-                rule_id=rule.name,
-                byte_estimate=0,
-            )
-            self.session.stager.prefetch(hint)
+        self._dispatcher.fire(accumulated, t_ms, self.session.fired_rule_names)
 
     def _finalize_thinking_blocks(self) -> None:
         # Snapshot the per-block accumulated thinking text into the session
@@ -306,10 +268,3 @@ class StreamingResponse:
                 text=text, chunks=1,
             ))
 
-
-def _tier_for_size(n: int) -> int:
-    if n <= 10:
-        return 1
-    if n <= 200:
-        return 2
-    return 3

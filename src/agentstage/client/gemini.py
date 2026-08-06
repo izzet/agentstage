@@ -26,9 +26,10 @@ from typing import Any, Iterator
 from google import genai
 from google.genai import types
 
-from agentstage.detector.engine import StreamBlock, run_detector
+from agentstage.client.dispatch import RuleDispatcher
+from agentstage.detector.engine import StreamBlock
 from agentstage.detector.rules import RuleSet
-from agentstage.stager import DataHint, Stager, now_ms
+from agentstage.stager import Stager, now_ms
 
 
 @dataclass
@@ -285,6 +286,11 @@ class GeminiStreamingResponse:
     def __init__(self, *, sdk_stream: Any, session: GeminiStreamSession) -> None:
         self._sdk_stream = sdk_stream
         self.session = session
+        self._dispatcher = RuleDispatcher(
+            ruleset=session.ruleset,
+            workspace_prior=session.workspace_prior,
+            stager=session.stager,
+        )
         # We assign synthetic block indices: increment when we see a NEW
         # part type/identity. Within one chunk, multiple parts may exist
         # of different types; we emit per-part deltas under a per-type idx.
@@ -359,6 +365,10 @@ class GeminiStreamingResponse:
                 )
             self._open_blocks[idx]["text"] += text
             if kind == "thinking":
+                self._dispatcher.fire(
+                    self._open_blocks[idx]["text"], t_ms,
+                    self.session.fired_rule_names,
+                )
                 yield _Event(
                     type="content_block_delta", index=idx,
                     delta=_Delta(type="thinking_delta", thinking=text),

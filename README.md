@@ -117,7 +117,12 @@ for event in response:
     ...  # forwarded unchanged; the detector fires on each thinking delta
 ```
 
-`GeminiClient` in `agentstage.client.gemini` takes the same arguments.
+`GeminiClient` (`agentstage.client.gemini`) and `OpenAIClient`
+(`agentstage.client.openai`) take the same arguments. `OpenAIClient` points
+at any OpenAI-compatible endpoint via `base_url` and stages when the server
+surfaces reasoning text on `delta.reasoning` or `delta.reasoning_content`, as
+vLLM and DeepSeek do. OpenAI's own API returns no reasoning tokens, so it
+streams normally but stages nothing.
 
 Run the agent's tool subprocesses under the shim so their `open()` calls land
 on the staged copies:
