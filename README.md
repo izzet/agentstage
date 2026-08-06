@@ -43,7 +43,6 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 | `paper_figures/` | Figure builders plus version-controlled data snapshots |
 | `scripts/microbench/` | Measurement and analysis scripts behind the paper's numbers |
 | `scripts/BENCH_TIERS.md` | Storage-tier bandwidth measurements (paper §IV.A) |
-| `PREDICTION_ANALYSIS.md` | I/O-share and timeliness analysis (paper §IV.F) |
 | `external/` | Benchmark and tracing submodules |
 
 ## Requirements
