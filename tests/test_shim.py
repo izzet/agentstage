@@ -352,3 +352,73 @@ print(hashlib.sha256(data).hexdigest())
     r = run_python(env, script)
     assert r.returncode == 0, f"stderr: {r.stderr}"
     assert r.stdout.strip() == expected_hash, "bytes diverge from hot file"
+
+
+# --------------------------------------------------------------------------
+# Compression-aware staging, end to end through the real shim.
+#
+# The design claim is that expansion needs no shim support: because the hot
+# copy lands at the mirrored *target* path, the existing cold-to-hot prefix
+# mapping resolves it. These tests exercise the C library, not a Python
+# stand-in, because that claim is otherwise only an assertion.
+# --------------------------------------------------------------------------
+
+class TestExpandedStagingThroughShim:
+    def test_tool_reads_expanded_bytes_for_a_compressed_only_target(
+        self, shim_lib, cold_dir, hot_dir
+    ):
+        """The tool opens x.csv, which exists on cold only as x.csv.gz."""
+        import gzip as _gzip
+
+        from agentstage.stager import DataHint, Stager
+
+        payload = b"sample,value\nHG00096,0.42\n"
+        (cold_dir / "x.csv.gz").write_bytes(_gzip.compress(payload))
+        target = cold_dir / "x.csv"
+        assert not target.exists(), "target must be absent from the cold tier"
+
+        stager = Stager(hot_root=hot_dir, cold_roots=[cold_dir], max_workers=1)
+        try:
+            stager.prefetch(DataHint(detected_files=(str(target),), tier=1,
+                                     fired_at_ms=0.0, rule_id="expand"))
+            stager.wait_for_all(timeout=30)
+        finally:
+            stager.shutdown(wait=True)
+
+        # Without the shim the open must fail: the file is genuinely absent.
+        bare = subprocess.run(["cat", str(target)], capture_output=True,
+                              text=True, timeout=10)
+        assert bare.returncode != 0
+
+        # With the shim it resolves to the expanded hot copy.
+        r = run_cat(shim_env(shim_lib, hot_dir, cold_dir), target)
+        assert r.returncode == 0, r.stderr
+        assert r.stdout.encode() == payload
+
+    def test_tool_opening_the_archive_still_gets_valid_compressed_bytes(
+        self, shim_lib, cold_dir, hot_dir
+    ):
+        """A tool that opens x.csv.gz means to decompress it itself. Serving
+        expanded bytes under that name would break it."""
+        import gzip as _gzip
+
+        from agentstage.stager import DataHint, Stager
+
+        payload = b"compressed-on-purpose\n"
+        archive = cold_dir / "plain.csv.gz"
+        archive.write_bytes(_gzip.compress(payload))
+
+        stager = Stager(hot_root=hot_dir, cold_roots=[cold_dir], max_workers=1)
+        try:
+            stager.prefetch(DataHint(detected_files=(str(archive),), tier=1,
+                                     fired_at_ms=0.0, rule_id="copy"))
+            stager.wait_for_all(timeout=30)
+        finally:
+            stager.shutdown(wait=True)
+
+        r = run_python(
+            shim_env(shim_lib, hot_dir, cold_dir),
+            f"import gzip;print(gzip.open({str(archive)!r},'rb').read().decode(),end='')",
+        )
+        assert r.returncode == 0, r.stderr
+        assert r.stdout.encode() == payload
