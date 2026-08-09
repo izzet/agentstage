@@ -10,22 +10,22 @@ Lifecycle:
   _stage(cold_path, hint):
     1. compute hot_path
     2. ensure capacity (LRU sweep if needed)
-    3. shutil.copy(cold_path, tmp_path)
-    4. os.rename(tmp_path, hot_path)  # atomic
-    5. record StageEvent in StagingReport
+    3. resolve the target (plain file, or a compressed-only source)
+    4. materialise into tmp_path (copy, or expand through a codec)
+    5. os.rename(tmp_path, hot_path)  # atomic
+    6. record StageEvent in StagingReport
 """
 
 from __future__ import annotations
 
 import os
-import shutil
 import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
+from .codecs import companions, materialise, resolve
 from .report import DataHint, StageEvent, StagingReport, now_ms
-
 
 GB = 1024 ** 3
 
@@ -97,6 +97,15 @@ class Stager:
             f = self._submit_one(cold_path, hint)
             if f is not None:
                 futures.append(f)
+            # A primary is useless for random access without its index, so
+            # stage both. `companions` gates on the suffix with pure string
+            # ops before touching the filesystem, so formats without an
+            # external index (images, CSV) cost no metadata RPCs here — the
+            # same reason _submit_one avoids resolve().
+            for sidecar in companions(cold_path):
+                fs = self._submit_one(str(sidecar), hint)
+                if fs is not None:
+                    futures.append(fs)
         return futures
 
     def shutdown(self, *, wait: bool = True) -> None:
@@ -211,10 +220,18 @@ class Stager:
             self.report.record(ev)
             return ev
 
-        try:
-            size = os.path.getsize(cold_path)
-        except OSError as exc:
-            return self._record_error(cold_path, existing_hot, hint, exc)
+        # Resolve what on the cold tier can materialise this target. The
+        # target itself is probed first, so the common case costs one stat
+        # and metadata-bound workloads never pay for the codec probes.
+        plan = resolve(cold_path)
+        if plan is None:
+            return self._record_error(
+                cold_path, existing_hot, hint,
+                FileNotFoundError(f"no cold artifact can materialise {cold_path}"),
+            )
+        # Reserve against the size of the artifact we will write, which for an
+        # expanded target is larger than the compressed source.
+        size = plan.size_bytes
 
         if size > self.capacity_bytes:
             ev = StageEvent(
@@ -262,9 +279,14 @@ class Stager:
 
         t_start = time.monotonic_ns()
         try:
-            shutil.copyfile(cold_path, tmp)
+            materialise(plan, tmp)
             os.rename(tmp, hot_path)
-        except OSError as exc:
+        # Not just OSError: a truncated archive surfaces as EOFError and
+        # lzma/zstd raise their own types, none of which subclass OSError.
+        # A corrupt cold artifact is a data condition, not a bug, and must
+        # never kill the worker, strand the temp file, or leak the capacity
+        # reservation. The tool falls through to the cold tier instead.
+        except Exception as exc:
             try:
                 tmp.unlink(missing_ok=True)
             except OSError:
