@@ -88,6 +88,34 @@ class TestResolve:
         (cold / "x.csv.gz").write_bytes(gzip.compress(PLAIN))
         assert resolve(cold / "x.csv").size_bytes == len(PLAIN)
 
+    def test_zstd_target_resolves_and_round_trips(self, cold: Path, tmp_path: Path):
+        """zstandard is an optional extra. When present the .zst path must
+        behave like every other codec; when absent resolve must skip it
+        rather than raise."""
+        zstd = pytest.importorskip("zstandard")
+        src = cold / "x.csv.zst"
+        src.write_bytes(zstd.ZstdCompressor().compress(PLAIN))
+
+        plan = resolve(cold / "x.csv")
+        assert plan is not None and plan.expands
+        assert plan.codec.suffix == ".zst"
+
+        dest = tmp_path / "out"
+        materialise(plan, dest)
+        assert dest.read_bytes() == PLAIN
+
+    def test_zstd_source_is_skipped_when_the_codec_is_unavailable(
+        self, cold: Path, monkeypatch
+    ):
+        """Without the optional dependency a .zst-only target is a miss, so
+        the tool falls through to cold instead of hitting an ImportError."""
+        (cold / "x.csv.zst").write_bytes(b"irrelevant")
+        monkeypatch.setattr(
+            "agentstage.stager.codecs.Codec.available",
+            lambda self: self.suffix != ".zst",
+        )
+        assert resolve(cold / "x.csv") is None
+
     def test_codec_without_a_size_trailer_uses_the_ratio_estimate(self, cold: Path):
         src = cold / "x.csv.xz"
         src.write_bytes(lzma.compress(PLAIN))
