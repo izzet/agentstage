@@ -9,7 +9,6 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "agentiobench",
     "anthropic>=0.103.1",
     "google-genai>=2.5.0",
     "openai>=1.40",
@@ -45,10 +44,13 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 testpaths = ["tests"]
 addopts = "-ra"
 
+# AgentIOBench is picked up as a workspace member when the submodule is
+# checked out. It is deliberately NOT a dependency: the detector, stager,
+# shim and clients never import it, and the two call sites that can use it
+# guard with try/except. Declaring it would make the whole package
+# uninstallable for anyone without access to that repository.
 [tool.uv.workspace]
 members = [
     "external/benchmarks/agentiobench",
 ]
 
-[tool.uv.sources]
-agentiobench = { workspace = true, editable = true }

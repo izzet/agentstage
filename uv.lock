@@ -81,7 +81,7 @@ science-full = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agentiobench", extras = ["science"], marker = "extra == 'science-full'", editable = "external/benchmarks/agentiobench" },
+    { name = "agentiobench", extras = ["science"], marker = "extra == 'science-full'" },
     { name = "anndata", marker = "extra == 'science-full'" },
     { name = "betterset", marker = "extra == 'analyzer'" },
     { name = "dask", marker = "extra == 'analyzer'" },
@@ -127,7 +127,6 @@ name = "agentstage"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "agentiobench" },
     { name = "anthropic" },
     { name = "google-genai" },
     { name = "openai" },
@@ -148,7 +147,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agentiobench", editable = "external/benchmarks/agentiobench" },
     { name = "anthropic", specifier = ">=0.103.1" },
     { name = "google-genai", specifier = ">=2.5.0" },
     { name = "openai", specifier = ">=1.40" },

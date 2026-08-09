@@ -55,8 +55,23 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 
 ```bash
 git clone https://github.com/izzet/agentstage && cd agentstage
-git submodule update --init --recursive
 uv sync
+```
+
+The package installs and the test suite runs from a bare clone, with no
+submodules checked out. Fetch the benchmark submodules only if you want to
+run the community workloads:
+
+```bash
+git submodule update --init external/benchmarks/mle-bench \
+    external/benchmarks/kramabench external/benchmarks/dsbench
+```
+
+The three curated tasks additionally need AgentIOBench, a sibling project.
+It is intentionally not a dependency, so its absence costs only those tasks:
+
+```bash
+uv pip install -e external/benchmarks/agentiobench   # once available
 ```
 
 Build the shim:
