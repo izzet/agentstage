@@ -17,10 +17,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Staging expands .gz/.bz2/.xz targets with the standard library. Only .zst
-# needs a third-party codec, so it stays opt-in: without it the stager skips
-# .zst sources rather than failing.
-zstd = ["zstandard>=0.22"]
+# Codecs that need a third-party library. Staging expands .gz/.bz2/.xz with
+# the standard library, so this is additive rather than required: without it
+# the stager skips sources it cannot decode rather than failing. Future
+# codecs (lz4, brotli) belong here too.
+codecs = ["zstandard>=0.22"]
 
 [dependency-groups]
 dev = [

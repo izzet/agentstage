@@ -28,7 +28,7 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 | Capture proxy | In-process SDK wrapper. Forwards each stream event unchanged while firing the detector over the accumulated thinking text |
 | Auto-rule generator | Mines each workload's metadata into a per-workload regex rule library, with no hand-written rules |
 | Tiered detector | Matches rules against the streaming reasoning, refines against filesystem-probe results, and classifies each rule by target-set size into eager, opportunistic, and on-demand tiers |
-| Staging daemon | Thread pool that copies cold-tier files into the hot tier, publishing each atomically (copy to a temporary path, then `rename`) so a reader never sees a partial file |
+| Staging daemon | Thread pool that copies cold-tier files into the hot tier, expanding compressed sources and pulling in companion indices. Each file is published atomically (write to a temporary path, then `rename`) so a reader never sees a partial one |
 | `LD_PRELOAD` shim | Small C library that redirects path-taking syscalls under managed cold roots to the staged hot copy. Writes pass through, leaving the hot tier read-only from the agent's view |
 
 ## Layout
@@ -133,6 +133,32 @@ AGENTSTAGE_HOT_ROOT=/dev/shm/agentstage \
 AGENTSTAGE_COLD_ROOTS=/cold \
   python analysis.py
 ```
+
+### Compressed inputs and companion indices
+
+Staging is keyed to **the path the tool opens**, not to the file sitting on
+disk. If the tool opens `x.csv` and the cold tier holds only `x.csv.gz`, the
+daemon expands it into the hot tier at `x.csv`. If the tool opens `x.csv.gz`
+itself, it gets a plain copy and does its own decompression. The hot copy is
+therefore always byte-identical to what the tool expects, which is why the
+shim needs no knowledge of compression at all.
+
+`.gz`, `.bz2`, and `.xz` expand with the standard library. `.zst` needs an
+optional extra; without it, sources the stager cannot decode are skipped
+rather than failing:
+
+```bash
+uv sync --extra codecs
+```
+
+Formats with an external index (BAM/BAI, CRAM/CRAI, VCF/TBI, FASTA/FAI) also
+pull their companion file in. Staging a BAM without its index leaves the tool
+doing random access against a cold index, which is the read pattern staging
+exists to remove.
+
+Archives are not expanded: one `.tar.gz` becoming many files breaks the
+one-target-one-file model the capacity accounting and the shim's per-file
+mapping rely on.
 
 ## Configuration
 
