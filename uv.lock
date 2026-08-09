@@ -135,8 +135,18 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+analysis = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+]
 codecs = [
     { name = "zstandard" },
+]
+figures = [
+    { name = "matplotlib" },
+    { name = "numpy" },
 ]
 sab = [
     { name = "datasets" },
@@ -154,12 +164,18 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.103.1" },
     { name = "datasets", marker = "extra == 'sab'", specifier = ">=2.19" },
     { name = "google-genai", specifier = ">=2.5.0" },
+    { name = "matplotlib", marker = "extra == 'analysis'", specifier = ">=3.8" },
+    { name = "matplotlib", marker = "extra == 'figures'", specifier = ">=3.8" },
+    { name = "numpy", marker = "extra == 'analysis'", specifier = ">=1.26" },
+    { name = "numpy", marker = "extra == 'figures'", specifier = ">=1.26" },
     { name = "openai", specifier = ">=1.40" },
+    { name = "pandas", marker = "extra == 'analysis'", specifier = ">=2.2" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "scipy", marker = "extra == 'analysis'", specifier = ">=1.12" },
     { name = "xxhash", specifier = ">=3.7.0" },
     { name = "zstandard", marker = "extra == 'codecs'", specifier = ">=0.22" },
 ]
-provides-extras = ["codecs", "sab"]
+provides-extras = ["codecs", "sab", "figures", "analysis"]
 
 [package.metadata.requires-dev]
 dev = [

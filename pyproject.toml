@@ -25,6 +25,11 @@ codecs = ["zstandard>=0.22"]
 # ScienceAgentBench workload only; imported lazily so its absence costs
 # nothing until that dataset is actually loaded.
 sab = ["datasets>=2.19"]
+# Rebuilding the paper figures from committed data. Not needed to use
+# AgentStage, only to regenerate the plots.
+figures = ["matplotlib>=3.8", "numpy>=1.26"]
+# Campaign and analysis scripts under scripts/microbench/.
+analysis = ["matplotlib>=3.8", "numpy>=1.26", "pandas>=2.2", "scipy>=1.12"]
 
 [dependency-groups]
 dev = [
