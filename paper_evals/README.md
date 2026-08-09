@@ -35,20 +35,26 @@ uv run pytest paper_evals/ \
 
 ## Hypotheses → claims map
 
-Every paper claim must have a hypothesis test here. The test STRUCTURE has to exist even if the data hasn't caught up yet — failing/skipping tests are fine, missing tests are not. When a paper section commits to a new quantitative claim, add (or extend) the corresponding `test_h<N>_*.py` first, then write the prose.
+Every quantitative claim in the paper has a hypothesis test here, so the
+claims are executable rather than only prose. Assertion thresholds mirror
+what the paper states; a test that skips means the artifact backing it is
+not committed, not that the claim is unverified.
 
-| File | Hypothesis | Serves | Where claim originates |
-|---|---|---|---|
-| `test_h1_slack.py` | Reasoning slack windows are large and reliable; cross-provider consistency | C1, C6 | §3, §6.1 |
-| `test_h2_intent.py` | Thinking reveals file-access intent; HOT high-precision low-recall; semantic rules carry the load | C2, C5 | §3, §6.5 |
-| `test_h3_predictability.py` | Tiered detector ≥0.85 byte recall, ≤1.5× overfetch; cross-provider consistency (HEADLINE) | C2, C3 | §3, §6.2 |
-| `test_h4_tiering.py` | aiob_107 GOES collapse 6078× → ≤1.5×; tier-3 recall stays high on high-fanout workloads | C2/C3 case | §6.3 |
-| `test_h7_leave_one_out.py` | No single rule load-bearing; min-recall-after-drop ≥ 0.80 | L1 genericity (E3) | §11.6 |
-| `test_h8_staging_effectiveness.py` | E2E speedup aiob_110 (s3 ≥1.3×, local ≥1.0×); decompression-staging ≥ plain; per-benchmark median ≥1.1×, max ≥1.5× on DSBench + MLE-bench (the result trio alongside AIOB); speedup attributable to staging | C8, E5 | §11.5 |
-| `test_h9_bandwidth_sensitivity.py` | Speedup monotone in cold-tier BW; figure_bytes_moveable_per_backend spans ≥50× for Fig 1b | E6 | §11.5 |
-| `test_h10_proxy_overhead.py` | Proxy p99 overhead ≤1%; auto-rule p95 ≤1ms; no-thinking pathway baseline-identical; passthrough byte-identical when detector disabled | E4, E7 | §11.5 |
-| `test_h11_first_tool_prior.py` | First tool is filesystem probe (`list_dir`) on ≥90% of runs (96.1% per E-033); per-model ≥60% | C2 (subset selection) | §1 P3, §4 predictor |
-| `test_h12_pathful_prompt_fails.py` | Pathful prompts do not improve HOT or tier-1 recall paired; justifies auto-rules | C1 (path extraction) | §1 P4, §4 auto-rules |
+Numbering has gaps: hypotheses explored and then dropped from the paper had
+their tests removed rather than left failing.
+
+| File | Hypothesis | Serves |
+|---|---|---|
+| `test_h1_slack.py` | Reasoning slack windows are large and reliable; cross-provider consistency | C1, C6 |
+| `test_h2_intent.py` | Thinking reveals file-access intent; HOT high-precision low-recall; semantic rules carry the load | C2, C5 |
+| `test_h3_predictability.py` | Tiered detector ≥0.85 byte recall, ≤1.5× overfetch; cross-provider consistency (HEADLINE) | C2, C3 |
+| `test_h4_tiering.py` | aiob_107 GOES collapse 6078× → ≤1.5×; tier-3 recall stays high on high-fanout workloads | C2/C3 case |
+| `test_h7_leave_one_out.py` | No single rule load-bearing; min-recall-after-drop ≥ 0.80 | L1 genericity (E3) |
+| `test_h8_staging_effectiveness.py` | E2E speedup aiob_110 (s3 ≥1.3×, local ≥1.0×); decompression-staging ≥ plain; per-benchmark median ≥1.1×, max ≥1.5× on DSBench + MLE-bench (the result trio alongside AIOB); speedup attributable to staging | C8, E5 |
+| `test_h9_bandwidth_sensitivity.py` | Speedup monotone in cold-tier BW; figure_bytes_moveable_per_backend spans ≥50× for Fig 1b | E6 |
+| `test_h10_proxy_overhead.py` | Proxy p99 overhead ≤1%; auto-rule p95 ≤1ms; no-thinking pathway baseline-identical; passthrough byte-identical when detector disabled | E4, E7 |
+| `test_h11_first_tool_prior.py` | First tool is filesystem probe (`list_dir`) on ≥90% of runs (96.1% per E-033); per-model ≥60% | C2 (subset selection) |
+| `test_h12_pathful_prompt_fails.py` | Pathful prompts do not improve HOT or tier-1 recall paired; justifies auto-rules | C1 (path extraction) |
 
 ## Adding a new claim
 
