@@ -38,7 +38,7 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 | `src/agentstage/` | The package: `client/` (capture proxy), `detector/`, `stager/` (daemon + C shim), `workloads/`, `runners/`, `metrics/` |
 | `tests/` | Unit tests |
 | `paper_evals/` | Claim-verification suite, run separately from `tests/` |
-| `paper_figures/` | Figure builders plus version-controlled data snapshots |
+| `paper_figures/` | Figure builders. Regenerating a plot requires campaign output data from a real run |
 | `outputs/` | Committed run artifacts that the eval suite and figure builders read |
 | `scripts/microbench/` | Measurement and analysis scripts behind the paper's numbers |
 | `scripts/BENCH_TIERS.md` | Storage-tier bandwidth measurements (paper §IV.A) |

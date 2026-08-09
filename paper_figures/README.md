@@ -1,6 +1,8 @@
 # paper_figures/
 
-Reproducible figure pipeline for the AgentStage eScience '26 paper. The rcParams block is factored into a shared `_style.py` so style tweaks are single-source.
+Figure pipeline for the AgentStage eScience '26 paper. The builders read
+campaign output data, so regenerating a plot requires a real run: they read
+per-turn stream and timing artifacts, not the summaries committed here. The rcParams block is factored into a shared `_style.py` so style tweaks are single-source.
 
 ## Convention
 
