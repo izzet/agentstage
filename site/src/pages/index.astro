@@ -2,10 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const repo = 'https://github.com/izzet/agentstage';
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const figures = {
-  speedup: `${import.meta.env.BASE_URL}figures/fig_speedup.png`,
-  detection: `${import.meta.env.BASE_URL}figures/fig_detection.png`,
-  regime: `${import.meta.env.BASE_URL}figures/fig_regime.png`,
+  speedup: `${basePath}/figures/fig_speedup.png`,
+  detection: `${basePath}/figures/fig_detection.png`,
+  regime: `${basePath}/figures/fig_regime.png`,
 };
 const citation = `@inproceedings{yildirim2026agentstage,
   title = {AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents},
