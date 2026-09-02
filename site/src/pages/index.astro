@@ -1,0 +1,119 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const repo = 'https://github.com/izzet/agentstage';
+const citation = `@inproceedings{yildirim2026agentstage,
+  title = {AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents},
+  author = {Yildirim, Izzet and Sun, Xian-He and Kougkas, Anthony},
+  booktitle = {IEEE International Conference on e-Science},
+  year = {2026}
+}`;
+---
+
+<BaseLayout
+  title="AgentStage — Data staging for scientific agents"
+  description="AgentStage turns LLM thinking time into a data-staging window for scientific agents."
+>
+  <header class="topbar">
+    <a class="wordmark" href="#top" aria-label="AgentStage home">AGENTSTAGE</a>
+    <nav aria-label="Section navigation">
+      <a href="#system">System</a>
+      <a href="#results">Results</a>
+      <a href="#reproducibility">Reproducibility</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero section-shell">
+      <p class="eyebrow">IEEE eScience 2026 · Accepted</p>
+      <h1>Turn LLM thinking time into a <em>data-staging window.</em></h1>
+      <p class="hero-copy">
+        AgentStage infers an agent’s next reads from streaming reasoning and
+        filesystem probes, then stages data to local storage before the next tool call.
+      </p>
+      <p class="authors">Izzet Yildirim · Xian-He Sun · Anthony Kougkas</p>
+      <p class="affiliation">Illinois Institute of Technology</p>
+      <div class="actions">
+        <a class="button button-primary" href={repo}>View source code <span aria-hidden="true">↗</span></a>
+        <a class="button" href="#citation">Citation</a>
+      </div>
+      <p class="availability-note">The accepted manuscript will be linked here when it is cleared for public release.</p>
+    </section>
+
+    <section class="window section-shell" aria-labelledby="window-title">
+      <div class="section-intro">
+        <p class="eyebrow">The opportunity</p>
+        <h2 id="window-title">Thinking is idle storage time.</h2>
+        <p>Before a scientific agent calls a tool, it plans what to inspect next. Storage is idle during that reasoning interval, even though the plan already reveals the files the tool will need.</p>
+      </div>
+      <div class="timeline" aria-label="AgentStage overlaps data staging with the LLM thinking phase">
+        <div class="timeline-row"><span>Agent</span><div class="thinking"><b>Thinking phase</b><small>streaming intent + filesystem probes</small></div><div class="tool"><b>Tool phase</b><small>cold reads and compute</small></div></div>
+        <div class="timeline-row"><span>Storage</span><div class="staging"><b>AgentStage stages the next working set</b><small>cold tier → local hot tier</small></div><div class="hot"><b>Reads land hot</b></div></div>
+      </div>
+    </section>
+
+    <section class="metrics section-shell" aria-label="Headline results">
+      <article><strong>1.74×</strong><span>average end-to-end speedup<br />on curated scientific tasks</span></article>
+      <article><strong>2.34×</strong><span>best per-run speedup<br />across four reasoning models</span></article>
+      <article><strong>1.36×</strong><span>best community-benchmark speedup<br />without per-task tuning</span></article>
+    </section>
+
+    <section class="system section-shell" id="system" aria-labelledby="system-title">
+      <div class="section-intro">
+        <p class="eyebrow">The system</p>
+        <h2 id="system-title">A small runtime across two phases.</h2>
+        <p>AgentStage uses the signals an agent already produces, then makes staged data transparent to the tool process.</p>
+      </div>
+      <ol class="system-flow">
+        <li><span>01</span><h3>Capture</h3><p>A drop-in streaming client observes reasoning deltas without changing the agent interface.</p></li>
+        <li><span>02</span><h3>Infer</h3><p>A tiered detector maps partial intent and probe results to a compact candidate working set.</p></li>
+        <li><span>03</span><h3>Stage</h3><p>A background daemon copies, decompresses, and co-stages companion indices into hot storage.</p></li>
+        <li><span>04</span><h3>Redirect</h3><p>An <code>LD_PRELOAD</code> shim routes the tool’s reads to the ready local copy.</p></li>
+      </ol>
+    </section>
+
+    <section class="results section-shell" id="results" aria-labelledby="results-title">
+      <div class="section-intro wide-intro">
+        <p class="eyebrow">Evidence</p>
+        <h2 id="results-title">Performance follows the structure of the workload.</h2>
+        <p>The evaluation fixes each agent trajectory and varies only cold versus staged execution. That isolates the benefit of thinking-phase staging from model variance.</p>
+      </div>
+      <div class="figure-grid">
+        <figure class="figure figure-featured">
+          <img src="figures/fig_speedup.png" alt="End-to-end speedup results across AgentStage workloads" />
+          <figcaption><span>End-to-end impact</span> Curated tasks average 1.74× faster; the mechanism remains effective across closed- and open-weight reasoning models.</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="figures/fig_detection.png" alt="File working-set detection results" />
+          <figcaption><span>Working-set inference</span> Streaming intent plus probe refinement recovers the files agents will read without hand-written task rules.</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="figures/fig_regime.png" alt="Relationship between I/O share and observed speedup" />
+          <figcaption><span>When it pays off</span> The gain can be predicted from cold-read share and whether prefetch completes in the thinking window.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="repro section-shell" id="reproducibility" aria-labelledby="repro-title">
+      <div>
+        <p class="eyebrow">Reproducibility</p>
+        <h2 id="repro-title">Built to be inspected.</h2>
+      </div>
+      <div class="repro-copy">
+        <p>The repository includes the AgentStage runtime, unit tests, claim-verification suite, committed evaluation summaries, and figure builders. Large run artifacts and datasets are intentionally not part of the site.</p>
+        <a class="text-link" href={repo}>Explore the repository <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+
+    <section class="citation section-shell" id="citation" aria-labelledby="citation-title">
+      <p class="eyebrow">Citation</p>
+      <h2 id="citation-title">AgentStage</h2>
+      <pre><code>{citation}</code></pre>
+    </section>
+  </main>
+
+  <footer class="footer section-shell">
+    <span>AgentStage · Illinois Institute of Technology</span>
+    <a href={repo}>GitHub ↗</a>
+  </footer>
+</BaseLayout>
