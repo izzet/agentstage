@@ -1,0 +1,16 @@
+<svg class="chart-svg" viewBox="0 0 620 286" role="img" aria-labelledby="regime-chart-title regime-chart-desc">
+  <title id="regime-chart-title">The two conditions that predict when AgentStage helps</title>
+  <desc id="regime-chart-desc">A workload benefits most when cold I/O is a large share of its session and staging finishes before the tool fires.</desc>
+  <text x="72" y="24" class="chart-note">LOW I/O SHARE</text><text x="437" y="24" class="chart-note">HIGH I/O SHARE</text>
+  <line x1="76" y1="230" x2="570" y2="230" class="chart-axis" />
+  <line x1="76" y1="230" x2="76" y2="50" class="chart-axis" />
+  <text x="323" y="272" text-anchor="middle" class="chart-note">COLD-READ SHARE OF SESSION WALL TIME</text>
+  <text x="24" y="143" text-anchor="middle" transform="rotate(-90 24 143)" class="chart-note">PREFETCH FINISHES WITHIN THINKING WINDOW</text>
+  <rect x="76" y="50" width="494" height="180" fill="#f5f8f7" />
+  <path d="M76 230 L570 50 L570 230 Z" fill="#e8f4ef" />
+  <line x1="76" y1="230" x2="570" y2="50" stroke="#83918c" stroke-dasharray="5 5" />
+  <circle cx="144" cy="206" r="10" fill="#9aa49f" /><text x="160" y="201" class="chart-label">Compute-bound</text><text x="160" y="219" class="chart-small">~1.03× ceiling</text>
+  <rect x="372" y="174" width="18" height="18" rx="2" fill="#d89024" /><text x="404" y="169" class="chart-label">Metadata-bound</text><text x="404" y="187" class="chart-small">high I/O, misses deadline</text>
+  <circle cx="479" cy="96" r="11" fill="#1c8b74" /><text x="350" y="91" class="chart-label">Bandwidth-bound</text><text x="350" y="109" class="chart-small">1.74× average, prefetch completes</text>
+  <text x="84" y="45" class="chart-small">yes</text><text x="84" y="246" class="chart-small">no</text>
+</svg>
