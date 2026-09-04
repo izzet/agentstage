@@ -6,20 +6,21 @@ const scale = 4.55;
 const thinkingWidth = thinking * scale;
 const baselineToolWidth = baselineTool * scale;
 const stagedToolWidth = stagedTool * scale;
+const illustrativeStagingWidth = thinkingWidth * 0.68;
 const start = 134;
 const naiveEnd = start + thinkingWidth + baselineToolWidth;
 const stagedEnd = start + thinkingWidth + stagedToolWidth;
 const hiddenTimeMidpoint = stagedEnd + (naiveEnd - stagedEnd) / 2;
 ---
 
-<svg class="chart-svg" viewBox="0 0 620 286" role="img" aria-labelledby="timeline-chart-title timeline-chart-desc">
+<svg class="chart-svg" viewBox="0 0 620 330" role="img" aria-labelledby="timeline-chart-title timeline-chart-desc">
   <title id="timeline-chart-title">Session wall-time decomposition with and without AgentStage</title>
   <desc id="timeline-chart-desc">A representative curated session takes 92.43 seconds without AgentStage and 51.64 seconds with it. The 29.55 second thinking phase stays constant while tool time drops from 62.88 to 22.09 seconds.</desc>
   <text x="86" y="26" class="chart-note">REPRESENTATIVE CURATED SESSION · WALL TIME</text>
-  <line x1="134" y1="232" x2="570" y2="232" class="chart-axis" />
-  <text x="134" y="251" text-anchor="middle">0 s</text>
-  <text x="361.5" y="251" text-anchor="middle">50 s</text>
-  <text x="552.5" y="251" text-anchor="middle">92 s</text>
+  <line x1="134" y1="274" x2="570" y2="274" class="chart-axis" />
+  <text x="134" y="293" text-anchor="middle">0 s</text>
+  <text x="361.5" y="293" text-anchor="middle">50 s</text>
+  <text x="552.5" y="293" text-anchor="middle">92 s</text>
   <text x="22" y="96" class="chart-label">Naive</text>
   <text x="22" y="170" class="chart-label">AgentStage</text>
   <rect x={start} y="65" width={thinkingWidth} height="48" rx="3" fill="#dfe5eb" />
@@ -30,13 +31,18 @@ const hiddenTimeMidpoint = stagedEnd + (naiveEnd - stagedEnd) / 2;
   <text x={start + thinkingWidth / 2} y="103" text-anchor="middle" class="chart-segment">29.55 s</text>
   <text x={start + thinkingWidth + baselineToolWidth / 2} y="86" text-anchor="middle" class="chart-segment chart-segment-light">Tool</text>
   <text x={start + thinkingWidth + baselineToolWidth / 2} y="103" text-anchor="middle" class="chart-segment chart-segment-light">62.88 s</text>
-  <text x={start + thinkingWidth / 2} y="156" text-anchor="middle" class="chart-segment">Thinking phase · 29.55 s</text>
-  <rect x={start + 12} y="166" width={thinkingWidth - 24} height="7" rx="3.5" fill="#1c8b74" />
-  <text x={start + thinkingWidth / 2} y="187" text-anchor="middle" class="chart-staging">background staging overlaps thinking</text>
+  <text x={start + thinkingWidth / 2} y="163" text-anchor="middle" class="chart-segment">Thinking</text>
+  <text x={start + thinkingWidth / 2} y="180" text-anchor="middle" class="chart-segment">29.55 s</text>
   <text x={start + thinkingWidth + stagedToolWidth / 2} y="156" text-anchor="middle" class="chart-segment chart-segment-light">Tool</text>
   <text x={start + thinkingWidth + stagedToolWidth / 2} y="177" text-anchor="middle" class="chart-segment chart-segment-light">22.09 s</text>
   <text x={naiveEnd + 9} y="93" class="chart-value">92.43 s</text>
   <text x={stagedEnd + 9} y="169" class="chart-value">51.64 s</text>
+  <text x="22" y="225" class="chart-label">Staging</text>
+  <rect x={start + 12} y="208" width={illustrativeStagingWidth} height="24" rx="3" fill="#1c8b74" />
+  <path d={`M${start + 12 + illustrativeStagingWidth} 220 h18`} fill="none" stroke="#1c8b74" stroke-width="2" />
+  <path d={`M${start + 30 + illustrativeStagingWidth} 215 l6 5 -6 5`} fill="none" stroke="#1c8b74" stroke-width="2" />
+  <text x={start + 12 + illustrativeStagingWidth / 2} y="225" text-anchor="middle" class="chart-segment chart-segment-light">background staging</text>
+  <text x={start + 12 + illustrativeStagingWidth + 42} y="225" class="chart-staging">ready before tool fire</text>
   <path d={`M${stagedEnd} 124 v-10 h${naiveEnd - stagedEnd} v10`} fill="none" stroke="#1c8b74" stroke-width="1.5" />
   <text x={hiddenTimeMidpoint} y="137" text-anchor="middle" class="chart-staging">40.79 s of tool-path time hidden</text>
 </svg>
