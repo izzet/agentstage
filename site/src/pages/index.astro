@@ -39,7 +39,7 @@ const citation = `@inproceedings{yildirim2026agentstage,
       <div class="chart-stack">
         <article class="chart-card"><h3>End-to-end speedup</h3><SpeedupChart /><p>Mean speedup over three curated scientific tasks. Values are computed from three replayed sessions per task and model.</p></article>
         <article class="chart-card"><h3>Working-set detection</h3><DetectionChart /><p>Mean tier-1 byte recall across curated sessions. The detector combines partial intent in the reasoning stream with filesystem-probe feedback.</p></article>
-        <article class="chart-card"><h3>Where the time goes</h3><SessionTimelineChart /><p>The thinking interval stays fixed. Background staging finishes before tool fire and cuts the following tool phase by 40.79 seconds in this representative curated session. The staging lane is schematic, not a duration measurement.</p></article>
+        <article class="chart-card"><h3>Where the time goes</h3><SessionTimelineChart /><p>The thinking interval stays fixed. Detection begins with the reasoning stream and dispatches staging before tool fire, cutting the following tool phase by 40.79 seconds in this representative curated session. The control-path lane is schematic, not a duration measurement.</p></article>
         <article class="chart-card"><h3>When does staging help?</h3><RegimeChart /><p>Benefit depends on cold-read share and whether prefetch completes within the thinking window. These conditions can be estimated before staging.</p></article>
       </div>
     </section>
