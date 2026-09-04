@@ -9,6 +9,50 @@ const repo = 'https://github.com/izzet/agentstage';
 const paperPreview = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/paper-preview.png`;
 const canonicalUrl = 'https://izzet.github.io/agentstage/';
 const socialImage = 'https://izzet.github.io/agentstage/images/agentstage-social-card.png';
+const paperTitle = 'AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents';
+const description = 'AgentStage exploits LLM thinking time to stage scientific data before the next tool call.';
+const authors = [
+  { name: 'Izzet Yildirim', url: 'https://github.com/izzet', sameAs: ['https://github.com/izzet', 'https://orcid.org/0000-0003-3513-0764'] },
+  { name: 'Xian-He Sun', url: 'https://orcid.org/0000-0002-1093-0792', sameAs: ['https://orcid.org/0000-0002-1093-0792'] },
+  { name: 'Anthony Kougkas', url: 'https://orcid.org/0000-0003-3943-663X', sameAs: ['https://orcid.org/0000-0003-3943-663X'] },
+].map((author) => ({
+  '@type': 'Person',
+  ...author,
+  affiliation: { '@type': 'Organization', name: 'Illinois Institute of Technology' },
+}));
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'ScholarlyArticle',
+      '@id': `${canonicalUrl}#article`,
+      url: canonicalUrl,
+      headline: paperTitle,
+      name: paperTitle,
+      description,
+      abstract: description,
+      author: authors,
+      inLanguage: 'en',
+      keywords: ['LLM agents', 'LLM thinking', 'scientific tasks', 'data staging', 'prefetch', 'HPC I/O', 'tiered storage'],
+      isPartOf: { '@type': 'Event', name: 'IEEE eScience 2026' },
+      mainEntityOfPage: canonicalUrl,
+      about: { '@id': `${canonicalUrl}#software` },
+    },
+    {
+      '@type': 'SoftwareSourceCode',
+      '@id': `${canonicalUrl}#software`,
+      name: 'AgentStage',
+      description,
+      url: repo,
+      codeRepository: repo,
+      license: 'https://github.com/izzet/agentstage/blob/main/LICENSE',
+      programmingLanguage: ['Python', 'C'],
+      runtimePlatform: 'Linux',
+      author: authors,
+      subjectOf: { '@id': `${canonicalUrl}#article` },
+    },
+  ],
+};
 const citation = `@inproceedings{yildirim2026agentstage,
   title = {AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents},
   author = {Yildirim, Izzet and Sun, Xian-He and Kougkas, Anthony},
@@ -17,7 +61,8 @@ const citation = `@inproceedings{yildirim2026agentstage,
 }`;
 ---
 
-<BaseLayout title="AgentStage: Data staging for scientific agents" description="AgentStage exploits LLM thinking time to stage scientific data before the next tool call." {canonicalUrl} {socialImage}>
+<BaseLayout title={paperTitle} {description} {canonicalUrl} {socialImage}>
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   <main>
     <section class="hero"><div class="container">
       <div class="paper-preview-section" aria-label="Accepted manuscript preview">
