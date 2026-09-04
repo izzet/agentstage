@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title>AgentStage</title>
+  <rect width="256" height="256" rx="52" fill="#fff"/>
+  <rect x="25" y="67" width="132" height="54" rx="9" fill="#82a9d6"/>
+  <rect x="157" y="67" width="74" height="54" rx="9" fill="#f0b467"/>
+  <rect x="25" y="135" width="66" height="54" rx="9" fill="#a77bb8"/>
+  <rect x="91" y="135" width="66" height="54" rx="9" fill="#64a884"/>
+</svg>
