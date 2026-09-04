@@ -25,8 +25,8 @@ const hiddenTimeMidpoint = stagedEnd + (naiveEnd - stagedEnd) / 2;
   <text x="22" y="170" class="chart-label">AgentStage</text>
   <rect x={start} y="65" width={thinkingWidth} height="48" rx="3" fill="#dfe5eb" />
   <rect x={start + thinkingWidth} y="65" width={baselineToolWidth} height="48" rx="3" fill="#315efb" />
-  <rect x={start} y="135" width={thinkingWidth} height="60" rx="3" fill="#dfe5eb" />
-  <rect x={start + thinkingWidth} y="135" width={stagedToolWidth} height="60" rx="3" fill="#1c8b74" />
+  <rect x={start} y="141" width={thinkingWidth} height="48" rx="3" fill="#dfe5eb" />
+  <rect x={start + thinkingWidth} y="141" width={stagedToolWidth} height="48" rx="3" fill="#315efb" />
   <text x={start + thinkingWidth / 2} y="86" text-anchor="middle" class="chart-segment">Thinking</text>
   <text x={start + thinkingWidth / 2} y="103" text-anchor="middle" class="chart-segment">29.55 s</text>
   <text x={start + thinkingWidth + baselineToolWidth / 2} y="86" text-anchor="middle" class="chart-segment chart-segment-light">Tool</text>
@@ -37,7 +37,6 @@ const hiddenTimeMidpoint = stagedEnd + (naiveEnd - stagedEnd) / 2;
   <text x={start + thinkingWidth + stagedToolWidth / 2} y="177" text-anchor="middle" class="chart-segment chart-segment-light">22.09 s</text>
   <text x={naiveEnd + 9} y="93" class="chart-value">92.43 s</text>
   <text x={stagedEnd + 9} y="169" class="chart-value">51.64 s</text>
-  <text x="22" y="225" class="chart-label">Staging</text>
   <rect x={start + 12} y="208" width={illustrativeStagingWidth} height="24" rx="3" fill="#1c8b74" />
   <path d={`M${start + 12 + illustrativeStagingWidth} 220 h18`} fill="none" stroke="#1c8b74" stroke-width="2" />
   <path d={`M${start + 30 + illustrativeStagingWidth} 215 l6 5 -6 5`} fill="none" stroke="#1c8b74" stroke-width="2" />
