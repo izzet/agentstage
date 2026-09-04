@@ -1,0 +1,106 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DetectionChart from '../components/DetectionChart.astro';
+import RegimeChart from '../components/RegimeChart.astro';
+import SessionTimelineChart from '../components/SessionTimelineChart.astro';
+import SpeedupChart from '../components/SpeedupChart.astro';
+
+const repo = 'https://github.com/izzet/agentstage';
+const paperPreview = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/paper-preview.png`;
+const canonicalUrl = 'https://izzet.github.io/agentstage/';
+const socialImage = 'https://izzet.github.io/agentstage/images/agentstage-social-card.png';
+const paperTitle = 'AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents';
+const description = 'AgentStage exploits LLM thinking time to stage scientific data before the next tool call.';
+const authors = [
+  { name: 'Izzet Yildirim', url: 'https://github.com/izzet', sameAs: ['https://github.com/izzet', 'https://orcid.org/0000-0003-3513-0764'] },
+  { name: 'Xian-He Sun', url: 'https://orcid.org/0000-0002-1093-0792', sameAs: ['https://orcid.org/0000-0002-1093-0792'] },
+  { name: 'Anthony Kougkas', url: 'https://orcid.org/0000-0003-3943-663X', sameAs: ['https://orcid.org/0000-0003-3943-663X'] },
+].map((author) => ({
+  '@type': 'Person',
+  ...author,
+  affiliation: { '@type': 'Organization', name: 'Illinois Institute of Technology' },
+}));
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'ScholarlyArticle',
+      '@id': `${canonicalUrl}#article`,
+      url: canonicalUrl,
+      headline: paperTitle,
+      name: paperTitle,
+      description,
+      abstract: description,
+      author: authors,
+      inLanguage: 'en',
+      keywords: ['LLM agents', 'LLM thinking', 'scientific tasks', 'data staging', 'prefetch', 'HPC I/O', 'tiered storage'],
+      isPartOf: { '@type': 'Event', name: 'IEEE eScience 2026' },
+      mainEntityOfPage: canonicalUrl,
+      about: { '@id': `${canonicalUrl}#software` },
+    },
+    {
+      '@type': 'SoftwareSourceCode',
+      '@id': `${canonicalUrl}#software`,
+      name: 'AgentStage',
+      description,
+      url: repo,
+      codeRepository: repo,
+      license: 'https://github.com/izzet/agentstage/blob/main/LICENSE',
+      programmingLanguage: ['Python', 'C'],
+      runtimePlatform: 'Linux',
+      author: authors,
+      subjectOf: { '@id': `${canonicalUrl}#article` },
+    },
+  ],
+};
+const citation = `@inproceedings{yildirim2026agentstage,
+  title = {AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents},
+  author = {Yildirim, Izzet and Sun, Xian-He and Kougkas, Anthony},
+  booktitle = {IEEE International Conference on e-Science},
+  year = {2026}
+}`;
+---
+
+<BaseLayout title={paperTitle} {description} {canonicalUrl} {socialImage}>
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+  <main>
+    <section class="hero"><div class="container">
+      <div class="paper-preview-section" aria-label="Accepted manuscript preview">
+        <div class="paper-preview">
+          <img src={paperPreview} alt="Upper portion of the AgentStage accepted manuscript, showing its title, authors, and abstract." />
+        </div>
+      </div>
+      <h1>AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents</h1>
+      <p class="authors"><a href="https://github.com/izzet">Izzet Yildirim</a><sup>1</sup> &nbsp; <a href="https://orcid.org/0000-0002-1093-0792">Xian-He Sun</a><sup>1</sup> &nbsp; <a href="https://orcid.org/0000-0003-3943-663X">Anthony Kougkas</a><sup>1</sup></p>
+      <p class="affiliation"><sup>1</sup>Illinois Institute of Technology</p><p class="venue">IEEE eScience 2026 · Accepted</p>
+      <div class="links"><span class="link-disabled">Paper <small>coming soon</small></span><a href={repo}>Code</a><a href="#citation">BibTeX</a></div>
+    </div></section>
+
+    <section class="container abstract-section"><h2>Abstract</h2>
+      <p>Scientific LLM agents spend much of a session inside tool calls reading data from storage. AgentStage uses the preceding thinking phase as a prefetch window: it reads streaming reasoning and filesystem probes to infer the next working set, stages files into local storage, and redirects tool reads to the hot copy when the tool fires.</p>
+      <p>Across curated scientific tasks and community benchmarks, AgentStage delivers an average <strong>1.74×</strong> end-to-end speedup on curated tasks (up to <strong>2.34×</strong> per run), with no per-model or per-task tuning.</p>
+    </section>
+
+    <section class="section section-tint"><div class="container narrow"><h2>Overview</h2>
+      <p class="lead">The agent’s plan surfaces before its next tool call. AgentStage turns that idle storage interval into useful work.</p>
+      <div class="overview-flow" aria-label="AgentStage system overview"><div><b>LLM thinking</b><span>stream reasoning</span></div><i aria-hidden="true">→</i><div><b>Detect intent</b><span>match files and probes</span></div><i aria-hidden="true">→</i><div><b>Stage data</b><span>copy cold to hot storage</span></div><i aria-hidden="true">→</i><div><b>Tool reads hot</b><span>transparent path redirect</span></div></div>
+      <p class="caption">The capture proxy, tiered detector, and staging daemon run during the thinking phase. An <code>LD_PRELOAD</code> shim redirects reads only after the tool fires.</p>
+    </div></section>
+
+    <section class="section container" id="results"><h2>Results</h2>
+      <p class="lead">AgentStage improves end-to-end sessions across different reasoning models and explains when staging will help before it runs.</p>
+      <div class="chart-stack">
+        <article class="chart-card"><h3>End-to-end speedup</h3><SpeedupChart /><p>Mean speedup over three curated scientific tasks. Values are computed from three replayed sessions per task and model.</p></article>
+        <article class="chart-card"><h3>Working-set detection</h3><DetectionChart /><p>Mean tier-1 byte recall across curated sessions. The detector combines partial intent in the reasoning stream with filesystem-probe feedback.</p></article>
+        <article class="chart-card"><h3>Where the time goes</h3><SessionTimelineChart /><p>The thinking interval stays fixed. Detection begins with the reasoning stream and dispatches staging to local hot storage before tool fire.</p></article>
+        <article class="chart-card"><h3>When does staging help?</h3><RegimeChart /><p>Benefit depends on cold-read share and whether prefetch completes within the thinking window. These conditions can be estimated before staging.</p></article>
+      </div>
+    </section>
+
+    <section class="section section-tint"><div class="container narrow"><h2>Reproducibility</h2>
+      <p>The public repository contains the AgentStage runtime, unit tests, claim-verification suite, and the figure-building pipeline. Raw run artifacts and datasets are not deployed with this site.</p><p><a class="button" href={repo}>View code on GitHub</a></p>
+    </div></section>
+    <section class="section container narrow citation" id="citation"><h2>BibTeX</h2><pre><code>{citation}</code></pre></section>
+  </main>
+  <footer><div class="container">AgentStage · Illinois Institute of Technology · <a href={repo}>GitHub</a></div></footer>
+</BaseLayout>

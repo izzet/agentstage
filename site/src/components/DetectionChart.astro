@@ -1,0 +1,29 @@
+---
+const models = [
+  { label: 'Haiku', value: 95.2, color: '#315efb' },
+  { label: 'Sonnet', value: 99.0, color: '#7487d8' },
+  { label: 'Flash', value: 73.8, color: '#1c8b74' },
+  { label: 'Qwen3', value: 100, color: '#d89024' },
+];
+---
+
+<svg class="chart-svg" viewBox="0 0 620 286" role="img" aria-labelledby="detection-chart-title detection-chart-desc">
+  <title id="detection-chart-title">Tier-1 byte recall by reasoning model</title>
+  <desc id="detection-chart-desc">Across the curated evaluation sessions, AgentStage achieves 74 to 100 percent mean tier-1 byte recall depending on model.</desc>
+  <text x="48" y="25" class="chart-note">MEAN TIER-1 BYTE RECALL · CURATED SESSIONS</text>
+  <line x1="175" y1="48" x2="175" y2="232" class="chart-axis" />
+  <line x1="375" y1="48" x2="375" y2="232" class="chart-grid" />
+  <line x1="575" y1="48" x2="575" y2="232" class="chart-grid" />
+  <text x="175" y="252" text-anchor="middle">0%</text><text x="375" y="252" text-anchor="middle">50%</text><text x="575" y="252" text-anchor="middle">100%</text>
+  {models.map((model, index) => {
+    const y = 70 + index * 42;
+    const x = 175 + model.value * 4;
+    return <g>
+      <text x="48" y={y + 5} class="chart-label">{model.label}</text>
+      <line x1="175" y1={y} x2="575" y2={y} class="chart-track" />
+      <line x1="175" y1={y} x2={x} y2={y} stroke={model.color} stroke-width="8" stroke-linecap="round" />
+      <circle cx={x} cy={y} r="7" fill={model.color} />
+      <text x={Math.min(x + 14, 580)} y={y + 5} class="chart-value">{model.value.toFixed(model.value % 1 === 0 ? 0 : 1)}%</text>
+    </g>;
+  })}
+</svg>
