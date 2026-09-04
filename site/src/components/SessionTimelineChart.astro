@@ -19,29 +19,30 @@ const hiddenTimeMidpoint = stagedEnd + (naiveEnd - stagedEnd) / 2;
   <title id="timeline-chart-title">Session wall-time decomposition with and without AgentStage</title>
   <desc id="timeline-chart-desc">A representative curated session takes 92.43 seconds without AgentStage and 51.64 seconds with it. The 29.55 second thinking phase stays constant while tool time drops from 62.88 to 22.09 seconds. The control path is schematic: detection starts with thinking and dispatches staging before tool fire.</desc>
   <text x="86" y="26" class="chart-note">REPRESENTATIVE CURATED SESSION · WALL TIME</text>
-  <line x1="134" y1="242" x2="570" y2="242" class="chart-axis" />
-  <text x="134" y="261" text-anchor="middle">0 s</text>
-  <text x="361.5" y="261" text-anchor="middle">50 s</text>
-  <text x="552.5" y="261" text-anchor="middle">92 s</text>
+  <line x1="134" y1="222" x2="570" y2="222" class="chart-axis" />
+  <text x="134" y="241" text-anchor="middle">0 s</text>
+  <text x="361.5" y="241" text-anchor="middle">50 s</text>
+  <text x="552.5" y="241" text-anchor="middle">92 s</text>
   <text x="22" y="71" class="chart-label">Naive</text>
-  <text x="22" y="130" class="chart-label">AgentStage</text>
+  <text x="22" y="136" class="chart-label">AgentStage</text>
   <rect x={start} y="48" width={thinkingWidth} height="38" rx="3" fill="#82a9d6" />
   <rect x={start + thinkingWidth} y="48" width={baselineToolWidth} height="38" rx="3" fill="#f0b467" />
-  <rect x={start} y="107" width={thinkingWidth} height="38" rx="3" fill="#82a9d6" />
-  <rect x={start + thinkingWidth} y="107" width={stagedToolWidth} height="38" rx="3" fill="#f0b467" />
+  <rect x={start} y="113" width={thinkingWidth} height="38" rx="3" fill="#82a9d6" />
+  <rect x={start + thinkingWidth} y="113" width={stagedToolWidth} height="38" rx="3" fill="#f0b467" />
   <text x={start + thinkingWidth / 2} y="64" text-anchor="middle" class="chart-segment">Thinking</text>
   <text x={start + thinkingWidth / 2} y="78" text-anchor="middle" class="chart-segment">29.55 s</text>
   <text x={start + thinkingWidth + baselineToolWidth / 2} y="64" text-anchor="middle" class="chart-segment">Tool</text>
   <text x={start + thinkingWidth + baselineToolWidth / 2} y="78" text-anchor="middle" class="chart-segment">62.88 s</text>
-  <text x={start + thinkingWidth / 2} y="123" text-anchor="middle" class="chart-segment">Thinking</text>
-  <text x={start + thinkingWidth / 2} y="137" text-anchor="middle" class="chart-segment">29.55 s</text>
-  <text x={start + thinkingWidth + stagedToolWidth / 2} y="123" text-anchor="middle" class="chart-segment">Tool</text>
-  <text x={start + thinkingWidth + stagedToolWidth / 2} y="137" text-anchor="middle" class="chart-segment">22.09 s</text>
+  <text x={start + thinkingWidth / 2} y="129" text-anchor="middle" class="chart-segment">Thinking</text>
+  <text x={start + thinkingWidth / 2} y="143" text-anchor="middle" class="chart-segment">29.55 s</text>
+  <text x={start + thinkingWidth + stagedToolWidth / 2} y="129" text-anchor="middle" class="chart-segment">Tool</text>
+  <text x={start + thinkingWidth + stagedToolWidth / 2} y="143" text-anchor="middle" class="chart-segment">22.09 s</text>
   <text x={naiveEnd + 9} y="71" class="chart-value">92.43 s</text>
-  <text x={stagedEnd + 9} y="130" class="chart-value">51.64 s</text>
-  <rect x={start} y="145" width={detectionWidth} height="38" rx="3" fill="#a77bb8" />
-  <rect x={stagingStart} y="145" width={stagingWidth} height="38" rx="3" fill="#64a884" />
-  <text x={start + detectionWidth / 2} y="168" text-anchor="middle" class="chart-segment">Detection</text>
-  <text x={stagingStart + stagingWidth / 2} y="168" text-anchor="middle" class="chart-segment">Staging</text>
-  <text x={hiddenTimeMidpoint} y="100" text-anchor="middle" class="chart-staging">40.79 s of tool-path time saved</text>
+  <text x={stagedEnd + 9} y="136" class="chart-value">51.64 s</text>
+  <rect x={start} y="151" width={detectionWidth} height="38" rx="3" fill="#a77bb8" />
+  <rect x={stagingStart} y="151" width={stagingWidth} height="38" rx="3" fill="#64a884" />
+  <text x={start + detectionWidth / 2} y="174" text-anchor="middle" class="chart-segment">Detection</text>
+  <text x={stagingStart + stagingWidth / 2} y="174" text-anchor="middle" class="chart-segment">Staging</text>
+  <path d={`M${stagedEnd} 108 v-8 h${naiveEnd - stagedEnd} v8`} fill="none" stroke="#14715e" stroke-width="1.5" />
+  <text x={hiddenTimeMidpoint} y="98" text-anchor="middle" class="chart-staging">40.79 s of tool-path time saved</text>
 </svg>
