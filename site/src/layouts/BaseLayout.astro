@@ -9,7 +9,11 @@ interface Props {
 }
 
 const { title, description, canonicalUrl, socialImage } = Astro.props;
-const faviconUrl = new URL('favicon.svg', Astro.url).pathname;
+const assetUrl = (filename: string) => new URL(filename, Astro.url).pathname;
+const faviconUrl = assetUrl('favicon.svg');
+const faviconPngUrl = assetUrl('favicon-32.png');
+const faviconIcoUrl = assetUrl('favicon.ico');
+const appleTouchIconUrl = assetUrl('apple-touch-icon.png');
 ---
 
 <!doctype html>
@@ -20,7 +24,10 @@ const faviconUrl = new URL('favicon.svg', Astro.url).pathname;
     <meta name="description" content={description} />
     <meta name="google-site-verification" content="xOAsL7kCK8dOoM2HfkWJWEI5kKUsRb97HRnRJ6P45cw" />
     <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/x-icon" href={faviconIcoUrl} sizes="any" />
+    <link rel="icon" type="image/png" href={faviconPngUrl} sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href={faviconUrl} />
+    <link rel="apple-touch-icon" href={appleTouchIconUrl} sizes="180x180" />
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="AgentStage" />
