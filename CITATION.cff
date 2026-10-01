@@ -4,6 +4,7 @@ title: "AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agent
 version: 0.1.0
 abstract: "Streaming-intent-driven tiered data staging for scientific LLM agents."
 license: MIT
+doi: "10.1109/eScience70237.2026.00040"
 url: https://github.com/izzet/agentstage
 repository-code: https://github.com/izzet/agentstage
 contact:
@@ -34,8 +35,13 @@ preferred-citation:
       given-names: Anthony
       orcid: https://orcid.org/0000-0003-3943-663X
   conference:
-    name: "eScience'26: 2026 IEEE 22nd International Conference on e-Science"
+    name: "2026 IEEE International Conference on eScience (eScience)"
     city: Naples
     country: IT
     date-start: 2026-09-28
     date-end: 2026-10-02
+  doi: "10.1109/eScience70237.2026.00040"
+  start: 271
+  end: 280
+  publisher:
+    name: "IEEE"
