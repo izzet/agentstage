@@ -43,6 +43,7 @@ Use [`CITATION.cff`](CITATION.cff) to cite this work.
 | `scripts/microbench/` | Measurement and analysis scripts behind the paper's numbers |
 | `scripts/BENCH_TIERS.md` | Storage-tier bandwidth measurements (paper §IV.A) |
 | `external/` | Benchmark and tracing submodules |
+| `website/` | Project landing page and interactive visualization site |
 
 ## Requirements
 

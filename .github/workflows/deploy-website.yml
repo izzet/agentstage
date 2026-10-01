@@ -1,4 +1,4 @@
-name: Deploy project site
+name: Deploy project website
 
 on:
   push:
@@ -25,17 +25,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: website/package-lock.json
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Install dependencies
-        run: npm ci --prefix site
+        run: npm ci --prefix website
       - name: Build site
-        run: npm run build --prefix site
+        run: npm run build --prefix website
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: site/dist
+          path: website/dist
 
   deploy:
     environment:

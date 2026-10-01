@@ -6,13 +6,13 @@ package so the website toolchain does not affect package development.
 ## Local preview
 
 ```bash
-cd site
+cd website
 npm install
 npm run dev
 ```
 
 Use `npm run build` to type-check and create the static production site in
-`site/dist/`.
+`website/dist/`.
 
 ## Release policy
 
