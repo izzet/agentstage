@@ -11,8 +11,8 @@ instead of cold.
 
 > Izzet Yildirim, Xian-He Sun, Anthony Kougkas.
 > **AgentStage: Exploiting LLM Thinking for Data Staging in Scientific Agents.**
-> IEEE International Conference on e-Science (eScience'26), Naples, Italy,
-> 28 September – 2 October 2026.
+> In *2026 IEEE International Conference on eScience (eScience)*, pp. 271–280. Naples, Italy, 28 September – 2 October 2026.
+> DOI: [10.1109/eScience70237.2026.00040](https://doi.org/10.1109/eScience70237.2026.00040)
 
 Across three curated I/O-bearing scientific tasks plus one data-intensive task
 from each of MLE-bench, KramaBench, and DSBench, over four reasoning models,
